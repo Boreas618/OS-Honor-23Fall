@@ -47,10 +47,14 @@ void alloc_test()
                 FAIL("FAIL: page[%d][%d] wrong\n", i, j);
         kfree_page(p[i][j]);
     }
+    printk("Phase 1 passed\n");
     SYNC(2)
+    printk("Phase 2 started\n");
     if (alloc_page_cnt.count != r)
         FAIL("FAIL: alloc_page_cnt %d -> %lld\n", r, alloc_page_cnt.count);
+    printk("Phase 2 passed\n");
     SYNC(3)
+    printk("Phase 3 started\n");
     for (int j = 0; j < 10000;)
     {
         if (j < 1000 || rand() > RAND_MAX / 16 * 7)
@@ -89,6 +93,7 @@ void alloc_test()
                 ((z & 7) == 0 && (q & 7) != 0))
                 FAIL("FAIL: alloc(%d) = %p\n", z, p[i][j]);
             memset(p[i][j], i ^ z, z);
+            printk("\niter: %d cpuid: %d requested: %d\n", j, (int)cpuid(), (int)z);
             j++;
         }
         else
@@ -105,6 +110,7 @@ void alloc_test()
             sz[i][k] = sz[i][j];
         }
     }
+    printk("Phase 3 passed\n");
     SYNC(4)
     if (cpuid() == 0)
     {
@@ -114,9 +120,11 @@ void alloc_test()
                 z += sz[j][k];
         printk("Total: %lld\nUsage: %lld\n", z, alloc_page_cnt.count - r);
     }
+    printk("Phase 4\n");
     SYNC(5)
     for (int j = 0; j < 10000; j++)
         kfree(p[i][j]);
+    printk("Phase 5\n");
     SYNC(6)
     if (cpuid() == 0)
         printk("alloc_test PASS\n");

@@ -14,8 +14,13 @@ void* kalloc(isize);
 void kfree(void*);
 
 typedef struct page {
-    u64* addr;
+    u64 addr;
     u8 base_size;
     u8 flag;
     u32 alloc_fragments_cnt;
 } Page;
+
+typedef struct fragment_node {
+    struct ListNode *prev, *next;
+    Page* page;
+} FragNode;

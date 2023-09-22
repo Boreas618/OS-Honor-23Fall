@@ -23,9 +23,13 @@
 
 #define MAX_BUCKETS 16
 
-#define CONFIG_PAGE_GROUP_NUM 4
-
 #define MAX_PAGES 1048576
+
+u16 _round_up(isize s, u16* rounded_size, u8* bucket_index);
+
+u64 _vaddr_to_id(u64 vaddr);
+
+u64 _alloc_fragment(Page* p);
 
 RefCount alloc_page_cnt;
 
@@ -46,7 +50,7 @@ static QueueNode* pages_free;
 /* The hash map for pages with different maximum sizes of available area.*/
 static ListNode* fragments_free[MAX_BUCKETS];
 
-static SpinLock* page_info_lock;
+//static SpinLock* page_info_lock;
 
 static SpinLock* pages_free_lock;
 
@@ -102,10 +106,10 @@ void* kalloc(isize s) {
   if (s > PAGE_SIZE/2) return kalloc_page();
   
   // Round the requested size to 2^n
-  u16 rounded_size = -1;
-  u8 bucket_index = -1;
+  u16 rounded_size = 0;
+  u8 bucket_index = 0;
   _round_up(s, &rounded_size, &bucket_index);
-  if (rounded_size == -1 || bucket_index == -1 || bucket_index >= MAX_BUCKETS) return NULL;
+  printk("%d rounded up to %d, index is %d\n", (int)s, (int)rounded_size, (int)(bucket_index));
   
   // Try to get the address
   if (fragments_free[bucket_index] == NULL) {
@@ -116,14 +120,21 @@ void* kalloc(isize s) {
     page_info[_vaddr_to_id((u64)page_to_fragment)].base_size = rounded_size;
     page_info[_vaddr_to_id((u64)page_to_fragment)].flag |= PAGE_FRAGMENTED;
 
+    FragNode frag_node;
+    frag_node.page = page_to_fragment;
+
     setup_checker(0);
-    insert_into_list(0, fragments_free_lock, fragments_free[bucket_index], page_to_fragment);
-    
+    printk("\nAdd a bucket to %d, originally %d\n", (int)bucket_index, (int)s);
+    insert_into_list(0, fragments_free_lock, fragments_free[bucket_index], (ListNode*)(&frag_node));
+
     return (void*)_alloc_fragment(page_to_fragment);
   } else {
-
+    ListNode* p_page = fragments_free[bucket_index];
+    while(((FragNode*)p_page)->page->alloc_fragments_cnt >= PAGE_SIZE/(((FragNode*)p_page)->page->base_size)) {
+      p_page = p_page->next;
+    }
+    return (void*)_alloc_fragment(((FragNode*)p_page)->page);
   }
-  
   return NULL;
 }
 
@@ -132,7 +143,7 @@ void kfree(void* p) {
   return;
 }
 
-u16 _round_up(isize* s, u16* rounded_size, u8* bucket_index) {
+u16 _round_up(isize s, u16* rounded_size, u8* bucket_index) {
   if (s == 0) return 0;
   u16 result = 1;
   u8 index = 0;
