@@ -33,6 +33,8 @@ u64 _alloc_fragment(Page* p);
 
 RefCount alloc_page_cnt;
 
+FragNode* _fragment_page(u16 rounded_size);
+
 /*
    memory is divided into pages. During the initialization process of the
    kernel, all the available pages are stored in the pages_free variable. Memory
@@ -50,7 +52,7 @@ static QueueNode* pages_free;
 /* The hash map for pages with different maximum sizes of available area.*/
 static ListNode* fragments_free[MAX_BUCKETS];
 
-//static SpinLock* page_info_lock;
+static SpinLock* page_info_lock;
 
 static SpinLock* pages_free_lock;
 
@@ -78,6 +80,7 @@ define_early_init(pages) {
     page_info[inited_pages].addr = p;
     page_info[inited_pages].base_size = -1;
     page_info[inited_pages].flag = 0;
+    page_info[inited_pages].candidate_idx = 0;
     page_info[inited_pages].alloc_fragments_cnt = 0;
     inited_pages++;
   }
@@ -109,29 +112,27 @@ void* kalloc(isize s) {
   u16 rounded_size = 0;
   u8 bucket_index = 0;
   _round_up(s, &rounded_size, &bucket_index);
-  printk("%d rounded up to %d, index is %d\n", (int)s, (int)rounded_size, (int)(bucket_index));
   
   // Try to get the address
   if (fragments_free[bucket_index] == NULL) {
-    Page *page_to_fragment = (Page *) kalloc_page();
-
-    if (page_to_fragment == NULL) return NULL;
-
-    page_info[_vaddr_to_id((u64)page_to_fragment)].base_size = rounded_size;
-    page_info[_vaddr_to_id((u64)page_to_fragment)].flag |= PAGE_FRAGMENTED;
-
-    FragNode frag_node;
-    frag_node.page = page_to_fragment;
-
+    FragNode* new_fraged = _fragment_page(rounded_size);
     setup_checker(0);
-    printk("\nAdd a bucket to %d, originally %d\n", (int)bucket_index, (int)s);
-    insert_into_list(0, fragments_free_lock, fragments_free[bucket_index], (ListNode*)(&frag_node));
-
-    return (void*)_alloc_fragment(page_to_fragment);
+    acquire_spinlock(0, fragments_free_lock);
+    fragments_free[bucket_index] = (ListNode*)(new_fraged);
+    release_spinlock(0, fragments_free_lock);
+    return (void*)_alloc_fragment(new_fraged->page);
   } else {
     ListNode* p_page = fragments_free[bucket_index];
-    while(((FragNode*)p_page)->page->alloc_fragments_cnt >= PAGE_SIZE/(((FragNode*)p_page)->page->base_size)) {
+    ListNode* head = p_page;
+    // find the abvailable fragmented page
+    while(((FragNode*)p_page)->page->candidate_idx >= PAGE_SIZE/(((FragNode*)p_page)->page->base_size)) {
       p_page = p_page->next;
+      if(p_page == head) {
+        FragNode* new_fraged = _fragment_page(rounded_size);
+        setup_checker(0);
+        merge_list(0, fragments_free_lock, head, (ListNode*)new_fraged);
+        return (void*)_alloc_fragment(new_fraged->page);
+      }
     }
     return (void*)_alloc_fragment(((FragNode*)p_page)->page);
   }
@@ -139,7 +140,14 @@ void* kalloc(isize s) {
 }
 
 void kfree(void* p) {
-  (void)p;
+  u64 id = (u64)((((u64)p) - PAGE_BASE((u64)&end) - PAGE_SIZE) / PAGE_SIZE);
+  setup_checker(0);
+  acquire_spinlock(0, page_info_lock);
+  page_info[id].alloc_fragments_cnt--;
+  if(page_info[id].alloc_fragments_cnt == 0) {
+    kfree_page(page_info[id].frag_node.page);
+  }
+  release_spinlock(0, page_info_lock);
   return;
 }
 
@@ -160,8 +168,32 @@ u64 _vaddr_to_id(u64 vaddr) {
   return (vaddr - PAGE_BASE((u64)&end) - PAGE_SIZE) / PAGE_SIZE;
 }
 
+FragNode* _fragment_page(u16 rounded_size){
+   // fetch a new page which will be fragmented later
+    u64 page_to_fragment = (u64)kalloc_page();
+    if (page_to_fragment == NULL) return NULL;
+
+    // configure the control info of the page
+    u64 id = _vaddr_to_id((u64)page_to_fragment);
+    setup_checker(0);
+    acquire_spinlock(0, page_info_lock);
+    page_info[id].addr = page_to_fragment;
+    page_info[id].base_size = rounded_size;
+    page_info[id].flag |= PAGE_FRAGMENTED;
+    page_info[id].frag_node.page = &(page_info[id]);
+    release_spinlock(0, page_info_lock);
+
+    setup_checker(1);
+    init_list_node((ListNode*)(&(page_info[id].frag_node)));
+    return &(page_info[id].frag_node);
+}
+
 u64 _alloc_fragment(Page* p) {
-  u64 addr_frag = p->addr + (p->alloc_fragments_cnt) * (p->base_size); 
+  u64 addr_frag = p->addr + (p->candidate_idx) * (p->base_size); 
+  setup_checker(0);
+  acquire_spinlock(0, page_info_lock);
+  p->candidate_idx++;
   p->alloc_fragments_cnt++;
+  release_spinlock(0, page_info_lock);
   return addr_frag;
 }
