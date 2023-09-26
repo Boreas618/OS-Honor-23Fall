@@ -54,11 +54,9 @@ static QueueNode* pages_free;
 /* The hash map for pages with different maximum sizes of available area.*/
 static ListNode* fragments_free[MAX_BUCKETS];
 
-static SpinLock* page_info_lock;
+static SpinLock* pages_lock;
 
-static SpinLock* pages_free_lock;
-
-static SpinLock* fragments_free_lock;
+static SpinLock* fragments_lock;
 
 /* The handle for accessing memory area that is ready for allocating.
    We can access to the area by referencing this handle.
@@ -71,8 +69,8 @@ define_early_init(alloc_page_cnt) { init_rc(&alloc_page_cnt); }
 
 /* Initialization routine which starts tracking all of the pages */
 define_early_init(pages) {
-  init_spinlock(pages_free_lock);
-  init_spinlock(fragments_free_lock);
+  init_spinlock(pages_lock);
+  init_spinlock(fragments_lock);
   u64 inited_pages = 0;
 
   for (u64 p = PAGE_BASE((u64)&end) + PAGE_SIZE; p < P2K(PHYSTOP);
@@ -91,22 +89,22 @@ define_early_init(pages) {
 }
 
 void* kalloc_page() {
+  setup_checker(0);
+  acquire_spinlock(0, pages_lock);
   _increment_rc(&alloc_page_cnt);
   _increment_rc(&free_cnt);
-  setup_checker(0);
-  acquire_spinlock(0, pages_free_lock);
   void* page_to_allocate = fetch_from_queue(&pages_free);
-  release_spinlock(0, pages_free_lock);
+  release_spinlock(0, pages_lock);
   return page_to_allocate;
 }
 
 void kfree_page(void* p) {
+  setup_checker(1);
+  acquire_spinlock(1, pages_lock);
   _decrement_rc(&alloc_page_cnt);
   memset(p, 0, (usize)PAGE_SIZE);
-  setup_checker(1);
-  acquire_spinlock(1, pages_free_lock);
   add_to_queue(&pages_free, (QueueNode*)p);
-  release_spinlock(1, pages_free_lock);
+  release_spinlock(1, pages_lock);
 }
 
 void* kalloc(isize s) {
@@ -121,25 +119,20 @@ void* kalloc(isize s) {
   // Try to get the address
   if (fragments_free[bucket_index] == NULL) {
     FragNode* new_fraged = _fragment_page(rounded_size, bucket_index);
-
-    setup_checker(0);
-    acquire_spinlock(0, fragments_free_lock);
     new_fraged->head = 1;
     fragments_free[bucket_index] = (ListNode*)(new_fraged);
-    release_spinlock(0, fragments_free_lock);
     return (void*)_alloc_fragment(new_fraged->page);
   } else {
     ListNode* p_page = fragments_free[bucket_index];
     ListNode* head = p_page;
 
-    while (
-        ((FragNode*)p_page)->page->candidate_idx >=
-        (u32)((PAGE_SIZE / (((FragNode*)p_page)->page->base_size)))) {
+    while (((FragNode*)p_page)->page->candidate_idx >=
+           (u32)((PAGE_SIZE / (((FragNode*)p_page)->page->base_size)))) {
       p_page = p_page->next;
       if (p_page == head) {
         FragNode* new_fraged = _fragment_page(rounded_size, bucket_index);
         setup_checker(0);
-        merge_list(0, fragments_free_lock, head, (ListNode*)new_fraged);
+        merge_list(0, fragments_lock, head, (ListNode*)new_fraged);
         return (void*)_alloc_fragment(new_fraged->page);
       }
     }
@@ -150,28 +143,38 @@ void* kalloc(isize s) {
 
 void kfree(void* p) {
   u64 id = (u64)((((u64)p) - PAGE_BASE((u64)&end) - PAGE_SIZE) / PAGE_SIZE);
+
   setup_checker(0);
-  acquire_spinlock(0, page_info_lock);
+  acquire_spinlock(0, pages_lock);
   (void)((page_info[id].alloc_fragments_cnt > 0) &&
          (page_info[id].alloc_fragments_cnt--));
-  release_spinlock(0, page_info_lock);
+  release_spinlock(0, pages_lock);
+
   if (page_info[id].alloc_fragments_cnt == 0) {
     page_info[id].candidate_idx = 0;
     page_info[id].flag = 0;
     page_info[id].base_size = 0;
-    if(page_info[id].frag_node.head) {
+
+    if (page_info[id].frag_node.head) {
       setup_checker(2);
-      acquire_spinlock(2, fragments_free_lock);
-      if (fragments_free[page_info[id].frag_node.bucket_index] == page_info[id].frag_node.next) {
+      acquire_spinlock(2, fragments_lock);
+      if (fragments_free[page_info[id].frag_node.bucket_index] ==
+          page_info[id].frag_node.next) {
         fragments_free[page_info[id].frag_node.bucket_index] = NULL;
       } else {
-        fragments_free[page_info[id].frag_node.bucket_index] = page_info[id].frag_node.next;
+        fragments_free[page_info[id].frag_node.bucket_index] =
+            page_info[id].frag_node.next;
       }
-      release_spinlock(2, fragments_free_lock);
+      release_spinlock(2, fragments_lock);
+
+      setup_checker(3);
+      acquire_spinlock(3, pages_lock);
       ((FragNode*)(page_info[id].frag_node.next))->head = 1;
+      release_spinlock(3, pages_lock);
     }
+
     setup_checker(1);
-    detach_from_list(1, fragments_free_lock,
+    detach_from_list(1, fragments_lock,
                      (ListNode*)(&(page_info[id].frag_node)));
     kfree_page((void*)(page_info[id].frag_node.page->addr));
   }
@@ -202,26 +205,21 @@ FragNode* _fragment_page(u32 rounded_size, u8 bucket_index) {
 
   // configure the control info of the page
   u64 id = _vaddr_to_id(page_to_fragment);
-  setup_checker(0);
-  acquire_spinlock(0, page_info_lock);
   page_info[id].addr = page_to_fragment;
   page_info[id].base_size = rounded_size;
   page_info[id].flag |= PAGE_FRAGMENTED;
   page_info[id].frag_node.head = 0;
   page_info[id].frag_node.bucket_index = bucket_index;
-  release_spinlock(0, page_info_lock);
-
-  setup_checker(1);
   init_list_node((ListNode*)(&(page_info[id].frag_node)));
   return &(page_info[id].frag_node);
 }
 
 u64 _alloc_fragment(Page* p) {
-  u64 addr_frag = p->addr + (p->candidate_idx) * (p->base_size);
   setup_checker(0);
-  acquire_spinlock(0, page_info_lock);
+  acquire_spinlock(0, pages_lock);
+  u64 addr_frag = p->addr + (p->candidate_idx) * (p->base_size);
   p->candidate_idx++;
   p->alloc_fragments_cnt++;
-  release_spinlock(0, page_info_lock);
+  release_spinlock(0, pages_lock);
   return addr_frag;
 }
