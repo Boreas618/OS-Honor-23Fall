@@ -16,11 +16,13 @@ void kfree(void*);
 typedef struct fragment_node {
     struct ListNode *prev, *next;
     struct page* page;
+    bool head;
+    u8 bucket_index;
 } FragNode;
 
 typedef struct page {
     u64 addr;
-    u8 base_size;
+    u32 base_size;
     u8 flag;
     u32 candidate_idx;
     u32 alloc_fragments_cnt;
