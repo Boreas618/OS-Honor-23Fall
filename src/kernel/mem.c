@@ -84,7 +84,7 @@ define_early_init(pages) {
     page_info[inited_pages].addr = p;
     page_info[inited_pages].base_size = 0;
     page_info[inited_pages].flag = 0;
-    page_info[inited_pages].free_head = 0;
+    page_info[inited_pages].free_head = page_info[inited_pages].addr;
     page_info[inited_pages].alloc_partitions_cnt = 0;
     page_info[inited_pages].partitioned_node.page = &(page_info[inited_pages]);
     inited_pages++;
@@ -120,28 +120,30 @@ void* kalloc(isize s) {
     PartitionedPageNode* new_fraged = _partition_page(rounded_size, bucket_index);
     new_fraged->head = 1;
     partitions_free[bucket_index] = (ListNode*)(new_fraged);
+    auto allocated = (void*)_alloc_partition(new_fraged->page);
     release_spinlock(0, kalloc_lock);
-    return (void*)_alloc_partition(new_fraged->page);
+    return allocated;
   }
 
   if (partitions_free[bucket_index] != NULL) {
     ListNode* p_page = partitions_free[bucket_index];
     ListNode* head = p_page;
 
-    while (((PartitionedPageNode*)p_page)->page->free_head >=
+    while (((PartitionedPageNode*)p_page)->page->alloc_partitions_cnt + 1 >=
            (u32)((PAGE_SIZE / (((PartitionedPageNode*)p_page)->page->base_size)))) {
       p_page = p_page->next;
       if (p_page == head) {
         PartitionedPageNode* new_fraged = _partition_page(rounded_size, bucket_index);
         _merge_list(head, (ListNode*)new_fraged);
+        auto allocated = (void*)_alloc_partition(new_fraged->page);
         release_spinlock(0, kalloc_lock);
-        return (void*)_alloc_partition(new_fraged->page);
+        return allocated;
       }
     }
+    auto allocated = (void*)_alloc_partition(((PartitionedPageNode*)p_page)->page);
     release_spinlock(0, kalloc_lock);
-    return (void*)_alloc_partition(((PartitionedPageNode*)p_page)->page);
+    return allocated;
   }
-
   release_spinlock(0, kalloc_lock);
   return NULL;
 }
@@ -152,20 +154,13 @@ void kfree(void* p) {
   setup_checker(0);
   acquire_spinlock(0, kalloc_lock);
 
-  /*
-  RecycleNode rn;
-  rn.addr = (u64)p;
-  rn.bucket_index = page_info[id].partitioned_node.bucket_index;
-  if (recycle_bin[rn.bucket_index] == NULL) {
-    rn.head = 1;
-  }
-  init_list_node((ListNode*)(&rn));
-  _insert_into_list(recycle_bin[rn.bucket_index], (ListNode*)(&rn));
-  */
-
   (void)((page_info[id].alloc_partitions_cnt > 0) &&
          (page_info[id].alloc_partitions_cnt--));
-
+  
+    u64 tmp = *(u64*)(page_info[id].free_head);
+    *(u64*)(page_info[id].free_head) = (u64)p;
+    *(u64*)p = tmp;
+  
   if (page_info[id].alloc_partitions_cnt == 0) {
     page_info[id].free_head = 0;
     page_info[id].flag = 0;
@@ -209,12 +204,19 @@ PartitionedPageNode* _partition_page(u32 rounded_size, u8 bucket_index) {
   // fetch a new page which will be partitioned later
   u64 page_to_partition = (u64)kalloc_page();
   if (page_to_partition == NULL) return NULL;
+  
+  u64 p = page_to_partition;
+  for(; p < page_to_partition + PAGE_SIZE - rounded_size; p += rounded_size) {
+    *((u64*)p) = p + rounded_size;
+  }
+  *((u64*)p) = 0;
 
   // configure the control info of the page
   u64 id = _vaddr_to_id(page_to_partition);
   page_info[id].addr = page_to_partition;
   page_info[id].base_size = rounded_size;
   page_info[id].flag |= PAGE_PARTITIONED;
+  page_info[id].free_head = page_info[id].addr;
   page_info[id].partitioned_node.head = 0;
   page_info[id].partitioned_node.bucket_index = bucket_index;
   init_list_node((ListNode*)(&(page_info[id].partitioned_node)));
@@ -222,8 +224,8 @@ PartitionedPageNode* _partition_page(u32 rounded_size, u8 bucket_index) {
 }
 
 u64 _alloc_partition(Page* p) {
-  u64 addr_frag = p->addr + (p->free_head) * (p->base_size);
-  p->free_head++;
+  u64 addr_frag = p->free_head;
+  p->free_head = *(u64*)p->free_head;
   p->alloc_partitions_cnt++;
   return addr_frag;
 }

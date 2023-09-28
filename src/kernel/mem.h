@@ -23,7 +23,7 @@ typedef struct page {
     u64 addr;
     u32 base_size;
     u8 flag;
-    u32 free_head;
+    u64 free_head;
     u32 alloc_partitions_cnt;
     PartitionedPageNode partitioned_node;
 } Page;
