@@ -29,20 +29,20 @@ u16 _round_up(isize s, u32* rounded_size, u8* bucket_index);
 
 u64 _vaddr_to_id(u64 vaddr);
 
-u64 _alloc_fragment(Page* p);
+u64 _alloc_partition(Page* p);
 
 RefCount alloc_page_cnt;
 
 RefCount free_cnt;
 
-FragNode* _fragment_page(u32 rounded_size, u8 bucket_index);
+PartitionedPageNode* _partition_page(u32 rounded_size, u8 bucket_index);
 
 /*
    memory is divided into pages. During the initialization process of the
    kernel, all the available pages are stored in the pages_free variable. Memory
-   can be allocated in two ways: as a whole page or as a fragment. Pages have a
-   fixed size of 4096 bytes, while fragments can range in size from 0 to 4096
-   bytes. A page can be allocated either entirely or in fragments.
+   can be allocated in two ways: as a whole page or as a partition. Pages have a
+   fixed size of 4096 bytes, while partitions can range in size from 0 to 4096
+   bytes. A page can be allocated either entirely or in partitions.
 */
 
 /* The array for information about pages. */
@@ -52,11 +52,14 @@ static Page page_info[MAX_PAGES];
 static QueueNode* pages_free;
 
 /* The hash map for pages with different maximum sizes of available area.*/
-static ListNode* fragments_free[MAX_BUCKETS];
+static ListNode* partitions_free[MAX_BUCKETS];
 
-static SpinLock* pages_lock;
+/* The recycle bin for the freed partitions. */
+//static ListNode* recycle_bin[MAX_BUCKETS];
 
-static SpinLock* fragments_lock;
+static SpinLock* kalloc_lock;
+
+static SpinLock* kfree_lock;
 
 /* The handle for accessing memory area that is ready for allocating.
    We can access to the area by referencing this handle.
@@ -69,8 +72,8 @@ define_early_init(alloc_page_cnt) { init_rc(&alloc_page_cnt); }
 
 /* Initialization routine which starts tracking all of the pages */
 define_early_init(pages) {
-  init_spinlock(pages_lock);
-  init_spinlock(fragments_lock);
+  init_spinlock(kalloc_lock);
+  init_spinlock(kfree_lock);
   u64 inited_pages = 0;
 
   for (u64 p = PAGE_BASE((u64)&end) + PAGE_SIZE; p < P2K(PHYSTOP);
@@ -81,30 +84,24 @@ define_early_init(pages) {
     page_info[inited_pages].addr = p;
     page_info[inited_pages].base_size = 0;
     page_info[inited_pages].flag = 0;
-    page_info[inited_pages].candidate_idx = 0;
-    page_info[inited_pages].alloc_fragments_cnt = 0;
-    page_info[inited_pages].frag_node.page = &(page_info[inited_pages]);
+    page_info[inited_pages].free_head = 0;
+    page_info[inited_pages].alloc_partitions_cnt = 0;
+    page_info[inited_pages].partitioned_node.page = &(page_info[inited_pages]);
     inited_pages++;
   }
 }
 
 void* kalloc_page() {
-  setup_checker(0);
-  acquire_spinlock(0, pages_lock);
   _increment_rc(&alloc_page_cnt);
   _increment_rc(&free_cnt);
   void* page_to_allocate = fetch_from_queue(&pages_free);
-  release_spinlock(0, pages_lock);
   return page_to_allocate;
 }
 
 void kfree_page(void* p) {
-  setup_checker(1);
-  acquire_spinlock(1, pages_lock);
   _decrement_rc(&alloc_page_cnt);
   memset(p, 0, (usize)PAGE_SIZE);
   add_to_queue(&pages_free, (QueueNode*)p);
-  release_spinlock(1, pages_lock);
 }
 
 void* kalloc(isize s) {
@@ -116,28 +113,36 @@ void* kalloc(isize s) {
   u8 bucket_index = 0;
   _round_up(s, &rounded_size, &bucket_index);
 
-  // Try to get the address
-  if (fragments_free[bucket_index] == NULL) {
-    FragNode* new_fraged = _fragment_page(rounded_size, bucket_index);
+  setup_checker(0);
+  acquire_spinlock(0, kalloc_lock);
+
+  if (partitions_free[bucket_index] == NULL) {
+    PartitionedPageNode* new_fraged = _partition_page(rounded_size, bucket_index);
     new_fraged->head = 1;
-    fragments_free[bucket_index] = (ListNode*)(new_fraged);
-    return (void*)_alloc_fragment(new_fraged->page);
-  } else {
-    ListNode* p_page = fragments_free[bucket_index];
+    partitions_free[bucket_index] = (ListNode*)(new_fraged);
+    release_spinlock(0, kalloc_lock);
+    return (void*)_alloc_partition(new_fraged->page);
+  }
+
+  if (partitions_free[bucket_index] != NULL) {
+    ListNode* p_page = partitions_free[bucket_index];
     ListNode* head = p_page;
 
-    while (((FragNode*)p_page)->page->candidate_idx >=
-           (u32)((PAGE_SIZE / (((FragNode*)p_page)->page->base_size)))) {
+    while (((PartitionedPageNode*)p_page)->page->free_head >=
+           (u32)((PAGE_SIZE / (((PartitionedPageNode*)p_page)->page->base_size)))) {
       p_page = p_page->next;
       if (p_page == head) {
-        FragNode* new_fraged = _fragment_page(rounded_size, bucket_index);
-        setup_checker(0);
-        merge_list(0, fragments_lock, head, (ListNode*)new_fraged);
-        return (void*)_alloc_fragment(new_fraged->page);
+        PartitionedPageNode* new_fraged = _partition_page(rounded_size, bucket_index);
+        _merge_list(head, (ListNode*)new_fraged);
+        release_spinlock(0, kalloc_lock);
+        return (void*)_alloc_partition(new_fraged->page);
       }
     }
-    return (void*)_alloc_fragment(((FragNode*)p_page)->page);
+    release_spinlock(0, kalloc_lock);
+    return (void*)_alloc_partition(((PartitionedPageNode*)p_page)->page);
   }
+
+  release_spinlock(0, kalloc_lock);
   return NULL;
 }
 
@@ -145,39 +150,41 @@ void kfree(void* p) {
   u64 id = (u64)((((u64)p) - PAGE_BASE((u64)&end) - PAGE_SIZE) / PAGE_SIZE);
 
   setup_checker(0);
-  acquire_spinlock(0, pages_lock);
-  (void)((page_info[id].alloc_fragments_cnt > 0) &&
-         (page_info[id].alloc_fragments_cnt--));
-  release_spinlock(0, pages_lock);
+  acquire_spinlock(0, kalloc_lock);
 
-  if (page_info[id].alloc_fragments_cnt == 0) {
-    page_info[id].candidate_idx = 0;
+  /*
+  RecycleNode rn;
+  rn.addr = (u64)p;
+  rn.bucket_index = page_info[id].partitioned_node.bucket_index;
+  if (recycle_bin[rn.bucket_index] == NULL) {
+    rn.head = 1;
+  }
+  init_list_node((ListNode*)(&rn));
+  _insert_into_list(recycle_bin[rn.bucket_index], (ListNode*)(&rn));
+  */
+
+  (void)((page_info[id].alloc_partitions_cnt > 0) &&
+         (page_info[id].alloc_partitions_cnt--));
+
+  if (page_info[id].alloc_partitions_cnt == 0) {
+    page_info[id].free_head = 0;
     page_info[id].flag = 0;
     page_info[id].base_size = 0;
 
-    if (page_info[id].frag_node.head) {
-      setup_checker(2);
-      acquire_spinlock(2, fragments_lock);
-      if (fragments_free[page_info[id].frag_node.bucket_index] ==
-          page_info[id].frag_node.next) {
-        fragments_free[page_info[id].frag_node.bucket_index] = NULL;
+    if (page_info[id].partitioned_node.head) {
+      if (partitions_free[page_info[id].partitioned_node.bucket_index] ==
+          page_info[id].partitioned_node.next) {
+        partitions_free[page_info[id].partitioned_node.bucket_index] = NULL;
       } else {
-        fragments_free[page_info[id].frag_node.bucket_index] =
-            page_info[id].frag_node.next;
+        partitions_free[page_info[id].partitioned_node.bucket_index] =
+            page_info[id].partitioned_node.next;
       }
-      release_spinlock(2, fragments_lock);
-
-      setup_checker(3);
-      acquire_spinlock(3, pages_lock);
-      ((FragNode*)(page_info[id].frag_node.next))->head = 1;
-      release_spinlock(3, pages_lock);
+      ((PartitionedPageNode*)(page_info[id].partitioned_node.next))->head = 1;
     }
-
-    setup_checker(1);
-    detach_from_list(1, fragments_lock,
-                     (ListNode*)(&(page_info[id].frag_node)));
-    kfree_page((void*)(page_info[id].frag_node.page->addr));
+    _detach_from_list((ListNode*)(&(page_info[id].partitioned_node)));
+    kfree_page((void*)(page_info[id].partitioned_node.page->addr));
   }
+  release_spinlock(0, kalloc_lock);
   return;
 }
 
@@ -189,8 +196,8 @@ u16 _round_up(isize s, u32* rounded_size, u8* bucket_index) {
     result <<= 1;
     index += 1;
   }
-  *rounded_size = result;
-  *bucket_index = index;
+  *rounded_size = result >= 8 ? result : 8;
+  *bucket_index = index >= 3 ? index : 3;
   return result;
 }
 
@@ -198,28 +205,25 @@ u64 _vaddr_to_id(u64 vaddr) {
   return (vaddr - PAGE_BASE((u64)&end) - PAGE_SIZE) / PAGE_SIZE;
 }
 
-FragNode* _fragment_page(u32 rounded_size, u8 bucket_index) {
-  // fetch a new page which will be fragmented later
-  u64 page_to_fragment = (u64)kalloc_page();
-  if (page_to_fragment == NULL) return NULL;
+PartitionedPageNode* _partition_page(u32 rounded_size, u8 bucket_index) {
+  // fetch a new page which will be partitioned later
+  u64 page_to_partition = (u64)kalloc_page();
+  if (page_to_partition == NULL) return NULL;
 
   // configure the control info of the page
-  u64 id = _vaddr_to_id(page_to_fragment);
-  page_info[id].addr = page_to_fragment;
+  u64 id = _vaddr_to_id(page_to_partition);
+  page_info[id].addr = page_to_partition;
   page_info[id].base_size = rounded_size;
-  page_info[id].flag |= PAGE_FRAGMENTED;
-  page_info[id].frag_node.head = 0;
-  page_info[id].frag_node.bucket_index = bucket_index;
-  init_list_node((ListNode*)(&(page_info[id].frag_node)));
-  return &(page_info[id].frag_node);
+  page_info[id].flag |= PAGE_PARTITIONED;
+  page_info[id].partitioned_node.head = 0;
+  page_info[id].partitioned_node.bucket_index = bucket_index;
+  init_list_node((ListNode*)(&(page_info[id].partitioned_node)));
+  return &(page_info[id].partitioned_node);
 }
 
-u64 _alloc_fragment(Page* p) {
-  setup_checker(0);
-  acquire_spinlock(0, pages_lock);
-  u64 addr_frag = p->addr + (p->candidate_idx) * (p->base_size);
-  p->candidate_idx++;
-  p->alloc_fragments_cnt++;
-  release_spinlock(0, pages_lock);
+u64 _alloc_partition(Page* p) {
+  u64 addr_frag = p->addr + (p->free_head) * (p->base_size);
+  p->free_head++;
+  p->alloc_partitions_cnt++;
   return addr_frag;
 }

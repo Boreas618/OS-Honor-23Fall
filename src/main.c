@@ -24,9 +24,6 @@ void kernel_init()
 
 void main()
 {
-    if (cpuid() != 0) {
-        arch_stop_cpu();
-    }
     if (cpuid() == 0)
     {
         kernel_init();

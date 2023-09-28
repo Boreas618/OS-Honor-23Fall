@@ -3,7 +3,6 @@
 
 NO_RETURN void idle_entry()
 {
-    //sing_alloc_test();
     alloc_test();
     arch_stop_cpu();
 }

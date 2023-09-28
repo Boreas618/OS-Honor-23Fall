@@ -4,8 +4,7 @@
 #include <aarch64/mmu.h>
 #include <common/list.h>
 
-#define PAGE_FRAGMENTED 1;
-#define FRAGMENTS_FULL 1<<1;
+#define PAGE_PARTITIONED 1;
 
 void* kalloc_page();
 void kfree_page(void*);
@@ -13,18 +12,25 @@ void kfree_page(void*);
 void* kalloc(isize);
 void kfree(void*);
 
-typedef struct fragment_node {
+typedef struct partitioned_page_node {
     struct ListNode *prev, *next;
     struct page* page;
     bool head;
     u8 bucket_index;
-} FragNode;
+} PartitionedPageNode;
 
 typedef struct page {
     u64 addr;
     u32 base_size;
     u8 flag;
-    u32 candidate_idx;
-    u32 alloc_fragments_cnt;
-    FragNode frag_node;
+    u32 free_head;
+    u32 alloc_partitions_cnt;
+    PartitionedPageNode partitioned_node;
 } Page;
+
+typedef struct recycle_entity {
+    struct ListNode *prev, *next;
+    bool head;
+    u8 bucket_index;
+    u64 addr;
+} RecycleNode;
