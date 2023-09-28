@@ -22,15 +22,7 @@ typedef struct partitioned_page_node {
 typedef struct page {
     u64 addr;
     u32 base_size;
-    u8 flag;
     u64 free_head;
     u32 alloc_partitions_cnt;
     PartitionedPageNode partitioned_node;
 } Page;
-
-typedef struct recycle_entity {
-    struct ListNode *prev, *next;
-    bool head;
-    u8 bucket_index;
-    u64 addr;
-} RecycleNode;
