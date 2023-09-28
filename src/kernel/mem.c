@@ -33,30 +33,32 @@ u64 _alloc_partition(Page* p);
 
 RefCount alloc_page_cnt;
 
-RefCount free_cnt;
-
 PartitionedPageNode* _partition_page(u32 rounded_size, u8 bucket_index);
 
 /*
    memory is divided into pages. During the initialization process of the
    kernel, all the available pages are stored in the pages_free variable. Memory
-   can be allocated in two ways: as a whole page or as a partition. Pages have a
-   fixed size of 4096 bytes, while partitions can range in size from 0 to 4096
-   bytes. A page can be allocated either entirely or in partitions.
+   can be allocated in two ways: as a whole page or as a tiny partition. Pages
+   have a fixed size of 4096 bytes, while partitions can range in size from 8 to
+   2048 bytes.
+
+   Why 8 to 2048? Because we need to maintain a linked list of free partitions
+   and the pointer to the next free partition is stored in the former free
+   partition. The partition should be at least 8 bytes in order to store a
+   pointer. We choose 2048 as the maximum size of a partition because a
+   partition with 4096 bytes is a whole page.
 */
 
-/* The array for information about pages. */
+/* The array for information about pages.*/
 static Page page_info[MAX_PAGES];
 
 /* The queue for all pages available. It is placed in BSS segment.*/
 static QueueNode* pages_free;
 
 /* The hash map for pages with different maximum sizes of available area.*/
-static ListNode* partitions_free[MAX_BUCKETS];
+static ListNode* partitioned_pages[MAX_BUCKETS];
 
-/* The recycle bin for the freed partitions. */
-// static ListNode* recycle_bin[MAX_BUCKETS];
-
+/* The lock is used to prevent race condition in both kalloc and kfree.*/
 static SpinLock* pages_lock;
 
 /* The handle for accessing memory area that is ready for allocating.
@@ -89,7 +91,7 @@ define_early_init(pages) {
 
 void* kalloc_page() {
   _increment_rc(&alloc_page_cnt);
-  _increment_rc(&free_cnt);
+  // fetch_from_queue is atomic so we don't need to acquire a lock
   void* page_to_allocate = fetch_from_queue(&pages_free);
   return page_to_allocate;
 }
@@ -112,20 +114,21 @@ void* kalloc(isize s) {
   setup_checker(0);
   acquire_spinlock(0, pages_lock);
 
-  if (partitions_free[bucket_index] == NULL) {
+  if (partitioned_pages[bucket_index] == NULL) {
     PartitionedPageNode* new_partitioned =
         _partition_page(rounded_size, bucket_index);
     new_partitioned->head = 1;
-    partitions_free[bucket_index] = (ListNode*)(new_partitioned);
+    partitioned_pages[bucket_index] = (ListNode*)(new_partitioned);
     auto allocated = (void*)_alloc_partition(new_partitioned->page);
     release_spinlock(0, pages_lock);
     return allocated;
   }
 
-  if (partitions_free[bucket_index] != NULL) {
-    ListNode* p_page = partitions_free[bucket_index];
+  if (partitioned_pages[bucket_index] != NULL) {
+    ListNode* p_page = partitioned_pages[bucket_index];
     ListNode* head = p_page;
 
+    // Find a partitioned page with free partitions
     while (((PartitionedPageNode*)p_page)->page->alloc_partitions_cnt + 1 >=
            (u32)((PAGE_SIZE /
                   (((PartitionedPageNode*)p_page)->page->base_size)))) {
@@ -144,6 +147,7 @@ void* kalloc(isize s) {
     release_spinlock(0, pages_lock);
     return allocated;
   }
+
   release_spinlock(0, pages_lock);
   return NULL;
 }
@@ -157,6 +161,7 @@ void kfree(void* p) {
   (void)((page_info[id].alloc_partitions_cnt > 0) &&
          (page_info[id].alloc_partitions_cnt--));
 
+  // Insert the free partition to be freed into the free list
   u64 tmp = *(u64*)(page_info[id].free_head);
   *(u64*)(page_info[id].free_head) = (u64)p;
   *(u64*)p = tmp;
@@ -165,12 +170,13 @@ void kfree(void* p) {
     page_info[id].free_head = 0;
     page_info[id].base_size = 0;
 
+    // Subtle. If we don't do so, there will be a dangling pointer
     if (page_info[id].partitioned_node.head) {
-      if (partitions_free[page_info[id].partitioned_node.bucket_index] ==
+      if (partitioned_pages[page_info[id].partitioned_node.bucket_index] ==
           page_info[id].partitioned_node.next) {
-        partitions_free[page_info[id].partitioned_node.bucket_index] = NULL;
+        partitioned_pages[page_info[id].partitioned_node.bucket_index] = NULL;
       } else {
-        partitions_free[page_info[id].partitioned_node.bucket_index] =
+        partitioned_pages[page_info[id].partitioned_node.bucket_index] =
             page_info[id].partitioned_node.next;
       }
       ((PartitionedPageNode*)(page_info[id].partitioned_node.next))->head = 1;
