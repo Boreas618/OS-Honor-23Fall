@@ -7,12 +7,11 @@ struct proc; // dont include proc.h here
 struct sched
 {
     // TODO: customize your sched info
-
 };
 
 // embeded data for procs
 struct schinfo
 {
     // TODO: customize your sched info
-    
+    ListNode runable_queue_node;
 };

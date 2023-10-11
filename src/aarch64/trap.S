@@ -24,7 +24,7 @@ trap_entry:
     mrs x0, spsr_el1
     mrs x1, elr_el1
     pushp(x0, x1)
-    mrs x0, sp
+    mov x0, sp
     bl trap_global_handler
 
 .global trap_return
