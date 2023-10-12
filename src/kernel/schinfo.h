@@ -13,5 +13,5 @@ struct sched
 struct schinfo
 {
     // TODO: customize your sched info
-    ListNode runable_queue_node;
+    ListNode runnable_node;
 };

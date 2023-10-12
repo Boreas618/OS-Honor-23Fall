@@ -82,12 +82,13 @@ void _free_pid(int pid) {
     release_spinlock(0, &proc_pid_lock);
 }
 
-void set_parent_to_this(struct proc* proc)
+void set_parent_to_this(struct proc* proc) 
 {
     ASSERT(proc->parent == NULL);
     setup_checker(0);
     acquire_spinlock(0, &proc_lock);
     proc->parent = thisproc();
+    _insert_into_list(&(thisproc()->children), &(proc->ptnode));
     release_spinlock(0, &proc_lock);
 }
 
@@ -109,24 +110,27 @@ NO_RETURN void exit(int code)
     // Transfer children and zombies to the root proc
     ListNode* pchild = p->children.next;
     while(pchild != &(p->children)) {
+        ListNode* tmp = pchild->next;
         _insert_into_list(&(root_proc.children), pchild);
         struct proc* child = container_of(pchild, struct proc, ptnode);
         child->parent = &root_proc;
-        pchild = pchild->next;
+        pchild = tmp;
     }
 
     ListNode* pzombie = p->zombie_children.next;
     while(pzombie != &(p->zombie_children)) {
+        ListNode* tmp = pzombie->next;
         _insert_into_list(&(root_proc.zombie_children), pzombie);
         struct proc* zombie = container_of(pzombie, struct proc, ptnode);
         zombie->parent = &root_proc;
         post_sem(&root_proc.childexit);
-        pzombie = pzombie->next;
+        pzombie = tmp;
     }
 
-    _detach_from_list(&(p->parent->ptnode));
+    _detach_from_list(&(p->ptnode));
     _insert_into_list(&(p->parent->zombie_children), &(p->ptnode));
     post_sem(&(p->parent->childexit));
+    _acquire_sched_lock();
     release_spinlock(0, &proc_lock);
 
     _sched(ZOMBIE);
@@ -157,7 +161,7 @@ int wait(int* exitcode)
     int pid = zombie_child->pid;
     *exitcode = zombie_child->exitcode;
     _free_pid(zombie_child->pid);
-    kfree_page(p->kstack);
+    kfree_page(zombie_child->kstack);
     kfree(zombie_child);
     release_spinlock(1, &proc_lock);
     return pid;
@@ -167,8 +171,10 @@ int start_proc(struct proc* p, void(*entry)(u64), u64 arg)
 {
     setup_checker(0);
     acquire_spinlock(0, &proc_lock);
-    if (p->parent == NULL)
+    if (p->parent == NULL) {
         p->parent = &root_proc;
+        _insert_into_list(&root_proc.children, &p->ptnode);
+    }
     ASSERT(p->kstack != NULL);
     p->kcontext = p->kstack + PAGE_SIZE - sizeof(KernelContext);
     p->kcontext->csgp_regs[11] = (u64)&proc_entry;
