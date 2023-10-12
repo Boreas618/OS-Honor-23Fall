@@ -12,7 +12,7 @@ typedef struct UserContext
     u64 spsr;
     u64 elr;
     // General Purpose registers
-    u64 gp_regs[31];
+    u64 gp_regs[32];
 } UserContext;
 
 typedef struct KernelContext

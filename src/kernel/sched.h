@@ -14,8 +14,3 @@ void _sched(enum procstate new_state);
 #define yield() (_acquire_sched_lock(), _sched(RUNNABLE))
 
 struct proc* thisproc();
-
-typedef struct ProcessQueues {
-    Queue runnable;
-    struct proc** running;
-} ProcessQueues;

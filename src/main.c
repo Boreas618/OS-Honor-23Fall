@@ -21,7 +21,6 @@ void kernel_init()
     boot_secondary_cpus = true;
 }
 
-
 void main()
 {
     if (cpuid() == 0)
@@ -31,6 +30,7 @@ void main()
     }
     else
     {
+        arch_stop_cpu();
         while (!boot_secondary_cpus);
         arch_dsb_sy();
     }

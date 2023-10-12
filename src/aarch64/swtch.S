@@ -18,7 +18,7 @@ swtch:
     str x2, [x1]
     mov sp, x0
     popp(x0, x1)
-    popp(x1, x20)
+    popp(x19, x20)
     popp(x21, x22)
     popp(x23, x24)
     popp(x25, x26)

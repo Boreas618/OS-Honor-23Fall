@@ -9,7 +9,9 @@
 
 #define PID_POOL_SIZE 1<<20
 
-extern ProcessQueues sched_queues;
+extern Queue runnable;
+extern struct proc* running[NCPU];
+extern struct proc* idle[NCPU];
 
 struct proc root_proc;
 SpinLock proc_lock;
@@ -35,9 +37,9 @@ define_init(startup_procs)
     for(int i = 0; i < NCPU; i++) {
         // Idle processes are the first processes on each core.
         // Before the idle process is staged, no other processes are created/
-        ASSERT(sched_queues.running[i] == NULL);
+        ASSERT(running[i] == NULL);
         struct proc* idle = _create_idle_proc();
-        sched_queues.running[i] = idle;
+        running[i] = idle;
         idle->state = RUNNING;
     }
 
@@ -52,7 +54,7 @@ int _alloc_pid() {
     acquire_spinlock(0, &proc_pid_lock);
     u64 old_pid_window = pid_window;
 
-    while((pid_pool[pid_window % PID_POOL_SIZE]) & 0xFF) {
+    while(pid_pool[pid_window] == 0xFF) {
         pid_window++;
         if (pid_window == old_pid_window) {
             release_spinlock(0, &proc_pid_lock);
@@ -61,9 +63,11 @@ int _alloc_pid() {
     }
 
     for(int i = 0; i < 8; i++)
-        if (pid_pool[pid_window % PID_POOL_SIZE] ^ (1 << i)) {
+        if ((pid_pool[pid_window] ^ (1 << i)) & (1 << i)) {
+            pid_pool[pid_window] |= (1 << i);
+            int pid = (int)(pid_window * 8 + i);
             release_spinlock(0, &proc_pid_lock);
-            return (int)(pid_window * 8 + i);
+            return pid;
         }
     release_spinlock(0, &proc_pid_lock);
     return -1;
@@ -74,7 +78,7 @@ void _free_pid(int pid) {
     acquire_spinlock(0, &proc_pid_lock);
     u32 index = (u32)(pid / 8);
     u8 offset = (u8)(pid % 8);
-    pid_pool[index] |= 1 << offset;
+    pid_pool[index] &= ~(1 << (u8)offset);
     release_spinlock(0, &proc_pid_lock);
 }
 
@@ -139,8 +143,7 @@ int wait(int* exitcode)
     setup_checker(0);
     acquire_spinlock(0, &proc_lock);
     struct proc* p = thisproc();
-
-    if (p->children.next == (&p->children) && p->zombie_children.next == (&p->zombie_children)) {
+    if ((p->children.next == &p->children) && (p->zombie_children.next == &p->zombie_children)) {
         release_spinlock(0, &proc_lock);
         return -1;
     }
@@ -162,6 +165,8 @@ int wait(int* exitcode)
 
 int start_proc(struct proc* p, void(*entry)(u64), u64 arg)
 {
+    setup_checker(0);
+    acquire_spinlock(0, &proc_lock);
     if (p->parent == NULL)
         p->parent = &root_proc;
     ASSERT(p->kstack != NULL);
@@ -171,6 +176,7 @@ int start_proc(struct proc* p, void(*entry)(u64), u64 arg)
     p->kcontext->x1 = (u64)arg;
     int pid = p->pid;
     activate_proc(p);
+    release_spinlock(0, &proc_lock);
     return pid;
 }
 
@@ -178,6 +184,7 @@ void init_proc(struct proc* p)
 {
     setup_checker(0);
     acquire_spinlock(0, &proc_lock);
+    memset(p, 0, sizeof(*p));
     p->killed = false;
     p->idle = false;
     p->pid = _alloc_pid();
@@ -185,6 +192,7 @@ void init_proc(struct proc* p)
     init_sem(&p->childexit, 0);
     init_list_node(&p->children);
     init_list_node(&p->ptnode);
+    init_list_node(&p->zombie_children);
     p->parent = NULL;
     init_schinfo(&p->schinfo);
     p->kstack = kalloc_page();
