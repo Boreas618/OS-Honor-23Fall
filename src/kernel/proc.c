@@ -202,6 +202,7 @@ void init_proc(struct proc* p)
     p->parent = NULL;
     init_schinfo(&p->schinfo);
     p->kstack = kalloc_page();
+    ASSERT(p->kstack != NULL);
     p->ucontext = NULL;
     p->kcontext = NULL;
     release_spinlock(0, &proc_lock);
@@ -210,6 +211,7 @@ void init_proc(struct proc* p)
 struct proc* create_proc()
 {
     struct proc* p = kalloc(sizeof(struct proc));
+    ASSERT(p != NULL);
     init_proc(p);
     return p;
 }
