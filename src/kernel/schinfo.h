@@ -12,6 +12,5 @@ struct sched
 // embeded data for procs
 struct schinfo
 {
-    // TODO: customize your sched info
     ListNode runnable_node;
 };

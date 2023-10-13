@@ -56,24 +56,22 @@ bool is_zombie(struct proc* p)
 bool activate_proc(struct proc* p)
 {
     _acquire_sched_lock();
-    if (p->state == RUNNING || p->state == RUNNABLE) {
+    if (p->state == RUNNING || p->state == RUNNABLE || p->state == ZOMBIE) {
         _release_sched_lock();
         return false;
     }
     if (p->state == SLEEPING || p->state == UNUSED) {
         p->state = RUNNABLE;
         _insert_into_list(&runnable, &(p->schinfo.runnable_node));
-    } else {
-        PANIC();
+        _release_sched_lock();
+        return true;
     }
     _release_sched_lock();
-    return true;
+    return false;
 }
 
 static void update_this_state(enum procstate new_state)
 {
-    // TODO: if using simple_sched, you should implement this routinue
-    // update the state of current process to new_state, and remove it from the sched queue if new_state=SLEEPING/ZOMBIE
     thisproc()->state = new_state;
     ASSERT(new_state != RUNNING);
     if (new_state == SLEEPING || new_state == ZOMBIE) {
@@ -83,23 +81,18 @@ static void update_this_state(enum procstate new_state)
 
 static struct proc* pick_next()
 {
-    // TODO: if using simple_sched, you should implement this routinue
-    // choose the next process to run, and return idle if no runnable process
-    struct proc *next = idle[cpuid()];
-    _for_in_list(p, &runnable) {
-        if (p == &runnable)
-            continue;
-        next = container_of(p, struct proc, schinfo.runnable_node);
-        if (next->state == RUNNABLE)
-            return next;
+    ListNode *prunable = runnable.next;
+    while(prunable != &runnable) {
+        struct proc* candidate = container_of(prunable, struct proc, schinfo.runnable_node);
+        if (candidate->state == RUNNABLE)
+            return candidate;
+        prunable = prunable->next;
     }
-    return next;
+    return idle[cpuid()];
 }
 
 static void update_this_proc(struct proc* p)
 {
-    // TODO: if using simple_sched, you should implement this routinue
-    // update thisproc to the choosen process, and reset the clock interrupt if need
     reset_clock(1);
     running[cpuid()] = p;
 }
