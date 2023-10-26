@@ -30,6 +30,7 @@ void main()
     }
     else
     {
+        //arch_stop_cpu();
         while (!boot_secondary_cpus);
         arch_dsb_sy();
     }

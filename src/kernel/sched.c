@@ -12,6 +12,8 @@ extern bool panic_flag;
 extern void swtch(KernelContext* new_ctx, KernelContext** old_ctx);
 extern struct proc root_proc;
 
+void trap_return();
+
 ListNode runnable;
 struct proc* running[NCPU];
 struct proc* idle[NCPU];
@@ -71,7 +73,7 @@ bool activate_proc(struct proc* p)
     }
     if (p->state == SLEEPING || p->state == UNUSED) {
         p->state = RUNNABLE;
-        _insert_into_list(&runnable, &(p->schinfo.runnable_node));
+        _insert_into_list(&runnable, p->schinfo.runnable_node.prev);
         _release_sched_lock();
         return true;
     }
@@ -88,21 +90,44 @@ static void update_this_state(enum procstate new_state)
     }
 }
 
-static struct proc* pick_next()
-{
-    ListNode *prunable = runnable.next;
-    while(prunable != &runnable) {
-        struct proc* candidate = container_of(prunable, struct proc, schinfo.runnable_node);
-        if (candidate->state == RUNNABLE)
-            return candidate;
-        prunable = prunable->next;
+static struct proc* pick_next() {
+  ListNode* prunable = runnable.next;
+
+  /*_for_in_list(pn, &runnable) {
+    if (pn == &runnable)
+        continue;
+    struct proc* p = container_of(pn, struct proc, schinfo.runnable_node);
+    printk("PID: %d, state: %d\n", p->pid, p->state);
+  }*/
+
+  _detach_from_list(&(thisproc()->schinfo.runnable_node));
+  if (thisproc()->state == RUNNABLE)
+    _insert_into_list(runnable.prev, &(thisproc()->schinfo.runnable_node));
+
+/*
+  if (thisproc()->pid == 5) {
+    _detach_from_list(&(thisproc()->schinfo.runnable_node));
+    _insert_into_list(runnable.prev, &(thisproc()->schinfo.runnable_node));
+    _for_in_list(pn, &runnable) {
+        if (pn == &runnable)
+        continue;
+      struct proc* p = container_of(pn, struct proc, schinfo.runnable_node);
+      printk("\nPID: %d, state: %d, idle: %d\n", p->pid, p->state, p->idle);
     }
-    return idle[cpuid()];
+  } */
+
+  while (prunable != &runnable) {
+    struct proc* candidate =
+        container_of(prunable, struct proc, schinfo.runnable_node);
+    if (candidate->state == RUNNABLE && !candidate->idle) return candidate;
+    prunable = prunable->next;
+  }
+  return idle[cpuid()];
 }
 
 static void update_this_proc(struct proc* p)
 {
-    reset_clock(1);
+    reset_clock(20);
     running[cpuid()] = p;
 }
 
@@ -112,6 +137,10 @@ static void simple_sched(enum procstate new_state)
 {
     auto this = thisproc();
     ASSERT(this->state == RUNNING);
+    if (this->killed && new_state != ZOMBIE) {
+        _release_sched_lock();
+        return;
+    }
     update_this_state(new_state);
     auto next = pick_next();
     update_this_proc(next);
@@ -119,6 +148,7 @@ static void simple_sched(enum procstate new_state)
     next->state = RUNNING;
     if (next != this)
     {
+        attach_pgdir(&(next->pgdir));
         swtch(next->kcontext, &(this->kcontext));
     }
     _release_sched_lock();

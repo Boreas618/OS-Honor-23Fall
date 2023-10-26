@@ -119,6 +119,7 @@ NO_RETURN void exit(int code) {
   // Set exit code
   p->exitcode = code;
 
+  free_pgdir(&(p->pgdir));
   // Transfer children and zombies to the root proc
   _transfer_children(&root_proc, p);
 
@@ -147,7 +148,8 @@ int wait(int* exitcode) {
   release_spinlock(0, &proc_lock);
 
   // Wait a child to exit
-  wait_sem(&p->childexit);
+  if(!(wait_sem(&(p->childexit))))
+    return -1;
 
   // Fetch the zombie to clean the resources
   setup_checker(1);
@@ -164,12 +166,24 @@ int wait(int* exitcode) {
   return pid;
 }
 
-int kill(int pid)
-{
-    // TODO
-    // Set the killed flag of the proc to true and return 0.
-    // Return -1 if the pid is invalid (proc not found).
-    
+int kill(int pid) {
+  // TODO
+  // Set the killed flag of the proc to true and return 0.
+  // Return -1 if the pid is invalid (proc not found).
+  setup_checker(0);
+  acquire_spinlock(0, &proc_lock);
+  _for_in_list(p, &thisproc()->children) {
+    struct proc *cur = container_of(p, struct proc, ptnode);
+    if (cur->pid == pid &&
+        cur->state != UNUSED) {
+          cur->killed = true;
+          release_spinlock(0, &proc_lock);
+          activate_proc(cur);
+          return 0;
+    }
+  }
+  release_spinlock(0, &proc_lock);
+  return -1;
 }
 
 int start_proc(struct proc* p, void (*entry)(u64), u64 arg) {
@@ -182,7 +196,6 @@ int start_proc(struct proc* p, void (*entry)(u64), u64 arg) {
   ASSERT(p->kstack != NULL);
 
   // Initialize the kernel context
-  p->kcontext = p->kstack + PAGE_SIZE - sizeof(KernelContext);
   p->kcontext->csgp_regs[11] = (u64)&proc_entry;
   p->kcontext->x0 = (u64)entry;
   p->kcontext->x1 = (u64)arg;
@@ -206,10 +219,12 @@ void init_proc(struct proc* p) {
   init_list_node(&p->zombie_children);
   p->parent = NULL;
   init_schinfo(&p->schinfo);
+  init_pgdir(&p->pgdir);
   p->kstack = kalloc_page();
   ASSERT(p->kstack != NULL);
-  p->ucontext = NULL;
-  p->kcontext = NULL;
+  memset((void*)p->kstack, 0, PAGE_SIZE);
+  p->kcontext = p->kstack + PAGE_SIZE - sizeof(KernelContext) - sizeof(UserContext);
+  p->ucontext = p->kstack + PAGE_SIZE - sizeof(UserContext);
   release_spinlock(0, &proc_lock);
 }
 
