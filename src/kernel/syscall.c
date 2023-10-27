@@ -6,9 +6,6 @@
 void* syscall_table[NR_SYSCALL];
 
 void syscall_entry(UserContext* context) {
-  // TODO
-  // Invoke syscall_table[id] with args and set the return value.
-  // id is stored in x8. args are stored in x0-x5. return value is stored in x0.
   u64 id = context->gp_regs[8];
 
   u64 arg0 = context->gp_regs[0];

@@ -36,8 +36,9 @@ static void __timer_set_clock()
 
 static void timer_clock_handler() {
     reset_clock(20);
-    // printk("cpu %d aha\n", cpuid());
-    _sched(RUNNABLE);
+    setup_checker(0);
+    lock_for_sched(0);
+    sched(0, RUNNABLE);
     while (1)
     {
         auto node = _rb_first(&cpus[cpuid()].timer);
