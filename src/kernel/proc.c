@@ -9,9 +9,6 @@
 
 #define PID_POOL_SIZE 1 << 20
 
-extern struct proc* running[NCPU];
-extern struct proc* idle[NCPU];
-
 struct proc root_proc;
 SpinLock proc_lock;
 SpinLock proc_pid_lock;
@@ -21,22 +18,23 @@ u64 pid_window;
 void kernel_entry();
 void idle_entry();
 void proc_entry();
-struct proc* _create_idle_proc();
+static struct proc* create_idle_proc();
 void init_proc(struct proc* p);
 
-define_early_init(proc_ds) {
+define_early_init(proc_helper) {
   init_spinlock(&proc_lock);
   init_spinlock(&proc_pid_lock);
 }
 
 define_init(startup_procs) {
-  // Stage the idle entries
+  // Stage the idle processes
   for (int i = 0; i < NCPU; i++) {
     // Idle processes are the first processes on each core.
     // Before the idle process is staged, no other processes are created/
-    ASSERT(running[i] == NULL);
-    struct proc* idle = _create_idle_proc();
-    running[i] = idle;
+    ASSERT(cpus[i].sched.running == NULL);
+    struct proc* idle = create_idle_proc();
+    cpus[i].sched.idle = idle;
+    cpus[i].sched.running = idle;
     idle->state = RUNNING;
   }
 
@@ -46,7 +44,7 @@ define_init(startup_procs) {
   start_proc(&root_proc, kernel_entry, 123456);
 }
 
-int _alloc_pid() {
+static int alloc_pid() {
   setup_checker(0);
   acquire_spinlock(0, &proc_pid_lock);
   u64 old_pid_window = pid_window;
@@ -72,7 +70,7 @@ int _alloc_pid() {
   return -1;
 }
 
-void _free_pid(int pid) {
+static void free_pid(int pid) {
   setup_checker(0);
   acquire_spinlock(0, &proc_pid_lock);
   u32 index = (u32)(pid / 8);
@@ -90,7 +88,7 @@ void set_parent_to_this(struct proc* proc) {
   release_spinlock(0, &proc_lock);
 }
 
-void _transfer_children(struct proc* dst, struct proc* src) {
+static void transfer_children(struct proc* dst, struct proc* src) {
   // Transfer the alive children to the destination process
   while (src->children.next != &(src->children)) {
     ListNode *pchild = src->children.next;
@@ -121,7 +119,7 @@ NO_RETURN void exit(int code) {
 
   free_pgdir(&(p->pgdir));
   // Transfer children and zombies to the root proc
-  _transfer_children(&root_proc, p);
+  transfer_children(&root_proc, p);
 
   // Move the current process to the zombie children list of its parent
   _detach_from_list(&(p->ptnode));
@@ -158,7 +156,7 @@ int wait(int* exitcode) {
   struct proc* zombie_child = container_of(zombie, struct proc, ptnode);
   int pid = zombie_child->pid;
   *exitcode = zombie_child->exitcode;
-  _free_pid(zombie_child->pid);
+  free_pid(zombie_child->pid);
   kfree_page(zombie_child->kstack);
   kfree(zombie_child);
   release_spinlock(1, &proc_lock);
@@ -166,7 +164,6 @@ int wait(int* exitcode) {
 }
 
 int kill(int pid) {
-  // TODO
   // Set the killed flag of the proc to true and return 0.
   // Return -1 if the pid is invalid (proc not found).
   setup_checker(0);
@@ -174,7 +171,8 @@ int kill(int pid) {
   _for_in_list(p, &thisproc()->children) {
     struct proc *cur = container_of(p, struct proc, ptnode);
     if (cur->pid == pid &&
-        cur->state != UNUSED) {
+        cur->state != UNUSED &&
+        !cur->idle) {
           cur->killed = true;
           release_spinlock(0, &proc_lock);
           activate_proc(cur);
@@ -210,7 +208,7 @@ void init_proc(struct proc* p) {
   memset(p, 0, sizeof(*p));
   p->killed = false;
   p->idle = false;
-  p->pid = _alloc_pid();
+  p->pid = alloc_pid();
   p->state = UNUSED;
   init_sem(&p->childexit, 0);
   init_list_node(&p->children);
@@ -234,7 +232,7 @@ struct proc* create_proc() {
   return p;
 }
 
-struct proc* _create_idle_proc() {
+static struct proc* create_idle_proc() {
   struct proc* p = create_proc();
   // Do some configurations to the idle entry
   p->idle = true;

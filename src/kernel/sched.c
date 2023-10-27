@@ -15,20 +15,16 @@ extern struct proc root_proc;
 void trap_return();
 
 ListNode runnable;
-struct proc* running[NCPU];
-struct proc* idle[NCPU];
 SpinLock sched_lock;
 
-define_early_init(sched_ds) {
+define_early_init(sched_helper) {
     init_list_node(&runnable);
-    memset((void*)running, 0, sizeof(struct proc*) * NCPU);
-    memset((void*)idle, 0, sizeof(struct proc*) * NCPU);
     init_spinlock(&sched_lock);
 }
 
 struct proc* thisproc()
 {
-    return running[cpuid()];
+    return cpus[cpuid()].sched.running;
 }
 
 void init_schinfo(struct schinfo* p)
@@ -65,7 +61,7 @@ bool activate_proc(struct proc* p)
     if (p->state == SLEEPING || p->state == UNUSED) {
         p->state = RUNNABLE;
         if (!p->idle)
-            _insert_into_list(&runnable, &p->schinfo.runnable_node/*.prev*/);
+            _insert_into_list(&runnable, &p->schinfo.runnable_node);
         _release_sched_lock();
         return true;
     }
@@ -77,35 +73,35 @@ static void update_this_state(enum procstate new_state)
 {
     thisproc()->state = new_state;
     ASSERT(new_state != RUNNING);
+
+    if (new_state == RUNNABLE && !thisproc()->idle) {
+        _detach_from_list(&(thisproc()->schinfo.runnable_node));
+        _insert_into_list(runnable.prev, &(thisproc()->schinfo.runnable_node));
+    }
+    
     if (new_state == SLEEPING || new_state == ZOMBIE) {
         _detach_from_list(&(thisproc()->schinfo.runnable_node));
     }
 }
 
 static struct proc* pick_next() {
-  ListNode* prunable = runnable.next; 
-  
-  if (thisproc()->state == RUNNABLE) {
-    _detach_from_list(&(thisproc()->schinfo.runnable_node));
-    _insert_into_list(runnable.prev, &(thisproc()->schinfo.runnable_node));
-  }
+  ListNode* prunable = runnable.next;
 
   while (prunable != &runnable) {
     struct proc* candidate =
         container_of(prunable, struct proc, schinfo.runnable_node);
     if (candidate->state == RUNNABLE) {
-        return candidate;
+      return candidate;
     }
     prunable = prunable->next;
   }
-
-  return idle[cpuid()];
+  return cpus[cpuid()].sched.idle;
 }
 
 static void update_this_proc(struct proc* p)
 {
     reset_clock(20);
-    running[cpuid()] = p;
+    cpus[cpuid()].sched.running = p;
 }
 
 // A simple scheduler.
