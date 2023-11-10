@@ -1,45 +1,31 @@
 
 #include <driver/sddef.h>
 
-/*
- * Initialize SD card.
- * Returns zero if initialization was successful, non-zero otherwise.
- */
+/** Initialize SD card. Returns zero if initialization was successful, non-zero otherwise. */
 int sdInit();
-/*
-Wait for interrupt.
-return after interrupt handling
-*/
-static int sdWaitForInterrupt(unsigned int mask);
-/*
-data synchronization barrier.
-use before access memory
-*/
-static ALWAYS_INLINE void arch_dsb_sy();
-/*
-call handler when interrupt
-*/
-void set_interrupt_handler(InterruptType type, InterruptHandler handler);
-/*
 
-*/
+/** Wait for interrupt. return after interrupt handling. */
+static int sdWaitForInterrupt(unsigned int mask);
+
+/** Data synchronization barrier. Use before access memory. */
+static ALWAYS_INLINE void arch_dsb_sy();
+
+/** Call handler when interrupt. */
+void set_interrupt_handler(InterruptType type, InterruptHandler handler);
+
 ALWAYS_INLINE u32 get_EMMC_DATA() {
     return *EMMC_DATA;
 }
+
 ALWAYS_INLINE u32 get_and_clear_EMMC_INTERRUPT() {
     u32 t = *EMMC_INTERRUPT;
     *EMMC_INTERRUPT = t;
     return t;
 }
 
-/*
- * Initialize SD card and parse MBR.
- * 1. The first partition should be FAT and is used for booting.
- * 2. The second partition is used by our file system.
- *
- * See https://en.wikipedia.org/wiki/Master_boot_record
- */
-
+/** Initialize SD card and parse MBR.
+    1. The first partition should be FAT and is used for booting.
+    2. The second partition is used by our file system. */
 void sd_init() {
     /*
      * 1.call sdInit.

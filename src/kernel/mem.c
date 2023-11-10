@@ -35,8 +35,7 @@ RefCount alloc_page_cnt;
 
 PartitionedPageNode* _partition_page(u32 rounded_size, u8 bucket_index);
 
-/*
-   memory is divided into pages. During the initialization process of the
+/** Memory is divided into pages. During the initialization process of the
    kernel, all the available pages are stored in the pages_free variable. Memory
    can be allocated in two ways: as a whole page or as a tiny partition. Pages
    have a fixed size of 4096 bytes, while partitions can range in size from 8 to
@@ -46,31 +45,29 @@ PartitionedPageNode* _partition_page(u32 rounded_size, u8 bucket_index);
    and the pointer to the next free partition is stored in the former free
    partition. The partition should be at least 8 bytes in order to store a
    pointer. We choose 2048 as the maximum size of a partition because a
-   partition with 4096 bytes is a whole page.
-*/
+   partition with 4096 bytes is a whole page. */
 
-/* The array for information about pages.*/
+/** The array for information about pages.*/
 static Page page_info[MAX_PAGES];
 
-/* The queue for all pages available. It is placed in BSS segment.*/
+/** The queue for all pages available. It is placed in BSS segment. */
 static QueueNode* pages_free;
 
-/* The hash map for pages with different maximum sizes of available area.*/
+/** The hash map for pages with different maximum sizes of available area. */
 static ListNode* partitioned_pages[MAX_BUCKETS];
 
-/* The lock is used to prevent race condition in both kalloc and kfree.*/
+/** The lock is used to prevent race condition in both kalloc and kfree. */
 static SpinLock pages_lock;
 
-/* The handle for accessing memory area that is ready for allocating.
+/** The handle for accessing memory area that is ready for allocating.
    We can access to the area by referencing this handle.
-   See linker.ld
-*/
+   See linker.ld. */
 extern char end[];
 
-/* Initialization routine which initialize alloc_page_cnt to 0 */
+/** Initialization routine which initialize alloc_page_cnt to 0. */
 define_early_init(alloc_page_cnt) { init_rc(&alloc_page_cnt); }
 
-/* Initialization routine which starts tracking all of the pages */
+/** Initialization routine which starts tracking all of the pages. */
 define_early_init(pages) {
   init_spinlock(&pages_lock);
   u64 inited_pages = 0;
