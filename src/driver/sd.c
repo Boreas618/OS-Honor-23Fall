@@ -4,7 +4,7 @@
 int sdInit();
 
 /* Wait for interrupt. Return after interrupt handling. */
-static int sdWaitForInterrupt(unsigned int mask);
+static int SDWaitForInterrupt(unsigned int mask);
 
 /* Data synchronization barrier. Use before access memory. */
 static ALWAYS_INLINE void arch_dsb_sy();
@@ -37,7 +37,7 @@ ALWAYS_INLINE u32 get_and_clear_EMMC_INTERRUPT() {
  * 4. Read and parse 1st block (MBR) and collect whatever information you want.
  */
 void sd_init() {
-    sdInit();
+    SDInit();
     init_spinlock(&sd_lock);
     queue_init(&bufs);
 
@@ -57,7 +57,7 @@ void sd_init() {
  */
 void sd_start(Buf* b) {
     int bno =
-        sdCard.type == SD_TYPE_2_HC ? (int)b->blockno : (int)b->blockno << 9;
+        SDCard.type == SD_TYPE_2_HC ? (int)b->blockno : (int)b->blockno << 9;
     int write = b->flags & B_DIRTY;
 
     arch_dsb_sy();
@@ -76,7 +76,7 @@ void sd_start(Buf* b) {
     int resp;
     *EMMC_BLKSIZECNT = 512;
 
-    if ((resp = sdSendCommandA(cmd, bno))) {
+    if ((resp = SDSendCommandA(cmd, bno))) {
         printk("* EMMC send command error.\n");
         PANIC();
     }
@@ -90,7 +90,7 @@ void sd_start(Buf* b) {
 
     if (write) {
         // Wait for ready interrupt for the next block.
-        if ((resp = sdWaitForInterrupt(INT_WRITE_RDY))) {
+        if ((resp = SDWaitForInterrupt(INT_WRITE_RDY))) {
             printk("* EMMC ERROR: Timeout waiting for ready to write\n");
             PANIC();
         }
@@ -131,7 +131,7 @@ void sd_intr() {
     u32* intbuf = (u32*)b->data;
     int code = 0;
     if (flag == 0) {
-        if (code = sdWaitForInterrupt(INT_READ_RDY)) {
+        if ((code = SDWaitForInterrupt(INT_READ_RDY))) {
             printk("\n[Error] SD operation with return code: %d\n", code);
             PANIC();
         }
@@ -139,14 +139,14 @@ void sd_intr() {
         for (int i = 0; i < 128; ++i)
             intbuf[i] = get_EMMC_DATA();
 
-        if (code = sdWaitForInterrupt(INT_DATA_DONE)) {
+        if ((code = SDWaitForInterrupt(INT_DATA_DONE))) {
             printk("\n[Error] SD operation with return code: %d\n", code);
             PANIC();
         }
 
         b->flags = B_VALID;
     } else if (flag == B_DIRTY) {
-        if (sdWaitForInterrupt(INT_DATA_DONE)) {
+        if (SDWaitForInterrupt(INT_DATA_DONE)) {
             printk("\n[Error] SD operation with return code: %d\n", code);
             PANIC();
         }
