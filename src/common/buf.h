@@ -14,9 +14,6 @@ typedef struct buf {
     int flags;
     u32 blockno;
     u8 data[BSIZE];  // 1B*512
-
-    /*
-     * Add other necessary elements. It depends on you.
-     */
-    /* TODO: Lab5 driver. */
-} buf;
+    ListNode bq_node;
+    Semaphore sem;
+} Buf;

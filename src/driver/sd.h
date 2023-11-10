@@ -21,4 +21,4 @@
 void sd_init();
 void sd_intr();
 void sd_test();
-void sdrw(buf*);
+void sdrw(Buf*);

@@ -66,8 +66,8 @@ QueueNode* fetch_all_from_queue(QueueNode** head);
 typedef struct Queue {
     ListNode* begin;
     ListNode* end;
-    int sz;
-    SpinLock lk;
+    int size;
+    SpinLock lock;
 } Queue;
 void queue_init(Queue* x);
 void queue_lock(Queue* x);
