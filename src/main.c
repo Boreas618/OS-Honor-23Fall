@@ -21,7 +21,6 @@ void kernel_init()
     boot_secondary_cpus = true;
 }
 
-
 void main()
 {
     if (cpuid() == 0)
