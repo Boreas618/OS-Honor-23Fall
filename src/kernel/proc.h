@@ -10,14 +10,19 @@ enum procstate { UNUSED, RUNNABLE, RUNNING, SLEEPING, DEEPSLEEPING, ZOMBIE };
 
 typedef struct UserContext
 {
-    // TODO: customize your trap frame
-
+    u64 spsr;
+    u64 elr;
+    u64 sp;
+    // General Purpose registers
+    u64 gp_regs[31];
 } UserContext;
 
 typedef struct KernelContext
 {
-    // TODO: customize your context
-
+    u64 x0; 
+    u64 x1;
+    // Callee-saved General Purpose registers
+    u64 csgp_regs[12];
 } KernelContext;
 
 struct proc
@@ -29,6 +34,7 @@ struct proc
     enum procstate state;
     Semaphore childexit;
     ListNode children;
+    ListNode zombie_children;
     ListNode ptnode;
     struct proc* parent;
     struct schinfo schinfo;

@@ -7,7 +7,10 @@
 #include <kernel/proc.h>
 #include <kernel/syscall.h>
 
-PTEntriesPtr get_pte(struct pgdir* pgdir, u64 va, bool alloc);
+PTEntry* get_pte(struct pgdir* pgdir, u64 va, bool alloc);
+
+extern struct proc* running[];
+extern ListNode runnable;
 
 void vm_test() {
     printk("vm_test\n");
@@ -71,9 +74,8 @@ void user_proc_test()
             *get_pte(&p->pgdir, 0x400000 + q - (u64)loop_start, true) = K2P(q) | PTE_USER_DATA;
         }
         ASSERT(p->pgdir.pt);
-        p->ucontext->x0 = i;
+        p->ucontext->gp_regs[0] = i;
         p->ucontext->elr = 0x400000;
-        p->ucontext->ttbr0 = K2P(p->pgdir.pt);
         p->ucontext->spsr = 0;
         pids[i] = start_proc(p, trap_return, 0);
         printk("pid[%d] = %d\n", i, pids[i]);
@@ -88,6 +90,7 @@ void user_proc_test()
         int pid = wait(&code);
         printk("pid %d killed\n", pid);
         ASSERT(code == -1);
+        //break;
     }
     printk("user_proc_test PASS\nRuntime:\n");
     for (int i = 0; i < 4; i++)

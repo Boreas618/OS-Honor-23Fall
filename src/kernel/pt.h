@@ -4,7 +4,7 @@
 
 struct pgdir
 {
-    PTEntriesPtr pt;
+    PTEntry* pt;
 };
 
 void init_pgdir(struct pgdir* pgdir);
