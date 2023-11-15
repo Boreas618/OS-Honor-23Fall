@@ -53,6 +53,7 @@ bool is_zombie(struct proc* p)
 
 bool _activate_proc(struct proc* p, bool onalert)
 {
+    (void) onalert;
     // TODO
     // if the proc->state is RUNNING/RUNNABLE, do nothing and return false
     // if the proc->state is SLEEPING/UNUSED, set the process state to RUNNABLE, add it to the sched queue, and return true
@@ -70,6 +71,7 @@ bool _activate_proc(struct proc* p, bool onalert)
         return true;
     }
     _release_sched_lock();
+    return false;
 }
 
 static void update_this_state(enum procstate new_state)

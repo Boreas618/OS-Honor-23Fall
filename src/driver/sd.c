@@ -179,5 +179,6 @@ void sdrw(Buf* b) {
         sd_start(b);
         _release_spinlock(&sd_lock);
     }
-    wait_sem(&(b->sem));
+    bool r = wait_sem(&(b->sem));
+    (void) r;
 }

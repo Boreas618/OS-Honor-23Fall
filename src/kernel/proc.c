@@ -146,7 +146,8 @@ int wait(int* exitcode) {
   release_spinlock(0, &proc_lock);
 
   // Wait a child to exit
-  wait_sem(&(p->childexit));
+  bool r = wait_sem(&(p->childexit));
+  (void) r;
 
   // Fetch the zombie to clean the resources
   setup_checker(1);
