@@ -51,8 +51,12 @@ bool is_zombie(struct proc* p)
     return r;
 }
 
-bool activate_proc(struct proc* p)
+bool _activate_proc(struct proc* p, bool onalert)
 {
+    // TODO
+    // if the proc->state is RUNNING/RUNNABLE, do nothing and return false
+    // if the proc->state is SLEEPING/UNUSED, set the process state to RUNNABLE, add it to the sched queue, and return true
+    // if the proc->state is DEEPSLEEPING, do nothing if onalert or activate it if else, and return the corresponding value.
     _acquire_sched_lock();
     if (p->state == RUNNING || p->state == RUNNABLE || p->state == ZOMBIE) {
         _release_sched_lock();
@@ -66,16 +70,6 @@ bool activate_proc(struct proc* p)
         return true;
     }
     _release_sched_lock();
-    return r;
-}
-
-bool _activate_proc(struct proc* p, bool onalert)
-{
-    // TODO
-    // if the proc->state is RUNNING/RUNNABLE, do nothing and return false
-    // if the proc->state is SLEEPING/UNUSED, set the process state to RUNNABLE, add it to the sched queue, and return true
-    // if the proc->state is DEEPSLEEPING, do nothing if onalert or activate it if else, and return the corresponding value.
-
 }
 
 static void update_this_state(enum procstate new_state)
