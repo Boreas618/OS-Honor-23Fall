@@ -32,7 +32,7 @@ void rbtree_test() {
     }
     if (cid == 0) init_spinlock(&lock);
     arch_dsb_sy();
-    _increment_rc(&x);
+    increment_rc(&x);
     while (x.count < 4)
         ;
     arch_dsb_sy();
@@ -57,7 +57,7 @@ void rbtree_test() {
         release_spinlock(0, &lock);
     }
     arch_dsb_sy();
-    _increment_rc(&x);
+    increment_rc(&x);
     while (x.count < 8)
         ;
     arch_dsb_sy();
