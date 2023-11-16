@@ -6,10 +6,6 @@
 
 PTEntry* get_pte(struct pgdir* pgdir, u64 va, bool alloc)
 {
-    /*
-       Note that in the page table, all addresses are physical addresses.
-    */
-
     if (!pgdir->pt && !alloc) 
         return NULL;
     if (!pgdir->pt && alloc)
@@ -20,14 +16,11 @@ PTEntry* get_pte(struct pgdir* pgdir, u64 va, bool alloc)
     unsigned int flags[] = { PTE_TABLE, PTE_TABLE, PTE_TABLE, PTE_USER_DATA };
 
     for (int i = 0; i < 4; i++) {
-        if (!(pgtbl[idxs[i]] & PTE_VALID) && !alloc) 
-            return NULL;
-        if (!(pgtbl[idxs[i]] & PTE_VALID) && alloc) {
-            pgtbl[idxs[i]] = K2P(kalloc_page()) | flags[i];
-            memset((void*)P2K(PTE_ADDRESS(pgtbl[idxs[i]])), 0, PAGE_SIZE);
+        if (!(pgtbl[idxs[i]] & PTE_VALID)) {
+            if (!alloc) return NULL;
+            (void)((alloc) &&(i != 3) && (pgtbl[idxs[i]] = K2P(kalloc_page()) | flags[i]) && (memset((void*)P2K(PTE_ADDRESS(pgtbl[idxs[i]])), 0, PAGE_SIZE)));
         }
-        if (i != 3) 
-            pgtbl = (PTEntry*) P2K(PTE_ADDRESS(pgtbl[idxs[i]]));
+        (void)((i != 3) && (pgtbl = (PTEntry*) P2K(PTE_ADDRESS(pgtbl[idxs[i]]))));
     }
 
     return (PTEntry*)(pgtbl + idxs[3]);
@@ -70,7 +63,7 @@ void free_pgdir(struct pgdir* pgdir)
                     if (!(*p_pte_level_3 & PTE_VALID))
                         continue;
 
-                    kfree_page((void*) P2K(PTE_ADDRESS(*p_pte_level_3)));
+                    //kfree_page((void*) P2K(PTE_ADDRESS(*p_pte_level_3)));
                  }
                 kfree_page((void*) P2K(PTE_ADDRESS(*p_pte_level_2)));
             }

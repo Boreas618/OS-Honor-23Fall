@@ -9,15 +9,18 @@
 #include <driver/clock.h>
 
 /* The length should be between 10 - 100. Otherwise there would be timer issues.*/
-#define SLICE_LEN 100
+#define SLICE_LEN 10
 
 extern bool panic_flag;
 extern void swtch(KernelContext* new_ctx, KernelContext** old_ctx);
 extern struct proc root_proc;
+extern struct proc* running[];
+extern ListNode runnable;
 
 static struct timer sched_timer[NCPU];
 
 void trap_return();
+PTEntry* get_pte(struct pgdir* pgdir, u64 va, bool alloc);
 
 ListNode runnable;
 SpinLock sched_lock;
@@ -138,7 +141,7 @@ __attribute__((weak, alias("simple_sched"))) void _sched(enum procstate new_stat
 
 u64 proc_entry(void(*entry)(u64), u64 arg)
 {
-    _release_sched_lock();
     set_return_addr(entry);
+    _release_sched_lock();
     return arg;
 }

@@ -6,6 +6,7 @@
 #include <common/sem.h>
 #include <kernel/proc.h>
 #include <kernel/syscall.h>
+#define NPROC 22
 
 PTEntry* get_pte(struct pgdir* pgdir, u64 va, bool alloc);
 
@@ -41,13 +42,13 @@ void vm_test() {
 
 void trap_return();
 
-static u64 proc_cnt[22], cpu_cnt[4];
+static u64 proc_cnt[NPROC], cpu_cnt[4];
 static Semaphore myrepot_done;
 
 define_syscall(myreport, u64 id)
 {
     static bool stop;
-    ASSERT(id < 22);
+    ASSERT(id < NPROC);
     if (stop)
         return 0;
     proc_cnt[id]++;
@@ -65,8 +66,8 @@ void user_proc_test()
     printk("user_proc_test\n");
     init_sem(&myrepot_done, 0);
     extern char loop_start[], loop_end[];
-    int pids[22];
-    for (int i = 0; i < 22; i++)
+    int pids[NPROC];
+    for (int i = 0; i < NPROC; i++)
     {
         auto p = create_proc();
         for (u64 q = (u64)loop_start; q < (u64)loop_end; q += PAGE_SIZE)
@@ -82,20 +83,19 @@ void user_proc_test()
     }
     ASSERT(wait_sem(&myrepot_done));
     printk("done\n");
-    for (int i = 0; i < 22; i++)
+    for (int i = 0; i < NPROC; i++)
         ASSERT(kill(pids[i]) == 0);
-    for (int i = 0; i < 22; i++)
+    for (int i = 0; i < NPROC; i++)
     {
         int code;
         int pid = wait(&code);
         printk("pid %d killed\n", pid);
         ASSERT(code == -1);
-        //break;
     }
     printk("user_proc_test PASS\nRuntime:\n");
     for (int i = 0; i < 4; i++)
         printk("CPU %d: %llu\n", i, cpu_cnt[i]);
-    for (int i = 0; i < 22; i++)
+    for (int i = 0; i < NPROC; i++)
         printk("Proc %d: %llu\n", i, proc_cnt[i]);
 }
 

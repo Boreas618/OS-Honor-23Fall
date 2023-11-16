@@ -35,7 +35,6 @@ static void __timer_set_clock()
 }
 
 static void timer_clock_handler() {
-    reset_clock(1000);
     while (1)
     {
         auto node = _rb_first(&cpus[cpuid()].timer);
