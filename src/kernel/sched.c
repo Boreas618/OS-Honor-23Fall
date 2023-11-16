@@ -8,11 +8,19 @@
 #include <common/string.h>
 #include <driver/clock.h>
 
+/* The length should be between 10 - 100. Otherwise there would be timer issues.*/
+#define SLICE_LEN 10
+
 extern bool panic_flag;
 extern void swtch(KernelContext* new_ctx, KernelContext** old_ctx);
 extern struct proc root_proc;
+extern struct proc* running[];
+extern ListNode runnable;
+
+static struct timer sched_timer[NCPU];
 
 void trap_return();
+PTEntry* get_pte(struct pgdir* pgdir, u64 va, bool alloc);
 
 ListNode runnable;
 SpinLock sched_lock;
@@ -40,15 +48,6 @@ void _acquire_sched_lock()
 void _release_sched_lock()
 {
     _release_spinlock(&sched_lock);
-}
-
-bool is_zombie(struct proc* p)
-{
-    bool r;
-    _acquire_sched_lock();
-    r = p->state == ZOMBIE;
-    _release_sched_lock();
-    return r;
 }
 
 bool _activate_proc(struct proc* p, bool onalert)
@@ -103,10 +102,21 @@ static struct proc* pick_next() {
   return cpus[cpuid()].sched.idle;
 }
 
-static void update_this_proc(struct proc* p)
-{
-    reset_clock(20);
+static void _sched_handler(struct timer* t) {
+    t->data--;
+    yield();
+}
+
+static void update_this_proc(struct proc* p) {
+    if (sched_timer[cpuid()].data > 0) {
+        cancel_cpu_timer(&sched_timer[cpuid()]);
+        sched_timer[cpuid()].data--;
+    }
     cpus[cpuid()].sched.running = p;
+    sched_timer[cpuid()].elapse = SLICE_LEN;
+    sched_timer[cpuid()].handler = _sched_handler;
+    set_cpu_timer(&sched_timer[cpuid()]);
+    sched_timer[cpuid()].data++;
 }
 
 // A simple scheduler.
@@ -136,7 +146,7 @@ __attribute__((weak, alias("simple_sched"))) void _sched(enum procstate new_stat
 
 u64 proc_entry(void(*entry)(u64), u64 arg)
 {
-    _release_sched_lock();
     set_return_addr(entry);
+    _release_sched_lock();
     return arg;
 }

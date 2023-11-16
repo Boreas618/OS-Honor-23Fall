@@ -103,3 +103,23 @@ void queue_push(Queue* x, ListNode* item);
 void queue_pop(Queue* x);
 ListNode* queue_front(Queue* x);
 bool queue_empty(Queue* x);
+
+typedef struct List {
+    ListNode* head;
+    int size;
+    SpinLock lock;
+} List;
+
+void list_init(List* l);
+void list_lock(List* l);
+void list_unlock(List *l);
+void list_insert(List* l, ListNode* item, ListNode* target);
+void list_remove(List* l, ListNode* item);
+void list_push_head(List* l, ListNode* item);
+void list_push_back(List* l, ListNode* item);
+void list_pop_head(List* l);
+void list_pop_back(List* l);
+
+#define list_size(l) (l.size)
+#define list_head(l) (l.head)
+#define is_empty(l) (l.size == 0)

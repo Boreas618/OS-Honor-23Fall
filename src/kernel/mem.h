@@ -15,9 +15,8 @@ WARN_RESULT void* kalloc(isize);
 void kfree(void*);
 
 typedef struct partitioned_page_node {
-    struct ListNode *prev, *next;
+    struct ListNode pp_node;
     struct page* page;
-    bool head;
     u8 bucket_index;
 } PartitionedPageNode;
 

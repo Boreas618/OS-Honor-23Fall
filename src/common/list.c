@@ -70,23 +70,26 @@ void queue_init(Queue* x) {
     x->size = 0;
     init_spinlock(&x->lock);
 }
+
 void queue_lock(Queue* x) {
     _acquire_spinlock(&x->lock);
 }
+
 void queue_unlock(Queue* x) {
     _release_spinlock(&x->lock);
 }
+
 void queue_push(Queue* x, ListNode* item) {
     init_list_node(item);
     if (x->size == 0) {
         x->begin = x->end = item;
-
     } else {
         _merge_list(x->end, item);
         x->end = item;
     }
     x->size++;
 }
+
 void queue_pop(Queue* x) {
     if (x->size == 0)
         PANIC();
@@ -99,11 +102,65 @@ void queue_pop(Queue* x) {
     }
     x->size--;
 }
+
 ListNode* queue_front(Queue* x) {
     if (!x || !x->begin)
         PANIC();
     return x->begin;
 }
+
 bool queue_empty(Queue* x) {
     return x->size == 0;
+}
+
+void list_init(List* l) {
+    l->head = NULL;
+    l->size = 0;
+    init_spinlock(&l->lock);
+}
+
+void list_lock(List* l) {
+    _acquire_spinlock(&l->lock);
+}
+
+void list_unlock(List* l) {
+    _release_spinlock(&l->lock);
+}
+
+/* Insert the item before the target. */
+void list_insert(List* l, ListNode* item, ListNode* target) {
+    init_list_node(item);
+    if (l->size == 0) {
+        l->head = item;
+    } else {
+        target->prev->next = item;
+        item->prev = target->prev;
+        item->next = target;
+        target->prev = item;
+    }
+    l->size++;
+}
+
+void list_remove(List* l, ListNode* item) {
+    if (item == l->head)
+        l->head = item->next;
+    _detach_from_list(item); 
+    l->size--;
+}
+
+void list_push_head(List* l, ListNode* item) {
+    list_insert(l, item, l->head);
+    l->head = item;
+}
+
+void list_push_back(List* l, ListNode* item) {
+    list_insert(l, item, l->head);
+}
+
+void list_pop_head(List* l) {
+    list_remove(l, l->head);
+}
+
+void list_pop_back(List* l) {
+    list_remove(l, l->head->prev);
 }
