@@ -1,11 +1,17 @@
 #include <driver/sd.h>
 #include <fs/block_device.h>
 
-/**
-    @brief a simple implementation of reading a block from SD card.
+usize block_no_sb;
 
-    @param[in] block_no the block number to read
-    @param[out] buffer the buffer to store the data
+define_early_init(block_device) {
+    init_block_device();
+}
+
+/*
+ * A simple implementation of reading a block from SD card.
+ * 
+ * `block_no` is the block number to read
+ * `buffer` is the buffer to store the data
  */
 static void sd_read(usize block_no, u8 *buffer) {
     struct buf b;
@@ -15,11 +21,11 @@ static void sd_read(usize block_no, u8 *buffer) {
     memcpy(buffer, b.data, BLOCK_SIZE);
 }
 
-/**
-    @brief a simple implementation of writing a block to SD card.
-
-    @param[in] block_no the block number to write
-    @param[in] buffer the buffer to store the data
+/*
+ * A simple implementation of writing a block to SD card.
+ * 
+ * `block_no` is the block number to write
+ * `buffer` is the buffer to store the data
  */
 static void sd_write(usize block_no, u8 *buffer) {
     struct buf b;
@@ -29,14 +35,12 @@ static void sd_write(usize block_no, u8 *buffer) {
     sdrw(&b);
 }
 
-/**
-    @brief the in-memory copy of the super block.
-
-    We may need to read the super block multiple times, so keep a copy of it in
-    memory.
-
-    @note the super block, in our lab, is always read-only, so we don't need to
-    write it back.
+/*
+ * The in-memory copy of the super block.
+ * 
+ * We may need to read the super block multiple times, so keep a copy of it in memory.
+ * 
+ * The super block, in our lab, is always read-only, so we don't need to write it back.
  */
 static u8 sblock_data[BLOCK_SIZE];
 
@@ -49,6 +53,9 @@ void init_block_device() {
     // this is how OOP is done in C ;)
     block_device.read = sd_read;
     block_device.write = sd_write;
+
+    ASSERT(block_no_sb != 0);
+    block_device.read(block_no_sb, (u8*)sblock_data);
 }
 
 const SuperBlock *get_super_block() { return (const SuperBlock *)sblock_data; }

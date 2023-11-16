@@ -5,30 +5,35 @@
 #include <kernel/printk.h>
 #include <kernel/proc.h>
 
+define_early_init(cache) {
+    list_init(&blocks);
+}
+
 /*
  * The private reference to the super block.
  * 
- * We need these two variables because we allow the caller to specify the block device and super block to use.
- * Correspondingly, you should NEVER use global instance of them, e.g. `get_super_block`, `block_device`.
- * 
- * See init_bcache
+ * We need these two variables because we allow the caller to specify the block device 
+ * and super block to use.
+ * Correspondingly, you should NEVER use global instance of them, e.g. `get_super_block`, 
+ * `block_device`.
  */
 static const SuperBlock *sblock;
 
 /* The reference to the underlying block device. */
 static const BlockDevice *device; 
 
-/* Global lock for block cache. Use it to protect anything you need. e.g. the list of allocated blocks, etc. */
+/* 
+ * Global lock for block cache. Use it to protect anything you need. e.g. the list of
+ * allocated blocks, etc. 
+ */
 static SpinLock lock;
 
 /* 
  * The list of all allocated in-memory block.
  * We use a linked list to manage all allocated cached blocks.
  * You can implement your own data structure if you like better performance.
- * 
- * See Block.
  */
-static ListNode head;
+static List blocks;
 
 /* In-memory copy of log header block. */
 static LogHeader header;
@@ -39,8 +44,9 @@ static LogHeader header;
  * You may wonder where we store some states, e.g.
  * - How many atomic operations are running?
  * - Are we checkpointing?
- * How to notify `end_op` that a checkpoint is done?
- * See cache_begin_op, cache_end_op, cache_sync
+ * - How to notify `end_op` that a checkpoint is done?
+ * 
+ * See cache_begin_op, cache_end_op, cache_sync.
  */
 struct {
     /* your fields here */
@@ -79,13 +85,19 @@ static void init_block(Block *block) {
 }
 
 static usize get_num_cached_blocks() {
-    // TODO
-    return 0;
+    return (usize) blocks.size;
 }
 
 static Block *cache_acquire(usize block_no) {
-    // TODO
-    return 0;
+    Block *b;
+    _acquire_spinlock(&lock);
+    Block* b = (Block*) kalloc(sizeof(Block));
+    init_block(b);
+    b->block_no = block_no;
+    list_push_back(&blocks, &b);
+    device_read(b);
+    _release_spinlock(&lock);
+    return b;
 }
 
 static void cache_release(Block *block) {

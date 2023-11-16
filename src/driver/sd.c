@@ -12,6 +12,9 @@ static ALWAYS_INLINE void arch_dsb_sy();
 /* Call handler when interrupt. */
 void set_interrupt_handler(InterruptType type, InterruptHandler handler);
 
+/* LBA for super block*/
+usize block_no_sb = 0;
+
 static Queue bufs;
 
 SpinLock sd_lock;
@@ -28,6 +31,7 @@ ALWAYS_INLINE u32 get_and_clear_EMMC_INTERRUPT() {
 
 /* 
  * Initialize SD card and parse MBR.
+ *
  * 1. The first partition should be FAT and is used for booting.
  * 2. The second partition is used by our file system. 
  *
@@ -46,6 +50,7 @@ void sd_init() {
 
     Buf mbr_buf;
     sdrw(&mbr_buf);
+    block_no_sb = *(u32*)(mbr_buf.data + 0x1ce + 0x8);
     printk("\n\nLBA of first absolute sector in the partition: %d.\nNumber of sectors in partition: %d\n\n", *(u32*)(mbr_buf.data + 0x1ce + 0x8), *(u32*)(mbr_buf.data + 0x1ce + 0xc));
 }
 
