@@ -5,10 +5,6 @@
 #include <kernel/printk.h>
 #include <kernel/proc.h>
 
-define_early_init(cache) {
-    list_init(&blocks);
-}
-
 /*
  * The private reference to the super block.
  * 
@@ -52,6 +48,14 @@ struct {
     /* your fields here */
 } log;
 
+define_early_init(cache) {
+    list_init(&blocks);
+}
+
+Block* _fetch_cached(usize block_no);
+
+bool _evict();
+
 /* Read the content from disk. */
 static INLINE void device_read(Block *block) {
     device->read(block->block_no, block->data);
@@ -90,18 +94,49 @@ static usize get_num_cached_blocks() {
 
 static Block *cache_acquire(usize block_no) {
     Block *b;
+    bool cached;
     _acquire_spinlock(&lock);
-    Block* b = (Block*) kalloc(sizeof(Block));
+
+    if (b = _fetch_cached(block_no)) {
+        if (!b->acquired) {
+            _get_sem(&b->lock);
+            b->acquired = true;
+            _release_spinlock(&lock);
+            return b;
+        }
+        while (b->acquired) {
+            _release_spinlock(&lock);
+            _wait_sem(&b->lock, false);
+            _acquire_spinlock(&lock);
+            if (_get_sem(&b->lock)) {
+                b->acquired = true;
+                _release_spinlock(&lock);
+                return b;
+            }
+        }
+    }
+
+    ASSERT(b == NULL);
+
+    // Best-effort eviction
+    (blocks.size >= EVICTION_THRESHOLD) && (_evict());
+    
+    b = (Block*) kalloc(sizeof(Block));
     init_block(b);
     b->block_no = block_no;
-    list_push_back(&blocks, &b);
+    b->acquired = true;
+    _get_sem(&b->lock);
+    list_push_back(&blocks, &b->node);
     device_read(b);
     _release_spinlock(&lock);
     return b;
 }
 
 static void cache_release(Block *block) {
-    // TODO
+    ASSERT(block->acquired);
+    _acquire_spinlock(&lock);
+    _post_sem(&block->lock);
+    _release_spinlock(&lock);
 }
 
 void init_bcache(const SuperBlock *_sblock, const BlockDevice *_device) {
@@ -141,3 +176,25 @@ BlockCache bcache = {
     .alloc = cache_alloc,
     .free = cache_free,
 };
+
+Block* _fetch_cached(usize block_no) {
+    for (ListNode* p = list_head(blocks);;p = p->next) {
+        Block *b = container_of(p ,Block, node);
+        if (b->block_no == block_no)
+            return b;
+        else if (p->next == list_head(blocks))
+            return NULL;
+    }
+}
+
+bool _evict() {
+    for (ListNode* p = list_head(blocks);;p = p->next) {
+        Block *b = container_of(p ,Block, node);
+        if (!b->pinned) {
+            list_remove(&blocks, p);
+            return true;
+        }
+        if (p->next == list_head(blocks))
+            return false;
+    }
+}
