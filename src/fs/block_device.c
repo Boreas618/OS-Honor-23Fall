@@ -47,10 +47,7 @@ static u8 sblock_data[BLOCK_SIZE];
 BlockDevice block_device;
 
 void init_block_device() {
-    // TODO: read super block from SD card
-
-    // initialize the block device
-    // this is how OOP is done in C ;)
+    // Initialize the block device
     block_device.read = sd_read;
     block_device.write = sd_write;
 

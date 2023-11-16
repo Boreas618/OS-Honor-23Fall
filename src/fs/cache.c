@@ -49,6 +49,7 @@ struct {
 } log;
 
 define_early_init(cache) {
+    init_spinlock(&lock);
     list_init(&blocks);
 }
 
@@ -93,8 +94,7 @@ static usize get_num_cached_blocks() {
 }
 
 static Block *cache_acquire(usize block_no) {
-    Block *b;
-    bool cached;
+    Block *b = NULL;
     _acquire_spinlock(&lock);
 
     if (b = _fetch_cached(block_no)) {
@@ -135,6 +135,7 @@ static Block *cache_acquire(usize block_no) {
 static void cache_release(Block *block) {
     ASSERT(block->acquired);
     _acquire_spinlock(&lock);
+    block->acquired = false;
     _post_sem(&block->lock);
     _release_spinlock(&lock);
 }
@@ -179,7 +180,7 @@ BlockCache bcache = {
 
 Block* _fetch_cached(usize block_no) {
     for (ListNode* p = list_head(blocks);;p = p->next) {
-        Block *b = container_of(p ,Block, node);
+        Block *b = container_of(p, Block, node);
         if (b->block_no == block_no)
             return b;
         else if (p->next == list_head(blocks))
