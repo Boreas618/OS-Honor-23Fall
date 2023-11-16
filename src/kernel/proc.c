@@ -176,7 +176,7 @@ int kill(int pid) {
         !cur->idle) {
           cur->killed = true;
           release_spinlock(0, &proc_lock);
-          activate_proc(cur);
+          alert_proc(cur);
           return 0;
     }
   }
