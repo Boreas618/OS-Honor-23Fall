@@ -97,37 +97,47 @@ static Block *cache_acquire(usize block_no) {
     Block *b = NULL;
     _acquire_spinlock(&lock);
 
+    // The requested block is right in the cache.
     if (b = _fetch_cached(block_no)) {
+        // The block is free to acquire.
         if (!b->acquired) {
-            _get_sem(&b->lock);
-            b->acquired = true;
+            (void)((_get_sem(&b->lock)) && (b->acquired = true));
+            _boost_freq(b);
             _release_spinlock(&lock);
             return b;
         }
+        // Contend for the block.
         while (b->acquired) {
             _release_spinlock(&lock);
             _wait_sem(&b->lock, false);
             _acquire_spinlock(&lock);
             if (_get_sem(&b->lock)) {
                 b->acquired = true;
+                _boost_freq(b);
                 _release_spinlock(&lock);
                 return b;
             }
         }
     }
 
-    ASSERT(b == NULL);
-
-    // Best-effort eviction
+    // Best-effort eviction.
     (blocks.size >= EVICTION_THRESHOLD) && (_evict());
     
+    // Initialize a new block cache.
     b = (Block*) kalloc(sizeof(Block));
     init_block(b);
-    b->block_no = block_no;
-    b->acquired = true;
-    _get_sem(&b->lock);
+    (void)(
+        (b->acquired = true) && 
+        (b->valid = true) && 
+        (b->block_no = block_no) && 
+        _get_sem(&b->lock));
+    
+    // Push to the cache list.
     list_push_back(&blocks, &b->node);
+
+    // Load from disk.
     device_read(b);
+    _boost_freq(b);
     _release_spinlock(&lock);
     return b;
 }
@@ -144,15 +154,17 @@ void init_bcache(const SuperBlock *_sblock, const BlockDevice *_device) {
     sblock = _sblock;
     device = _device;
 
-    // TODO
+    init_spinlock(&lock);
+    list_init(&blocks);
 }
 
 static void cache_begin_op(OpContext *ctx) {
-    // TODO
+    
 }
 
 static void cache_sync(OpContext *ctx, Block *block) {
-    // TODO
+    if (!ctx)
+        device_write(block);
 }
 
 static void cache_end_op(OpContext *ctx) {
@@ -179,6 +191,8 @@ BlockCache bcache = {
 };
 
 Block* _fetch_cached(usize block_no) {
+    if (!blocks.size)
+        return NULL;
     for (ListNode* p = list_head(blocks);;p = p->next) {
         Block *b = container_of(p, Block, node);
         if (b->block_no == block_no)
@@ -188,14 +202,23 @@ Block* _fetch_cached(usize block_no) {
     }
 }
 
+/* Evict 2 pages that are least frequently used. */
 bool _evict() {
+    bool flag = false;
     for (ListNode* p = list_head(blocks);;p = p->next) {
         Block *b = container_of(p ,Block, node);
         if (!b->pinned) {
             list_remove(&blocks, p);
-            return true;
+            if(flag)
+                return true;
+            flag = true;
         }
         if (p->next == list_head(blocks))
             return false;
     }
+    return flag;
+}
+
+void _boost_freq(Block* b) {
+    blocks.head = b->node.next;
 }

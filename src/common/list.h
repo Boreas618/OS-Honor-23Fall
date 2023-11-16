@@ -106,7 +106,7 @@ bool queue_empty(Queue* x);
 
 typedef struct List {
     ListNode* head;
-    int size;
+    usize size;
     SpinLock lock;
 } List;
 
