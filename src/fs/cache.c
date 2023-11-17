@@ -144,7 +144,6 @@ void init_bcache(const SuperBlock *_sblock, const BlockDevice *_device) {
 }
 
 static void cache_begin_op(OpContext *ctx) {
-    
 }
 
 static void cache_sync(OpContext *ctx, Block *block) {
@@ -175,7 +174,7 @@ BlockCache bcache = {
     .free = cache_free,
 };
 
-Block* _fetch_cached(usize block_no) {
+INLINE Block* _fetch_cached(usize block_no) {
     if (!blocks.size)
         return NULL;
     for (ListNode* p = list_head(blocks);;p = p->next) {
@@ -188,7 +187,7 @@ Block* _fetch_cached(usize block_no) {
 }
 
 /* Evict 2 pages that are least frequently used. */
-bool _evict() {
+INLINE bool _evict() {
     bool flag = false;
     for (ListNode* p = list_head(blocks);;p = p->next) {
         Block *b = container_of(p ,Block, node);
@@ -203,6 +202,52 @@ bool _evict() {
     return flag;
 }
 
-void _boost_freq(Block* b) {
+INLINE void _boost_freq(Block* b) {
     blocks.head = b->node.next;
+}
+
+int _write_all(bool to_log) {
+    _acquire_spinlock(&lock);
+    int i = 0;
+    for (ListNode* p = list_head(blocks); i < get_num_cached_blocks(); p = p->next, i++) {
+        if (to_log && i == sblock->num_log_blocks) {
+            _release_spinlock(&lock);
+            return -1;
+        }
+        Block *b = container_of(p, Block, node);
+        device->write(to_log ? sblock->log_start + 1 + i : b->block_no, b->data);
+        if (p->next == list_head(blocks)) {
+            _release_spinlock(&lock);
+            return 0;
+        }
+    }
+    PANIC();
+}
+
+int _spawn_ckpt() {
+    // Sync the header.
+    read_header();
+    
+    // The transfer block which holds the block read from log.
+    Block transfer_b;
+    init_block(&transfer_b);
+
+    // Read the log into the transfer block.
+    // 
+    // Note that the block number of the block for logging and
+    // the exact block number of the data are different.
+    // In order to read the log, we need to figure out the block
+    // number based on the number of log_start.
+    // The exact block number of the logged blocks are stored
+    // in the header of the log area.
+    for(int i = 0; i < header.num_blocks; i++) {
+        transfer_b.block_no = sblock->log_start + 1 + i;
+        device_read(&transfer_b);
+        transfer_b.block_no = header.block_no[i];
+        device_write(&transfer_b);
+    }
+
+    // Empty the log area.
+    header.num_blocks = 0;
+    write_header();
 }
