@@ -105,7 +105,16 @@ static Block *cache_acquire(usize block_no) {
 
     // The requested block is right in the cache.
     if (b = _fetch_cached(block_no)) {
-        (void)((get_sem(&b->lock)) && (b->acquired = true));
+        while (b->acquired) {
+            _release_spinlock(&lock);
+            unalertable_wait_sem(&b->lock);
+            if (get_sem(&b->lock)) {
+                b->acquired = true;
+                break;
+            }
+        }
+        if (!b->acquired)
+            (void)((get_sem(&b->lock)) && (b->acquired = true));
         _boost_freq(b);
         _release_spinlock(&lock);
         return b;
@@ -160,6 +169,10 @@ static void cache_begin_op(OpContext *ctx) {
 
     if (log.state == CHILLING) log.state = TRACKING;
     
+    while (log.state == WORKING) {
+
+    }
+
     _release_spinlock(&log.lock);
 }
 
