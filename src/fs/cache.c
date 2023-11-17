@@ -99,44 +99,29 @@ static Block *cache_acquire(usize block_no) {
 
     // The requested block is right in the cache.
     if (b = _fetch_cached(block_no)) {
-        // The block is free to acquire.
-        if (!b->acquired) {
-            (void)((_get_sem(&b->lock)) && (b->acquired = true));
-            _boost_freq(b);
-            _release_spinlock(&lock);
-            return b;
-        }
-        // Contend for the block.
-        while (b->acquired) {
-            _release_spinlock(&lock);
-            _wait_sem(&b->lock, false);
-            _acquire_spinlock(&lock);
-            if (_get_sem(&b->lock)) {
-                b->acquired = true;
-                _boost_freq(b);
-                _release_spinlock(&lock);
-                return b;
-            }
-        }
+        (void)((get_sem(&b->lock)) && (b->acquired = true));
+        _boost_freq(b);
+        _release_spinlock(&lock);
+        return b;
     }
 
     // Best-effort eviction.
-    (blocks.size >= EVICTION_THRESHOLD) && (_evict());
+    (void)((blocks.size >= EVICTION_THRESHOLD) && (_evict()));
     
     // Initialize a new block cache.
     b = (Block*) kalloc(sizeof(Block));
     init_block(b);
     (void)(
-        (b->acquired = true) && 
-        (b->valid = true) && 
-        (b->block_no = block_no) && 
-        _get_sem(&b->lock));
+        _get_sem(&b->lock) &&
+        (b->acquired = true) &&  
+        (b->block_no = block_no));
     
     // Push to the cache list.
     list_push_back(&blocks, &b->node);
 
     // Load from disk.
     device_read(b);
+    b->valid = true;
     _boost_freq(b);
     _release_spinlock(&lock);
     return b;
@@ -209,8 +194,7 @@ bool _evict() {
         Block *b = container_of(p ,Block, node);
         if (!b->pinned) {
             list_remove(&blocks, p);
-            if(flag)
-                return true;
+            if(flag) return true;
             flag = true;
         }
         if (p->next == list_head(blocks))
