@@ -247,23 +247,16 @@ INLINE void _boost_freq(Block* b) {
 
 int write_all(bool to_log) {
     ASSERT(header.num_blocks == 0);
-    _acquire_spinlock(&lock);
     int i = 0;
     if (blocks.size == 0)
         return -1;
-    for (ListNode* p = list_head(blocks);; p = p->next, i++) {
+    _for_in_list(p, list_head(blocks)) {
         if (to_log && (i == sblock->num_log_blocks)) {
-            _release_spinlock(&lock);
             return -2;
         }
         Block *b = container_of(p, Block, node);
         device->write(to_log ? (sblock->log_start + 1 + i) : b->block_no, b->data);
-        if (p->next == list_head(blocks)) {
-            _release_spinlock(&lock);
-            return 0;
-        }
     }
-    PANIC();
 }
 
 int spawn_ckpt() {
