@@ -59,7 +59,7 @@ Block* _fetch_cached(usize block_no);
 
 bool _evict();
 
-int write_all(bool to_log);
+void write_log();
 
 int spawn_ckpt();
 
@@ -187,7 +187,8 @@ static void cache_end_op(OpContext *ctx) {
     }
 
     if (log.contributors_cnt == 0) {
-        write_all(true);
+        write_log();
+        write_header();
         spawn_ckpt();
         post_all_sem(&log.work_done);
     }
@@ -245,17 +246,12 @@ INLINE void _boost_freq(Block* b) {
     blocks.head = b->node.next;
 }
 
-int write_all(bool to_log) {
-    ASSERT(header.num_blocks == 0);
-    int i = 0;
-    if (blocks.size == 0)
-        return -1;
-    _for_in_list(p, list_head(blocks)) {
-        if (to_log && (i == sblock->num_log_blocks)) {
-            return -2;
-        }
-        Block *b = container_of(p, Block, node);
-        device->write(to_log ? (sblock->log_start + 1 + i) : b->block_no, b->data);
+void write_log() {
+    for (int i = 0; i < header.num_blocks; i++) {
+        Block* b = cache_acquire(header.block_no[i]);
+        device->write(sblock->log_start + i + 1, b->data);
+        b->pinned = false;
+        cache_release(b);
     }
 }
 
