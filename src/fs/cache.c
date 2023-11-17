@@ -48,8 +48,9 @@ enum logstate {CHILLING, TRACKING, WORKING};
  */
 struct {
     SpinLock lock;
-    u32 atom_op_cnt;
+    u32 contributors_cnt;
     enum logstate state;
+    Semaphore work_done;
 } log;
 
 define_early_init(cache) {
@@ -61,7 +62,9 @@ Block* _fetch_cached(usize block_no);
 
 bool _evict();
 
-int _write_all(bool to_log);
+int write_all(bool to_log);
+
+int spawn_ckpt();
 
 /* Read the content from disk. */
 static INLINE void device_read(Block *block) {
@@ -158,7 +161,7 @@ void init_bcache(const SuperBlock *_sblock, const BlockDevice *_device) {
     list_init(&blocks);
 
     init_spinlock(&log.lock);
-    log.atom_op_cnt = 0;
+    log.contributors_cnt = 0;
     log.state = CHILLING;
 
     spawn_ckpt();
@@ -166,13 +169,9 @@ void init_bcache(const SuperBlock *_sblock, const BlockDevice *_device) {
 
 static void cache_begin_op(OpContext *ctx) {
     _acquire_spinlock(&log.lock);
-
     if (log.state == CHILLING) log.state = TRACKING;
-    
-    while (log.state == WORKING) {
-
-    }
-
+    log.contributors_cnt++;
+    ctx->rm = OP_MAX_NUM_BLOCKS;
     _release_spinlock(&log.lock);
 }
 
@@ -184,11 +183,19 @@ static void cache_sync(OpContext *ctx, Block *block) {
 static void cache_end_op(OpContext *ctx) {
     _acquire_spinlock(&log.lock);
     ASSERT(log.state == TRACKING);
-    _write_all(true);
-    log.atom_op_cnt--;
+    //_write_all(true);
+    log.contributors_cnt--;
 
-    if (log.atom_op_cnt == 0) {
-        log.state = CHILLING;
+    if (log.contributors_cnt > 0) {
+        _release_spinlock(&lock);
+        unalertable_wait_sem(&(log.work_done));
+        return;
+    }
+
+    if (log.contributors_cnt == 0) {
+        write_all(true);
+        spawn_ckpt;
+        post_all_sem(&log.work_done);
     }
     _release_spinlock(&log.lock);
 }
@@ -244,7 +251,7 @@ INLINE void _boost_freq(Block* b) {
     blocks.head = b->node.next;
 }
 
-int _write_all(bool to_log) {
+int write_all(bool to_log) {
     ASSERT(header.num_blocks == 0);
     _acquire_spinlock(&lock);
     int i = 0;
