@@ -34,8 +34,6 @@ static List blocks;
 /* In-memory copy of log header block. */
 static LogHeader header;
 
-enum logstate {CHILLING, TRACKING, WORKING};
-
 /* 
  * Maintain other logging states.
  *
@@ -49,7 +47,6 @@ enum logstate {CHILLING, TRACKING, WORKING};
 struct {
     SpinLock lock;
     u32 contributors_cnt;
-    enum logstate state;
     Semaphore work_done;
 } log;
 
@@ -162,14 +159,13 @@ void init_bcache(const SuperBlock *_sblock, const BlockDevice *_device) {
 
     init_spinlock(&log.lock);
     log.contributors_cnt = 0;
-    log.state = CHILLING;
+    init_sem(&log.work_done, 0);
 
     spawn_ckpt();
 }
 
 static void cache_begin_op(OpContext *ctx) {
     _acquire_spinlock(&log.lock);
-    if (log.state == CHILLING) log.state = TRACKING;
     log.contributors_cnt++;
     ctx->rm = OP_MAX_NUM_BLOCKS;
     _release_spinlock(&log.lock);
@@ -182,19 +178,17 @@ static void cache_sync(OpContext *ctx, Block *block) {
 
 static void cache_end_op(OpContext *ctx) {
     _acquire_spinlock(&log.lock);
-    ASSERT(log.state == TRACKING);
-    //_write_all(true);
     log.contributors_cnt--;
 
     if (log.contributors_cnt > 0) {
-        _release_spinlock(&lock);
-        unalertable_wait_sem(&(log.work_done));
+        _release_spinlock(&log.lock);
+        unalertable_wait_sem(&log.work_done);
         return;
     }
 
     if (log.contributors_cnt == 0) {
         write_all(true);
-        spawn_ckpt;
+        spawn_ckpt();
         post_all_sem(&log.work_done);
     }
     _release_spinlock(&log.lock);
