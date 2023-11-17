@@ -34,6 +34,8 @@ static List blocks;
 /* In-memory copy of log header block. */
 static LogHeader header;
 
+enum logstate {CHILLING, TRACKING, WORKING};
+
 /* 
  * Maintain other logging states.
  *
@@ -45,7 +47,9 @@ static LogHeader header;
  * See cache_begin_op, cache_end_op, cache_sync.
  */
 struct {
-    /* your fields here */
+    SpinLock lock;
+    u32 atom_op_cnt;
+    enum logstate state;
 } log;
 
 define_early_init(cache) {
@@ -56,6 +60,8 @@ define_early_init(cache) {
 Block* _fetch_cached(usize block_no);
 
 bool _evict();
+
+int _write_all(bool to_log);
 
 /* Read the content from disk. */
 static INLINE void device_read(Block *block) {
@@ -141,9 +147,20 @@ void init_bcache(const SuperBlock *_sblock, const BlockDevice *_device) {
 
     init_spinlock(&lock);
     list_init(&blocks);
+
+    init_spinlock(&log.lock);
+    log.atom_op_cnt = 0;
+    log.state = CHILLING;
+
+    spawn_ckpt();
 }
 
 static void cache_begin_op(OpContext *ctx) {
+    _acquire_spinlock(&log.lock);
+
+    if (log.state == CHILLING) log.state = TRACKING;
+    
+    _release_spinlock(&log.lock);
 }
 
 static void cache_sync(OpContext *ctx, Block *block) {
@@ -152,7 +169,15 @@ static void cache_sync(OpContext *ctx, Block *block) {
 }
 
 static void cache_end_op(OpContext *ctx) {
-    // TODO
+    _acquire_spinlock(&log.lock);
+    ASSERT(log.state == TRACKING);
+    _write_all(true);
+    log.atom_op_cnt--;
+
+    if (log.atom_op_cnt == 0) {
+        log.state = CHILLING;
+    }
+    _release_spinlock(&log.lock);
 }
 
 static usize cache_alloc(OpContext *ctx) {
@@ -207,15 +232,18 @@ INLINE void _boost_freq(Block* b) {
 }
 
 int _write_all(bool to_log) {
+    ASSERT(header.num_blocks == 0);
     _acquire_spinlock(&lock);
     int i = 0;
-    for (ListNode* p = list_head(blocks); i < get_num_cached_blocks(); p = p->next, i++) {
-        if (to_log && i == sblock->num_log_blocks) {
+    if (blocks.size == 0)
+        return -1;
+    for (ListNode* p = list_head(blocks);; p = p->next, i++) {
+        if (to_log && (i == sblock->num_log_blocks)) {
             _release_spinlock(&lock);
-            return -1;
+            return -2;
         }
         Block *b = container_of(p, Block, node);
-        device->write(to_log ? sblock->log_start + 1 + i : b->block_no, b->data);
+        device->write(to_log ? (sblock->log_start + 1 + i) : b->block_no, b->data);
         if (p->next == list_head(blocks)) {
             _release_spinlock(&lock);
             return 0;
@@ -224,7 +252,7 @@ int _write_all(bool to_log) {
     PANIC();
 }
 
-int _spawn_ckpt() {
+int spawn_ckpt() {
     // Sync the header.
     read_header();
     
