@@ -187,7 +187,6 @@ static void cache_sync(OpContext *ctx, Block *block) {
     _acquire_spinlock(&log.lock);
     for (int i =0; i < header.num_blocks; i++) {
         if (header.block_no[i] == block->block_no) {
-            ctx->rm--;
             _release_spinlock(&log.lock);
             return;
         }
