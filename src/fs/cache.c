@@ -108,13 +108,16 @@ static Block *cache_acquire(usize block_no) {
         while (b->acquired) {
             _release_spinlock(&lock);
             unalertable_wait_sem(&b->lock);
+            _acquire_spinlock(&lock);
             if (get_sem(&b->lock)) {
                 b->acquired = true;
                 break;
             }
         }
-        if (!b->acquired)
-            (void)((get_sem(&b->lock)) && (b->acquired = true));
+        if (!b->acquired) {
+            get_sem(&b->lock);
+            b->acquired = true;
+        }
         _boost_freq(b);
         _release_spinlock(&lock);
         return b;
