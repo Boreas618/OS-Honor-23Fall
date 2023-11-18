@@ -182,16 +182,22 @@ static void cache_sync(OpContext *ctx, Block *block) {
     _acquire_spinlock(&log.lock);
     for (int i =0; i < header.num_blocks; i++) {
         if (header.block_no[i] == block->block_no) {
-            _acquire_spinlock(&log.lock);
+            ctx->rm--;
+            _release_spinlock(&log.lock);
             return;
         }
     }
+
+    // Reach the quota of ctx in terms of atomic operations
+    if (ctx->rm == 0)
+        PANIC();
 
     // If the block is not in the log, we open a new log
     // block for this block
     header.num_blocks++;
     header.block_no[header.num_blocks - 1] = block->block_no;
     block->pinned = true;
+    ctx->rm--;
     _release_spinlock(&log.lock);
 }
 
@@ -215,11 +221,43 @@ static void cache_end_op(OpContext *ctx) {
 }
 
 static usize cache_alloc(OpContext *ctx) {
-    // TODO
+    if (ctx->rm <= 0)
+        PANIC();
+    
+    usize num_bitmap_blocks = (sblock->num_data_blocks + BIT_PER_BLOCK - 1) / BIT_PER_BLOCK;
+
+    for (int i = 0; i < num_bitmap_blocks; i++) {
+        Block *bm_block = cache_acquire(sblock->bitmap_start + i);
+        for (int j = 0; j < BLOCK_SIZE * 8; j++) {
+            if (i * BLOCK_SIZE * 8 + j >= sblock->num_blocks) {
+                cache_release(bm_block);
+                goto not_found;
+            }
+            if (!bitmap_get((BitmapCell*)bm_block->data, j)) {
+                Block *b = cache_acquire(i * BLOCK_SIZE * 8 + j);
+                
+                memset(b->data, 0, BLOCK_SIZE);
+                cache_sync(ctx, b);
+                
+                bitmap_set((BitmapCell*)bm_block->data, j);
+                cache_sync(ctx, bm_block);
+                
+                cache_release(b);
+                cache_release(bm_block);
+                return i * BLOCK_SIZE * 8 + j;
+            }
+        }
+        cache_release(bm_block);
+    }
+    not_found:
+    PANIC();
 }
 
 static void cache_free(OpContext *ctx, usize block_no) {
-    // TODO
+    Block* bm_block = cache_acquire(block_no / (BLOCK_SIZE * 8) + sblock->bitmap_start);
+    bitmap_clear((BitmapCell*)bm_block->data, block_no % (BLOCK_SIZE * 8));
+    cache_sync(ctx, bm_block);
+    cache_release(bm_block);
 }
 
 BlockCache bcache = {

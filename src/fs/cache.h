@@ -197,13 +197,13 @@ typedef struct {
     void (*end_op)(OpContext *ctx);
 
     /*
-     * # Notes For Bitmap
+     * Notes For Bitmap
      * 
      * Every block on disk has a bit in bitmap, including blocks inside bitmap.
      * Usually, MBR block, super block, inode blocks, log blocks and bitmap
      * blocks are preallocated on disk, i.e. those bits for them are already set
-     * in bitmap. therefore when we allocate a new block, it usually returns a
-     * data block. however, nobody can prevent you freeing a non-data block.
+     * in bitmap. When we allocate a new block, it usually returns a
+     * data block. However, nobody can prevent you freeing a non-data block.
      */
 
     /*
