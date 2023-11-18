@@ -172,8 +172,27 @@ static void cache_begin_op(OpContext *ctx) {
 }
 
 static void cache_sync(OpContext *ctx, Block *block) {
-    if (!ctx)
+    if (!ctx) {
         device_write(block);
+        return;
+    }
+
+    // Detect if this block has a place in the log section
+    // If so, we are free to go.
+    _acquire_spinlock(&log.lock);
+    for (int i =0; i < header.num_blocks; i++) {
+        if (header.block_no[i] == block->block_no) {
+            _acquire_spinlock(&log.lock);
+            return;
+        }
+    }
+
+    // If the block is not in the log, we open a new log
+    // block for this block
+    header.num_blocks++;
+    header.block_no[header.num_blocks - 1] = block->block_no;
+    block->pinned = true;
+    _release_spinlock(&log.lock);
 }
 
 static void cache_end_op(OpContext *ctx) {
@@ -247,6 +266,10 @@ INLINE void _boost_freq(Block* b) {
 }
 
 void write_log() {
+    // Walk through every block in the log and write the changes back
+    // to the log. Note that we don't just sequentially write the `blocks`
+    // back because the sequence of the logged blocks is specified in
+    // `block_no` of the log header.
     for (int i = 0; i < header.num_blocks; i++) {
         Block* b = cache_acquire(header.block_no[i]);
         device->write(sblock->log_start + i + 1, b->data);
