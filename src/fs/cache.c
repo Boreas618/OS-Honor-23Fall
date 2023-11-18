@@ -105,6 +105,7 @@ static Block *cache_acquire(usize block_no) {
 
     // The requested block is right in the cache.
     if (b = _fetch_cached(block_no)) {
+        // If the block is currently acquired, we wait for the lock of the block.
         while (b->acquired) {
             _release_spinlock(&lock);
             unalertable_wait_sem(&b->lock);
@@ -114,6 +115,7 @@ static Block *cache_acquire(usize block_no) {
                 break;
             }
         }
+        // If the block is not acquired, we directly take the lock.
         if (!b->acquired) {
             get_sem(&b->lock);
             b->acquired = true;
@@ -277,11 +279,11 @@ BlockCache bcache = {
 INLINE Block* _fetch_cached(usize block_no) {
     if (!blocks.size)
         return NULL;
-    for (ListNode* p = list_head(blocks);;p = p->next) {
+    for (ListNode* p = blocks.head;;p = p->next) {
         Block *b = container_of(p, Block, node);
         if (b->block_no == block_no)
             return b;
-        else if (p->next == list_head(blocks))
+        else if (p->next == blocks.head)
             return NULL;
     }
 }
@@ -289,19 +291,26 @@ INLINE Block* _fetch_cached(usize block_no) {
 /* Evict 2 pages that are least frequently used. */
 INLINE bool _evict() {
     bool flag = false;
-    for (ListNode* p = list_head(blocks);;p = p->next) {
+    for (ListNode* p = blocks.head;;p = p->next) {
         Block *b = container_of(p ,Block, node);
         if (!b->pinned) {
             list_remove(&blocks, p);
             if(flag) return true;
             flag = true;
         }
-        if (p->next == list_head(blocks))
+        if (p->next == blocks.head)
             return false;
     }
     return flag;
 }
 
+/* 
+ * Move the block to the end of the list.
+ * 
+ * To implement LRU replacement policy, we move the most recently used
+ * block to the end of the list and evict pages from the front of the list
+ * whenever we need to remove some pages.
+ */
 INLINE void _boost_freq(Block* b) {
     blocks.head = b->node.next;
 }

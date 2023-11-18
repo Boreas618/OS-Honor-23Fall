@@ -118,12 +118,12 @@ void* kalloc(isize s) {
   list_lock(&(partitioned_pages[bucket_index]));
 
   // In most cases, there are partitioned pages in the bucket and we can fetch partitions from them.
-  if (!is_empty(&partitioned_pages[bucket_index])) {
+  if (partitioned_pages[bucket_index].size == 0) {
     // Take the list of candidate pages from the bucket.
     List candidate_pages = partitioned_pages[bucket_index];
 
     // Find the page with a free partition in the candidate pages.
-    int i = 0;
+    usize i = 0;
     for (ListNode *p = candidate_pages.head; i < candidate_pages.size; p = p->next, i++) {
       Page* page = container_of(p, PartitionedPageNode, pp_node)->page;
       if (page->alloc_partitions_cnt + 1 < (u32)(PAGE_SIZE / (page->base_size))) {

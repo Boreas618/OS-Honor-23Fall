@@ -52,17 +52,16 @@ void _release_sched_lock()
 
 bool _activate_proc(struct proc* p, bool onalert)
 {
-    (void) onalert;
     // TODO
     // if the proc->state is RUNNING/RUNNABLE, do nothing and return false
     // if the proc->state is SLEEPING/UNUSED, set the process state to RUNNABLE, add it to the sched queue, and return true
     // if the proc->state is DEEPSLEEPING, do nothing if onalert or activate it if else, and return the corresponding value.
     _acquire_sched_lock();
-    if (p->state == RUNNING || p->state == RUNNABLE || p->state == ZOMBIE) {
+    if ((onalert && p->state == DEEPSLEEPING) || p->state == RUNNING || p->state == RUNNABLE || p->state == ZOMBIE) {
         _release_sched_lock();
         return false;
     }
-    if (p->state == SLEEPING || p->state == UNUSED) {
+    if (p->state == SLEEPING || p->state == UNUSED || p->state == DEEPSLEEPING) {
         p->state = RUNNABLE;
         if (!p->idle)
             _insert_into_list(&runnable, &p->schinfo.runnable_node);

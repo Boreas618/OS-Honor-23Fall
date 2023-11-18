@@ -120,6 +120,6 @@ void list_push_back(List* l, ListNode* item);
 void list_pop_head(List* l);
 void list_pop_back(List* l);
 
-#define list_size(l) (l.size)
-#define list_head(l) (l.head)
-#define is_empty(l) (l.size == 0)
+#define list_forall(valptr, list) \
+    for (ListNode* __flag = (list.head), *valptr = __flag->next; valptr; \
+         valptr = valptr == __flag ? (void*)0 : valptr->next)
