@@ -307,3 +307,38 @@ rb_node _rb_first(rb_root root) {
         n = n->rb_left;
     return n;
 }
+
+void rbtree_init(RBTree* rbtree) {
+    init_spinlock(&rbtree->rblock);
+    rbtree->root = &rbtree->_root;
+}
+
+inline void rbtree_lock(RBTree* rbtree) {
+    _acquire_spinlock(&rbtree->rblock);
+}
+
+inline void rbtree_unlock(RBTree* rbtree) {
+    _release_spinlock(&rbtree->rblock);
+}
+
+int rbtree_insert(RBTree* rbtree, rb_node node, bool (*cmp)(rb_node lnode,rb_node rnode)) {
+    int r = 0;
+    r = _rb_insert(node, rbtree->root, cmp);
+    return r;
+}
+
+void rbtree_erase(RBTree* rbtree, rb_node node) {
+    _rb_erase(node, rbtree->root);
+}
+
+rb_node rbtree_lookup(RBTree* rbtree, rb_node node, bool (*cmp)(rb_node lnode,rb_node rnode)) {
+    rb_node r = NULL;
+    r = _rb_lookup(node, rbtree->root, cmp);
+    return r;
+}
+
+rb_node rbtree_first(RBTree* rbtree) {
+    rb_node r = NULL;
+    r = _rb_first(rbtree->root);
+    return r;
+}

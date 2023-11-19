@@ -9,6 +9,7 @@ void sd_init();
 bool panic_flag;
 
 NO_RETURN void idle_entry() {
+    // rbtree_test();
     set_cpu_on();
     while (1) {
         yield();
@@ -24,11 +25,11 @@ NO_RETURN void idle_entry() {
 
 NO_RETURN void kernel_entry() {
     printk("Hello, world!\n");
-    sd_init();
-    sd_test();
+    // sd_init();
+    // sd_test();
     // proc_test();
     // vm_test();
-    user_proc_test();
+    // user_proc_test();
     
     do_rest_init();
 

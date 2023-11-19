@@ -1,6 +1,8 @@
 #ifndef _MYRBTREE_H
 #define _MYRBTREE_H
-#include "common/defines.h"
+#include <common/defines.h>
+#include <common/spinlock.h>
+
 struct rb_node_ {
     unsigned long __rb_parent_color;
     struct rb_node_ *rb_right;
@@ -29,39 +31,18 @@ typedef struct {
     SpinLock rblock;
 } RBTree;
 
-void rbtree_init(RBTree* rbtree) {
-    init_spinlock(&rbtree->rblock);
-    rbtree->root = &rbtree->_root;
-}
+void rbtree_init(RBTree* rbtree);
 
-int rbtree_insert(RBTree* rbtree, rb_node node, rb_root root, bool (*cmp)(rb_node lnode,rb_node rnode)) {
-    int r = 0;
-    _acquire_spinlock(&rbtree->rblock);
-    r = _rb_insert(node, rbtree->root, cmp);
-    _release_spinlock(&rbtree->rblock);
-    return r;
-}
+void rbtree_lock(RBTree* rbtree);
 
-void rbtree_erase(RBTree* rbtree, rb_node node) {
-    _acquire_spinlock(&rbtree->rblock);
-    _rb_erase(node, rbtree->root);
-    _release_spinlock(&rbtree->rblock);
-}
+void rbtree_unlock(RBTree* rbtree);
 
-void rbtree_lookup(RBTree* rbtree, rb_node node, rb_root root, bool (*cmp)(rb_node lnode,rb_node rnode)) {
-    int r = 0;
-    _acquire_spinlock(&rbtree->rblock);
-    r = _rb_lookup(node, rbtree->root, cmp);
-    _release_spinlock(&rbtree->rblock);
-    return r;
-}
+int rbtree_insert(RBTree* rbtree, rb_node node, bool (*cmp)(rb_node lnode,rb_node rnode));
 
-rb_node rbtree_first(RBTree* rbtree) {
-    rb_node r = NULL;
-    _acquire_spinlock(&rbtree->rblock);
-    r = _rb_first(&rbtree->root);
-    _release_spinlock(&rbtree->rblock);
-    return r;
-}
+void rbtree_erase(RBTree* rbtree, rb_node node);
+
+rb_node rbtree_lookup(RBTree* rbtree, rb_node node, bool (*cmp)(rb_node lnode,rb_node rnode));
+
+rb_node rbtree_first(RBTree* rbtree);
 
 #endif
