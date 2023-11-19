@@ -15,7 +15,6 @@ extern bool panic_flag;
 extern void swtch(KernelContext* new_ctx, KernelContext** old_ctx);
 extern struct proc root_proc;
 extern struct proc* running[];
-extern ListNode runnable;
 
 static struct timer sched_timer[NCPU];
 
@@ -52,10 +51,6 @@ void _release_sched_lock()
 
 bool _activate_proc(struct proc* p, bool onalert)
 {
-    // TODO
-    // if the proc->state is RUNNING/RUNNABLE, do nothing and return false
-    // if the proc->state is SLEEPING/UNUSED, set the process state to RUNNABLE, add it to the sched queue, and return true
-    // if the proc->state is DEEPSLEEPING, do nothing if onalert or activate it if else, and return the corresponding value.
     _acquire_sched_lock();
     if ((onalert && p->state == DEEPSLEEPING) || p->state == RUNNING || p->state == RUNNABLE || p->state == ZOMBIE) {
         _release_sched_lock();
@@ -118,9 +113,7 @@ static void update_this_proc(struct proc* p) {
     sched_timer[cpuid()].data++;
 }
 
-// A simple scheduler.
-// You are allowed to replace it with whatever you like.
-static void simple_sched(enum procstate new_state)
+static void schedule(enum procstate new_state)
 {
     auto this = thisproc();
     ASSERT(this->state == RUNNING);
@@ -141,7 +134,7 @@ static void simple_sched(enum procstate new_state)
     _release_sched_lock();
 }
 
-__attribute__((weak, alias("simple_sched"))) void _sched(enum procstate new_state);
+__attribute__((weak, alias("schedule"))) void _sched(enum procstate new_state);
 
 u64 proc_entry(void(*entry)(u64), u64 arg)
 {

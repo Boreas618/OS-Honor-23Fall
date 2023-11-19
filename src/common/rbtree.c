@@ -3,25 +3,29 @@
 #define RB_BLACK 1
 #define rb_parent(r) ((rb_node)((r)->__rb_parent_color & ~3))
 #define __rb_parent(pc) ((rb_node)(pc & ~3))
-
 #define __rb_color(pc) ((pc)&1)
 #define __rb_is_black(pc) __rb_color(pc)
 #define __rb_is_red(pc) (!__rb_color(pc))
 #define rb_color(rb) __rb_color((rb)->__rb_parent_color)
 #define rb_is_red(rb) __rb_is_red((rb)->__rb_parent_color)
 #define rb_is_black(rb) __rb_is_black((rb)->__rb_parent_color)
+
 static inline void rb_set_black(rb_node rb) {
     rb->__rb_parent_color |= RB_BLACK;
 }
+
 static inline rb_node rb_red_parent(rb_node red) {
     return (rb_node)red->__rb_parent_color;
 }
+
 static inline void rb_set_parent(rb_node rb, rb_node p) {
     rb->__rb_parent_color = rb_color(rb) | (unsigned long)p;
 }
+
 static inline void rb_set_parent_color(rb_node rb, rb_node p, int color) {
     rb->__rb_parent_color = (unsigned long)p | color;
 }
+
 static inline void __rb_change_child(rb_node old, rb_node new, rb_node parent, rb_root root) {
     if (parent) {
         if (parent->rb_left == old)
@@ -31,12 +35,14 @@ static inline void __rb_change_child(rb_node old, rb_node new, rb_node parent, r
     } else
         root->rb_node = new;
 }
+
 static inline void __rb_rotate_set_parents(rb_node old, rb_node new, rb_root root, int color) {
     rb_node parent = rb_parent(old);
     new->__rb_parent_color = old->__rb_parent_color;
     rb_set_parent_color(old, new, color);
     __rb_change_child(old, new, parent, root);
 }
+
 static void __rb_insert_fix(rb_node node, rb_root root) {
     rb_node parent = rb_red_parent(node), gparent, tmp;
     while (1) {
@@ -107,6 +113,7 @@ static void __rb_insert_fix(rb_node node, rb_root root) {
         }
     }
 }
+
 static rb_node __rb_erase(rb_node node, rb_root root) {
     rb_node child = node->rb_right, tmp = node->rb_left;
     rb_node parent, rebalance;
@@ -158,6 +165,7 @@ static rb_node __rb_erase(rb_node node, rb_root root) {
     }
     return rebalance;
 }
+
 static void __rb_erase_fix(rb_node parent, rb_root root) {
     rb_node node = NULL, sibling, tmp1, tmp2;
     while (1) {
@@ -244,6 +252,7 @@ static void __rb_erase_fix(rb_node parent, rb_root root) {
         }
     }
 }
+
 int _rb_insert(rb_node node, rb_root rt, bool (*cmp)(rb_node lnode, rb_node rnode)) {
     rb_node nw = rt->rb_node, parent = NULL;
     node->rb_left = node->rb_right = NULL;
@@ -268,12 +277,14 @@ int _rb_insert(rb_node node, rb_root rt, bool (*cmp)(rb_node lnode, rb_node rnod
     __rb_insert_fix(node, rt);
     return 0;
 }
+
 void _rb_erase(rb_node node, rb_root root) {
     rb_node rebalance;
     rebalance = __rb_erase(node, root);
     if (rebalance)
         __rb_erase_fix(rebalance, root);
 }
+
 rb_node _rb_lookup(rb_node node, rb_root rt, bool (*cmp)(rb_node lnode, rb_node rnode)) {
     rb_node nw = rt->rb_node;
     while (nw) {
@@ -286,6 +297,7 @@ rb_node _rb_lookup(rb_node node, rb_root rt, bool (*cmp)(rb_node lnode, rb_node 
     }
     return NULL;
 }
+
 rb_node _rb_first(rb_root root) {
     rb_node n;
     n = root->rb_node;
