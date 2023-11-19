@@ -1,8 +1,6 @@
 # OS Lab API Reference（继承自去年）
 
-<center><b>Fudan OS Course Version 1.7.0</b></center>
-
-<center><b>2023 年 9 月 1 日</b></center>
+<center><b>2023 年 9 月 18 日</b></center>
 
 内核框架中提供了大量的接口，为方便同学查阅，特撰写本 API Reference。（有些接口的代码需要自行补全，请以 lab 要求为准）
 
