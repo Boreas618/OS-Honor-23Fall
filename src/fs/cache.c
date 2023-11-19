@@ -53,6 +53,7 @@ struct {
 define_early_init(cache) {
     init_spinlock(&lock);
     list_init(&blocks);
+    init_bcache(sblock, device);
 }
 
 Block* _fetch_cached(usize block_no);
@@ -166,6 +167,7 @@ void init_bcache(const SuperBlock *_sblock, const BlockDevice *_device) {
     log.contributors_cnt = 0;
     init_sem(&log.work_done, 0);
 
+    // Restore the log.
     spawn_ckpt();
 }
 
@@ -192,12 +194,11 @@ static void cache_sync(OpContext *ctx, Block *block) {
         }
     }
 
-    // Reach the quota of ctx in terms of atomic operations
+    // Reach the quota of ctx in terms of atomic operations.
     if (ctx->rm == 0)
         PANIC();
 
-    // If the block is not in the log, we open a new log
-    // block for this block
+    // If the block is not in the log, we open a new log block for this block.
     header.num_blocks++;
     header.block_no[header.num_blocks - 1] = block->block_no;
     block->pinned = true;
@@ -208,8 +209,14 @@ static void cache_sync(OpContext *ctx, Block *block) {
 static void cache_end_op(OpContext *ctx) {
     _acquire_spinlock(&log.lock);
     log.contributors_cnt--;
-
+    // If there are other contributors to the log, we wait for them to complete
     if (log.contributors_cnt > 0) {
+        // Note on Potential Concurrency Issues
+        // Here we DO NOT use unalertable_wait_sem because it is possible that
+        // the contributor A here releases log.lock and contributor B immediately
+        // grabs the lock and triggers `post_all_sem(&log.work_done);` below. 
+        // In this case, the contributor A will never wake up because contributor A
+        // triggers wait operation after contributor B triggers post_all_sem operation.
         _lock_sem(&(log.work_done));
         _release_spinlock(&log.lock);
         if (!_wait_sem(&(log.work_done), false)) {
@@ -217,7 +224,9 @@ static void cache_end_op(OpContext *ctx) {
         };
         return;
     }
-
+    // After all the contributors call end_op, we write the cache back to the log,
+    // sync the header in memory with the header in disk and finally write the checkpoint
+    // to the disk.
     if (log.contributors_cnt == 0) {
         write_log();
         write_header();
@@ -234,21 +243,24 @@ static usize cache_alloc(OpContext *ctx) {
     usize num_bitmap_blocks = (sblock->num_data_blocks + BIT_PER_BLOCK - 1) / BIT_PER_BLOCK;
 
     for (int i = 0; i < num_bitmap_blocks; i++) {
+        // Acquire the bitmap block.
         Block *bm_block = cache_acquire(sblock->bitmap_start + i);
         for (int j = 0; j < BLOCK_SIZE * 8; j++) {
+            // The index in the bitmap is beyond the number of blocks
             if (i * BLOCK_SIZE * 8 + j >= sblock->num_blocks) {
                 cache_release(bm_block);
                 goto not_found;
             }
+            // The block is free.
             if (!bitmap_get((BitmapCell*)bm_block->data, j)) {
                 Block *b = cache_acquire(i * BLOCK_SIZE * 8 + j);
-                
+                // Zero the block and sync the change
                 memset(b->data, 0, BLOCK_SIZE);
                 cache_sync(ctx, b);
-                
+                // Set the bit map and sync the change
                 bitmap_set((BitmapCell*)bm_block->data, j);
                 cache_sync(ctx, bm_block);
-                
+                // The work is done. Release the blocks.
                 cache_release(b);
                 cache_release(bm_block);
                 return i * BLOCK_SIZE * 8 + j;
@@ -347,7 +359,7 @@ int spawn_ckpt() {
         device_write(&transfer_b);
     }
 
-    // Empty the log area.
+    // Empty the log section.
     header.num_blocks = 0;
     write_header();
 }
