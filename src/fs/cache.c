@@ -210,8 +210,11 @@ static void cache_end_op(OpContext *ctx) {
     log.contributors_cnt--;
 
     if (log.contributors_cnt > 0) {
+        _lock_sem(&(log.work_done));
         _release_spinlock(&log.lock);
-        unalertable_wait_sem(&log.work_done);
+        if (!_wait_sem(&(log.work_done), false)) {
+            PANIC();
+        };
         return;
     }
 
