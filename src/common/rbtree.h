@@ -24,12 +24,14 @@ rb_node _rb_lookup(rb_node node, rb_root rt, bool (*cmp)(rb_node lnode,rb_node r
 rb_node _rb_first(rb_root root);
 
 typedef struct {
+    struct rb_root_ _root;
     rb_root root;
     SpinLock rblock;
 } RBTree;
 
 void rbtree_init(RBTree* rbtree) {
     init_spinlock(&rbtree->rblock);
+    rbtree->root = &rbtree->_root;
 }
 
 int rbtree_insert(RBTree* rbtree, rb_node node, rb_root root, bool (*cmp)(rb_node lnode,rb_node rnode)) {
