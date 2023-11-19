@@ -279,29 +279,23 @@ BlockCache bcache = {
 };
 
 INLINE Block* _fetch_cached(usize block_no) {
-    if (!blocks.size)
-        return NULL;
-    for (ListNode* p = blocks.head;;p = p->next) {
+    list_forall(p, blocks) {
         Block *b = container_of(p, Block, node);
-        if (b->block_no == block_no)
-            return b;
-        else if (p->next == blocks.head)
-            return NULL;
+        if (b->block_no == block_no) return b;
     }
+    return NULL;
 }
 
 /* Evict 2 pages that are least frequently used. */
 INLINE bool _evict() {
     bool flag = false;
-    for (ListNode* p = blocks.head;;p = p->next) {
+    list_forall(p, blocks) {
         Block *b = container_of(p ,Block, node);
         if (!b->pinned) {
             list_remove(&blocks, p);
             if(flag) return true;
             flag = true;
         }
-        if (p->next == blocks.head)
-            return false;
     }
     return flag;
 }

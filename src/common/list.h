@@ -121,5 +121,5 @@ void list_pop_head(List* l);
 void list_pop_back(List* l);
 
 #define list_forall(valptr, list) \
-    for (ListNode* __flag = (list.head), *valptr = __flag->next; valptr; \
+    for (ListNode* __flag = (list.head), *valptr = __flag?__flag->next:NULL; valptr; \
          valptr = valptr == __flag ? (void*)0 : valptr->next)
