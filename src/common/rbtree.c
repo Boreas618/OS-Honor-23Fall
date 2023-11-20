@@ -271,8 +271,9 @@ int _rb_insert(rb_node node, rb_root rt, bool (*cmp)(rb_node lnode, rb_node rnod
                 parent->rb_right = node;
                 node->__rb_parent_color = (unsigned long)parent;
             }
-        } else
+        } else {
             return -1;
+        }
     }
     __rb_insert_fix(node, rt);
     return 0;
@@ -298,9 +299,8 @@ rb_node _rb_lookup(rb_node node, rb_root rt, bool (*cmp)(rb_node lnode, rb_node 
     return NULL;
 }
 
-rb_node _rb_first(rb_root root) {
-    rb_node n;
-    n = root->rb_node;
+rb_node _rb_first(rb_root rt) {
+    rb_node n = rt->rb_node;
     if (!n)
         return NULL;
     while (n->rb_left)

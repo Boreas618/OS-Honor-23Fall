@@ -46,6 +46,10 @@ void rbtree_test() {
         if (ok) FAIL("insert failed!\n");
         rbtree_unlock(&rbt);
     }
+    rbtree_lock(&rbt);
+    rb_node np = rbtree_first(&rbt);
+    if (np == NULL) FAIL("NULL\n");
+    rbtree_unlock(&rbt);
     for (int i = 0; i < 1000; i++) {
         rbtree_lock(&rbt);
         tmp.key = cid * 100000 + i;
@@ -63,5 +67,7 @@ void rbtree_test() {
     while (x.count < 8)
         ;
     arch_dsb_sy();
-    if (cid == 0) printk("rbtree_test PASS\n");
+    if (cid == 0) {
+        printk("rbtree_test PASS\n");
+    }
 }

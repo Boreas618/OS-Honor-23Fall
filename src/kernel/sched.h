@@ -2,7 +2,7 @@
 
 #include <kernel/proc.h>
 
-void init_schinfo(struct schinfo*);
+//void init_schinfo(struct schinfo*);
 
 bool _activate_proc(struct proc*, bool onalert);
 #define activate_proc(proc) _activate_proc(proc, false)
@@ -10,6 +10,7 @@ bool _activate_proc(struct proc*, bool onalert);
 WARN_RESULT bool is_zombie(struct proc*);
 WARN_RESULT bool is_unused(struct proc*);
 void _acquire_sched_lock();
+void _release_sched_lock();
 #define lock_for_sched(checker) (checker_begin_ctx(checker), _acquire_sched_lock())
 void _sched(enum procstate new_state);
 // MUST call lock_for_sched() before sched() !!!

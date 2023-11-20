@@ -137,7 +137,7 @@ int wait(int* exitcode) {
   acquire_spinlock(0, &proc_lock);
   struct proc* p = thisproc();
 
-  // If the process has no children ,then return
+  // If the process has no children, then return.
   if ((p->children.next == &p->children) &&
       (p->zombie_children.next == &p->zombie_children)) {
     release_spinlock(0, &proc_lock);
@@ -145,11 +145,11 @@ int wait(int* exitcode) {
   }
   release_spinlock(0, &proc_lock);
 
-  // Wait a child to exit
+  // Wait a child to exit.
   bool r = wait_sem(&(p->childexit));
   (void) r;
 
-  // Fetch the zombie to clean the resources
+  // Fetch the zombie to clean the resources.
   setup_checker(1);
   acquire_spinlock(1, &proc_lock);
   ListNode* zombie = p->zombie_children.next;
@@ -159,7 +159,7 @@ int wait(int* exitcode) {
   *exitcode = zombie_child->exitcode;
   free_pid(zombie_child->pid);
   kfree_page(zombie_child->kstack);
-  kfree(zombie_child);
+  //kfree(zombie_child);
   release_spinlock(1, &proc_lock);
   return pid;
 }
@@ -171,12 +171,10 @@ int kill(int pid) {
   acquire_spinlock(0, &proc_lock);
   _for_in_list(p, &thisproc()->children) {
     struct proc *cur = container_of(p, struct proc, ptnode);
-    if (cur->pid == pid &&
-        cur->state != UNUSED &&
-        !cur->idle) {
+    if (cur->pid == pid && !cur->idle) {
           cur->killed = true;
-          release_spinlock(0, &proc_lock);
           alert_proc(cur);
+          release_spinlock(0, &proc_lock);
           return 0;
     }
   }
@@ -216,7 +214,8 @@ void init_proc(struct proc* p) {
   init_list_node(&p->ptnode);
   init_list_node(&p->zombie_children);
   p->parent = NULL;
-  init_schinfo(&p->schinfo);
+  p->schinfo.runtime = 0;
+  init_list_node(&p->schinfo.runnable_node);
   init_pgdir(&p->pgdir);
   p->kstack = kalloc_page();
   ASSERT(p->kstack != NULL);
