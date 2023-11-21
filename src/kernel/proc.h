@@ -33,8 +33,8 @@ struct proc
     int exitcode;
     enum procstate state;
     Semaphore childexit;
-    ListNode children;
-    ListNode zombie_children;
+    List children;
+    List zombie_children;
     ListNode ptnode;
     struct proc* parent;
     struct schinfo schinfo;
@@ -44,7 +44,6 @@ struct proc
     KernelContext* kcontext;
 };
 
-// void init_proc(struct proc*);
 WARN_RESULT struct proc* create_proc();
 int start_proc(struct proc*, void(*entry)(u64), u64 arg);
 NO_RETURN void exit(int code);

@@ -11,7 +11,6 @@
 
 #define SLICE_LEN 10
 
-extern bool panic_flag;
 extern void swtch(KernelContext* new_ctx, KernelContext** old_ctx);
 extern struct proc root_proc;
 extern struct proc* running[];
@@ -22,12 +21,9 @@ void trap_return();
 
 static RBTree rq[NCPU];
 
-SpinLock sched_lock;
-
 define_early_init(sched_helper) {
     for (int i = 0; i < NCPU; i++)
         rbtree_init(&rq[i]);
-    init_spinlock(&sched_lock);
 }
 
 static bool _cmp_runtime(rb_node n1, rb_node n2) {
@@ -44,9 +40,8 @@ inline struct proc* thisproc() {
 }
 
 bool _activate_proc(struct proc* p, bool onalert) {
-    if ((onalert && p->state == DEEPSLEEPING) || p->state == RUNNING || p->state == RUNNABLE || p->state == ZOMBIE) {
+    if ((onalert && p->state == DEEPSLEEPING) || p->state == RUNNING || p->state == RUNNABLE || p->state == ZOMBIE)
         return false;
-    }
     if (p->state == SLEEPING || p->state == UNUSED || p->state == DEEPSLEEPING) {
         p->state = RUNNABLE;
         if (!p->idle) rbtree_insert(&rq[(p->pid) % NCPU], &(p->schinfo.rq_node), _cmp_runtime);
@@ -99,9 +94,8 @@ static void update_this_proc(struct proc* p) {
 static void schedule(enum procstate new_state) {
     auto this = thisproc();
     ASSERT (this->state == RUNNING);
-    if (this->killed && new_state != ZOMBIE) {
+    if (this->killed && new_state != ZOMBIE)
         return;
-    }
     update_this_state(new_state);
     auto next = pick_next();
     update_this_proc(next);

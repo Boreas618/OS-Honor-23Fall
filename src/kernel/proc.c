@@ -84,27 +84,26 @@ void set_parent_to_this(struct proc* proc) {
   setup_checker(0);
   acquire_spinlock(0, &proc_lock);
   proc->parent = thisproc();
-  _insert_into_list(&(thisproc()->children), &(proc->ptnode));
+  //_insert_into_list(&(thisproc()->children), &(proc->ptnode));
+  list_push_back(&(thisproc()->children), &(proc->ptnode));
   release_spinlock(0, &proc_lock);
 }
 
 static void transfer_children(struct proc* dst, struct proc* src) {
   // Transfer the alive children to the destination process
-  while (src->children.next != &(src->children)) {
-    ListNode *pchild = src->children.next;
-    _detach_from_list(src->children.next);
-    _insert_into_list(&(dst->children), pchild);
+  list_forall(pchild, src->children) {
+    list_remove(&(src->children), pchild);
+    list_push_back(&(dst->children), pchild);
     struct proc* child = container_of(pchild, struct proc, ptnode);
     child->parent = dst;
   }
 
   // Transfer the zombie children to the destination process
-  while (src->zombie_children.next != &(src->zombie_children)) {
-    ListNode* pzombie = src->zombie_children.next;
-    _detach_from_list(src->zombie_children.next);
-    _insert_into_list(&(dst->zombie_children), pzombie);
-    struct proc* zombie = container_of(pzombie, struct proc, ptnode);
-    zombie->parent = dst;
+  list_forall(pchild, src->zombie_children) {
+    list_remove(&(src->zombie_children), pchild);
+    list_push_back(&(dst->zombie_children), pchild);
+    struct proc* zombie_child = container_of(pchild, struct proc, ptnode);
+    zombie_child->parent = dst;
     post_sem(&(dst->childexit));
   }
 }
@@ -122,11 +121,10 @@ NO_RETURN void exit(int code) {
   transfer_children(&root_proc, p);
 
   // Move the current process to the zombie children list of its parent
-  _detach_from_list(&(p->ptnode));
-  _insert_into_list(&(p->parent->zombie_children), &(p->ptnode));
+  list_remove(&(p->parent->children), &(p->ptnode));
+  list_push_back(&(p->parent->zombie_children), &(p->ptnode));
   post_sem(&(p->parent->childexit));
   release_spinlock(0, &proc_lock);
-  
   _sched(ZOMBIE);
   PANIC();
 }
@@ -137,8 +135,8 @@ int wait(int* exitcode) {
   struct proc* p = thisproc();
 
   // If the process has no children, then return.
-  if ((p->children.next == &p->children) &&
-      (p->zombie_children.next == &p->zombie_children)) {
+  if ((!p->children.size) &&
+      (!p->zombie_children.size)) {
     release_spinlock(0, &proc_lock);
     return -1;
   }
@@ -151,14 +149,14 @@ int wait(int* exitcode) {
   // Fetch the zombie to clean the resources.
   setup_checker(1);
   acquire_spinlock(1, &proc_lock);
-  ListNode* zombie = p->zombie_children.next;
-  _detach_from_list(zombie);
+  ListNode* zombie = p->zombie_children.head;
+  list_pop_head(&(p->zombie_children));
   struct proc* zombie_child = container_of(zombie, struct proc, ptnode);
   int pid = zombie_child->pid;
   *exitcode = zombie_child->exitcode;
   free_pid(zombie_child->pid);
   kfree_page(zombie_child->kstack);
-  //kfree(zombie_child);
+  kfree(zombie_child);
   release_spinlock(1, &proc_lock);
   return pid;
 }
@@ -168,7 +166,7 @@ int kill(int pid) {
   // Return -1 if the pid is invalid (proc not found).
   setup_checker(0);
   acquire_spinlock(0, &proc_lock);
-  _for_in_list(p, &thisproc()->children) {
+  list_forall(p, thisproc()->children) {
     struct proc *cur = container_of(p, struct proc, ptnode);
     if (cur->pid == pid && !cur->idle) {
           cur->killed = true;
@@ -186,7 +184,7 @@ int start_proc(struct proc* p, void (*entry)(u64), u64 arg) {
   acquire_spinlock(0, &proc_lock);
   if (p->parent == NULL) {
     p->parent = &root_proc;
-    _insert_into_list(&root_proc.children, &p->ptnode);
+    list_push_back(&root_proc.children, &p->ptnode);
   }
   ASSERT(p->kstack != NULL);
 
@@ -209,9 +207,9 @@ void init_proc(struct proc* p) {
   p->pid = alloc_pid();
   p->state = UNUSED;
   init_sem(&p->childexit, 0);
-  init_list_node(&p->children);
+  list_init(&p->children);
+  list_init(&p->zombie_children);
   init_list_node(&p->ptnode);
-  init_list_node(&p->zombie_children);
   p->parent = NULL;
   p->schinfo.runtime = 0;
   init_pgdir(&p->pgdir);
