@@ -188,9 +188,8 @@ PartitionedPageNode* _partition_page(u32 rounded_size, u8 bucket_index) {
   if (page_to_partition == NULL) return NULL;
 
   u64 p = page_to_partition;
-  for (; p < page_to_partition + PAGE_SIZE - rounded_size; p += rounded_size) {
+  for (; p < page_to_partition + PAGE_SIZE - rounded_size; p += rounded_size)
     *((u64*)p) = p + rounded_size;
-  }
   *((u64*)p) = 0;
 
   // Configure the control info of the page.

@@ -84,7 +84,6 @@ void set_parent_to_this(struct proc* proc) {
   setup_checker(0);
   acquire_spinlock(0, &proc_lock);
   proc->parent = thisproc();
-  //_insert_into_list(&(thisproc()->children), &(proc->ptnode));
   list_push_back(&(thisproc()->children), &(proc->ptnode));
   release_spinlock(0, &proc_lock);
 }
@@ -99,10 +98,10 @@ static void transfer_children(struct proc* dst, struct proc* src) {
   }
 
   // Transfer the zombie children to the destination process
-  list_forall(pchild, src->zombie_children) {
-    list_remove(&(src->zombie_children), pchild);
-    list_push_back(&(dst->zombie_children), pchild);
-    struct proc* zombie_child = container_of(pchild, struct proc, ptnode);
+  list_forall(pzombie, src->zombie_children) {
+    list_remove(&(src->zombie_children), pzombie);
+    list_push_back(&(dst->zombie_children), pzombie);
+    struct proc* zombie_child = container_of(pzombie, struct proc, ptnode);
     zombie_child->parent = dst;
     post_sem(&(dst->childexit));
   }
@@ -113,16 +112,20 @@ NO_RETURN void exit(int code) {
   acquire_spinlock(0, &proc_lock);
   struct proc* p = thisproc();
 
-  // Set exit code
+  // Set the exit code.
   p->exitcode = code;
 
+  // Free the page table.
   free_pgdir(&(p->pgdir));
-  // Transfer children and zombies to the root proc
+
+  // Transfer the children and zombies to the root proc.
   transfer_children(&root_proc, p);
 
-  // Move the current process to the zombie children list of its parent
+  // Move the current process to the zombie children list of its parent.
   list_remove(&(p->parent->children), &(p->ptnode));
   list_push_back(&(p->parent->zombie_children), &(p->ptnode));
+
+  // Notify the parent.
   post_sem(&(p->parent->childexit));
   release_spinlock(0, &proc_lock);
   _sched(ZOMBIE);
@@ -144,11 +147,12 @@ int wait(int* exitcode) {
 
   // Wait a child to exit.
   bool r = wait_sem(&(p->childexit));
-  (void) r;
+  if(!r) PANIC();
 
   // Fetch the zombie to clean the resources.
   setup_checker(1);
   acquire_spinlock(1, &proc_lock);
+  // Take the zombie from the zombie list.
   ListNode* zombie = p->zombie_children.head;
   list_pop_head(&(p->zombie_children));
   struct proc* zombie_child = container_of(zombie, struct proc, ptnode);
