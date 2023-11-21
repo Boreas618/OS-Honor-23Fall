@@ -171,7 +171,6 @@ retry:
         msg_sender sender;
         sender.proc = thisproc();
         _insert_into_list(msgq->q_sender.prev, &sender.node);
-        _acquire_sched_lock();
         _release_spinlock(&msg_ids.lock);
         _sched(SLEEPING);
         goto retry;
@@ -250,7 +249,6 @@ int sys_msgrcv(int msgid, msgbuf* msgp, int msgsz, int mtype, int msgflg) {
         receiver.mtype = mtype;
         receiver.proc = thisproc();
         receiver.size = msgsz;
-        _acquire_sched_lock();
         _release_spinlock(&msg_ids.lock);
         _sched(SLEEPING);
         found_msg = receiver.r_msg;

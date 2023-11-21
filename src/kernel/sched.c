@@ -43,27 +43,15 @@ inline struct proc* thisproc() {
     return cpus[cpuid()].sched.running;
 }
 
-inline void _acquire_sched_lock() {
-    //_acquire_spinlock(&sched_lock);
-}
-
-inline void _release_sched_lock() {
-    //_release_spinlock(&sched_lock);
-}
-
 bool _activate_proc(struct proc* p, bool onalert) {
-    //_acquire_sched_lock();
     if ((onalert && p->state == DEEPSLEEPING) || p->state == RUNNING || p->state == RUNNABLE || p->state == ZOMBIE) {
-        //_release_sched_lock();
         return false;
     }
     if (p->state == SLEEPING || p->state == UNUSED || p->state == DEEPSLEEPING) {
         p->state = RUNNABLE;
         if (!p->idle) rbtree_insert(&rq[(p->pid) % NCPU], &(p->schinfo.rq_node), _cmp_runtime);
-        //_release_sched_lock();
         return true;
     }
-    //_release_sched_lock();
     return false;
 }
 
@@ -87,7 +75,6 @@ static struct proc* pick_next() {
 }
 
 static void _sched_handler(struct timer* t) {
-    //_acquire_sched_lock();
     t->data--;
     // @TODO overflow of runtime
     thisproc()->schinfo.runtime += SLICE_LEN;
@@ -113,7 +100,6 @@ static void schedule(enum procstate new_state) {
     auto this = thisproc();
     ASSERT (this->state == RUNNING);
     if (this->killed && new_state != ZOMBIE) {
-        //_release_sched_lock();
         return;
     }
     update_this_state(new_state);
@@ -123,13 +109,11 @@ static void schedule(enum procstate new_state) {
         attach_pgdir(&(next->pgdir));
         swtch(next->kcontext, &(this->kcontext));
     }
-    //_release_sched_lock();
 }
 
 __attribute__((weak, alias("schedule"))) void _sched(enum procstate new_state);
 
 u64 proc_entry(void(*entry)(u64), u64 arg) {
     set_return_addr(entry);
-    //_release_sched_lock();
     return arg;
 }

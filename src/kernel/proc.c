@@ -126,8 +126,7 @@ NO_RETURN void exit(int code) {
   _insert_into_list(&(p->parent->zombie_children), &(p->ptnode));
   post_sem(&(p->parent->childexit));
   release_spinlock(0, &proc_lock);
-
-  _acquire_sched_lock();
+  
   _sched(ZOMBIE);
   PANIC();
 }
