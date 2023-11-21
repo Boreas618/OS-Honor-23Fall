@@ -215,7 +215,6 @@ void init_proc(struct proc* p) {
   init_list_node(&p->zombie_children);
   p->parent = NULL;
   p->schinfo.runtime = 0;
-  init_list_node(&p->schinfo.runnable_node);
   init_pgdir(&p->pgdir);
   p->kstack = kalloc_page();
   ASSERT(p->kstack != NULL);
