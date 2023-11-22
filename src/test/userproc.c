@@ -6,7 +6,7 @@
 #include <common/sem.h>
 #include <kernel/proc.h>
 #include <kernel/syscall.h>
-#define NPROC 24
+#define NPROC 32
 
 PTEntry* get_pte(struct pgdir* pgdir, u64 va, bool alloc);
 

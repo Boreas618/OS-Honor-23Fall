@@ -1,13 +1,13 @@
+#include <aarch64/intrinsic.h>
+#include <common/string.h>
+#include <driver/clock.h>
+#include <common/rbtree.h>
 #include <kernel/sched.h>
 #include <kernel/proc.h>
 #include <kernel/init.h>
 #include <kernel/mem.h>
 #include <kernel/printk.h>
 #include <kernel/cpu.h>
-#include <aarch64/intrinsic.h>
-#include <common/string.h>
-#include <driver/clock.h>
-#include <common/rbtree.h>
 
 #define SLICE_LEN 10
 
@@ -16,10 +16,9 @@ extern struct proc root_proc;
 extern struct proc* running[];
 
 static struct timer sched_timer[NCPU];
+static RBTree rq[NCPU];
 
 void trap_return();
-
-static RBTree rq[NCPU];
 
 define_early_init(sched_helper) {
     for (int i = 0; i < NCPU; i++)

@@ -2,8 +2,7 @@
 
 #include <aarch64/mmu.h>
 
-struct pgdir
-{
+struct pgdir {
     PTEntry* pt;
 };
 

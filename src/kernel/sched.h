@@ -2,8 +2,6 @@
 
 #include <kernel/proc.h>
 
-//void init_schinfo(struct schinfo*);
-
 bool _activate_proc(struct proc*, bool onalert);
 #define activate_proc(proc) _activate_proc(proc, false)
 #define alert_proc(proc) _activate_proc(proc, true)

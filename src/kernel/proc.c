@@ -14,12 +14,7 @@ SpinLock proc_lock;
 SpinLock proc_pid_lock;
 u8 pid_pool[PID_POOL_SIZE];
 u64 pid_window;
-
-void kernel_entry();
-void idle_entry();
-void proc_entry();
-static struct proc* create_idle_proc();
-void init_proc(struct proc* p);
+extern u64 proc_entry();
 
 define_early_init(proc_helper) {
   init_spinlock(&proc_lock);
@@ -30,7 +25,7 @@ define_init(startup_procs) {
   // Stage the idle processes
   for (int i = 0; i < NCPU; i++) {
     // Idle processes are the first processes on each core.
-    // Before the idle process is staged, no other processes are created/
+    // Before the idle process is staged, no other processes are created.
     ASSERT(cpus[i].sched.running == NULL);
     struct proc* idle = create_idle_proc();
     cpus[i].sched.idle = idle;
@@ -152,6 +147,7 @@ int wait(int* exitcode) {
   // Fetch the zombie to clean the resources.
   setup_checker(1);
   acquire_spinlock(1, &proc_lock);
+
   // Take the zombie from the zombie list.
   ListNode* zombie = p->zombie_children.head;
   list_pop_head(&(p->zombie_children));
@@ -173,10 +169,10 @@ int kill(int pid) {
   list_forall(p, thisproc()->children) {
     struct proc *cur = container_of(p, struct proc, ptnode);
     if (cur->pid == pid && !cur->idle) {
-          cur->killed = true;
-          alert_proc(cur);
-          release_spinlock(0, &proc_lock);
-          return 0;
+      cur->killed = true;
+      alert_proc(cur);
+      release_spinlock(0, &proc_lock);
+      return 0;
     }
   }
   release_spinlock(0, &proc_lock);
@@ -232,7 +228,7 @@ struct proc* create_proc() {
   return p;
 }
 
-static struct proc* create_idle_proc() {
+struct proc* create_idle_proc() {
   struct proc* p = create_proc();
   // Do some configurations to the idle entry
   p->idle = true;
