@@ -20,8 +20,6 @@
 
 u16 _round_up(isize s, u32* rounded_size, u8* bucket_index);
 
-u64 _vaddr_to_id(u64 vaddr);
-
 u64 _alloc_partition(Page* p);
 
 RefCount alloc_page_cnt;
@@ -176,10 +174,6 @@ u16 _round_up(isize s, u32* rounded_size, u8* bucket_index) {
   *rounded_size = result >= 8 ? result : 8;
   *bucket_index = index >= 3 ? index : 3;
   return result;
-}
-
-u64 _vaddr_to_id(u64 vaddr) {
-  return (vaddr - PAGE_BASE((u64)&end) - PAGE_SIZE) / PAGE_SIZE;
 }
 
 PartitionedPageNode* _partition_page(u32 rounded_size, u8 bucket_index) {

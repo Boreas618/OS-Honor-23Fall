@@ -4,9 +4,7 @@
 #include <aarch64/mmu.h>
 #include <common/list.h>
 
-#define PAGE_PARTITIONED 1;
-
-#define PAGE_PARTITIONED 1;
+#define _vaddr_to_id(vaddr) ((vaddr - PAGE_BASE((u64)&end) - PAGE_SIZE) / PAGE_SIZE);
 
 WARN_RESULT void* kalloc_page();
 void kfree_page(void*);
