@@ -1,20 +1,16 @@
 #pragma once
 
+
 #include <common/defines.h>
 #include <aarch64/mmu.h>
 #include <common/list.h>
 
-#define _vaddr_to_id(vaddr) ((vaddr - PAGE_BASE((u64)&end) - PAGE_SIZE) / PAGE_SIZE);
-
-WARN_RESULT void* kalloc_page();
-void kfree_page(void*);
-
-WARN_RESULT void* kalloc(isize);
-void kfree(void*);
+typedef struct page Page;
+typedef struct partitioned_page_node PartitionedPageNode;
 
 typedef struct partitioned_page_node {
     struct ListNode pp_node;
-    struct page* page;
+    Page* page; // Use forward-declared type
     u8 bucket_index;
 } PartitionedPageNode;
 
@@ -25,3 +21,11 @@ typedef struct page {
     u32 alloc_partitions_cnt;
     PartitionedPageNode partitioned_node;
 } Page;
+
+u16 _round_up(isize s, u32* rounded_size, u8* bucket_index);
+u64 _alloc_partition(Page* p);
+PartitionedPageNode* _partition_page(u32 rounded_size, u8 bucket_index);
+WARN_RESULT void* kalloc_page();
+void kfree_page(void* page);
+WARN_RESULT void* kalloc(isize size);
+void kfree(void* ptr);

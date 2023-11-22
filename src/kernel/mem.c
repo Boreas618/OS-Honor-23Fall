@@ -1,4 +1,5 @@
 #include <aarch64/mmu.h>
+#include <aarch64/intrinsic.h>
 #include <common/checker.h>
 #include <common/defines.h>
 #include <common/list.h>
@@ -8,23 +9,14 @@
 #include <driver/memlayout.h>
 #include <kernel/init.h>
 #include <kernel/mem.h>
-
-#include "aarch64/intrinsic.h"
-#include "kernel/printk.h"
+#include <kernel/printk.h>
 
 #define K_DEBUG 0
-
 #define MAX_BUCKETS 16
-
 #define MAX_PAGES 1048576
-
-u16 _round_up(isize s, u32* rounded_size, u8* bucket_index);
-
-u64 _alloc_partition(Page* p);
+#define _vaddr_to_id(vaddr) ((vaddr - PAGE_BASE((u64)&end) - PAGE_SIZE) / PAGE_SIZE)
 
 RefCount alloc_page_cnt;
-
-PartitionedPageNode* _partition_page(u32 rounded_size, u8 bucket_index);
 
 /* 
  * Memory is divided into pages. During the initialization process of the
@@ -116,7 +108,7 @@ void* kalloc(isize s) {
   list_lock(&(partitioned_pages[bucket_index]));
 
   // In most cases, there are partitioned pages in the bucket and we can fetch partitions from them.
-  if (partitioned_pages[bucket_index].size == 0) {
+  if (partitioned_pages[bucket_index].size) {
     // Take the list of candidate pages from the bucket.
     List candidate_pages = partitioned_pages[bucket_index];
 
