@@ -9,7 +9,7 @@ void sd_init();
 bool panic_flag;
 
 NO_RETURN void idle_entry() {
-    alloc_test();
+    // alloc_test();
     // rbtree_test();
     set_cpu_on();
     while (1) {
@@ -29,7 +29,7 @@ NO_RETURN void kernel_entry() {
     // sd_init();
     // sd_test();
     // proc_test();
-    // vm_test();
+    vm_test();
     // user_proc_test();
     
     do_rest_init();
