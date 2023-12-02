@@ -5,45 +5,22 @@
 #include <kernel/printk.h>
 #include <kernel/proc.h>
 
-/*
- * The private reference to the super block.
- * 
- * We need these two variables because we allow the caller to specify the block device 
- * and super block to use.
- * Correspondingly, you should NEVER use global instance of them, e.g. `get_super_block`, 
- * `block_device`.
- */
+/* The private reference to the super block. */
 static const SuperBlock *sblock;
 
 /* The reference to the underlying block device. */
 static const BlockDevice *device; 
 
-/* 
- * Global lock for block cache. Use it to protect anything you need. e.g. the list of
- * allocated blocks, etc. 
- */
+/* Global lock for block cache. */
 static SpinLock lock;
 
-/* 
- * The list of all allocated in-memory block.
- * We use a linked list to manage all allocated cached blocks.
- * You can implement your own data structure if you like better performance.
- */
+/* The list of all allocated in-memory block. */
 static List blocks;
 
 /* In-memory copy of log header block. */
 static LogHeader header;
 
-/* 
- * Maintain other logging states.
- *
- * You may wonder where we store some states, e.g.
- * - How many atomic operations are running?
- * - Are we checkpointing?
- * - How to notify `end_op` that a checkpoint is done?
- * 
- * See cache_begin_op, cache_end_op, cache_sync.
- */
+/* Maintain other logging states. */
 struct {
     SpinLock lock;
     u32 contributors_cnt;
