@@ -21,20 +21,17 @@ static OpContext _ctx, *ctx = &_ctx;
 void test_alloc() {
     mock.begin_op(ctx);
     usize ino = inodes.alloc(ctx, INODE_REGULAR);
-
     assert_eq(mock.count_inodes(), 1);
     mock.end_op(ctx);
     assert_eq(mock.count_inodes(), 2);
 
     auto* p = inodes.get(ino);
-
+    
     inodes.lock(p);
-    // printf("hello\n");
     inodes.unlock(p);
 
     mock.begin_op(ctx);
     inodes.put(ctx, p);
-
     assert_eq(mock.count_inodes(), 2);
     mock.end_op(ctx);
     assert_eq(mock.count_inodes(), 1);

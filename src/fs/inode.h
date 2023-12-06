@@ -116,7 +116,7 @@ typedef struct {
      * Notify that you no longer need `inode`.
      * 
      * This method is also responsible to free the inode if no one needs it:
-     * -"No one needs it" means it is useless BOTH in-memory (`inode->rc == 0`) and on-disk
+     * - "No one needs it" means it is useless BOTH in-memory (`inode->rc == 0`) and on-disk
      * (`inode->entry.num_links == 0`).
      * - "Free the inode" means freeing all related file blocks and the inode itself.
      * 

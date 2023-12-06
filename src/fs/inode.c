@@ -11,8 +11,7 @@ static const BlockCache* cache;
 static SpinLock lock;
 
 /* The list of all allocated in-memory inodes. */
-static ListNode head;
-
+static List cached_inodes;
 
 /* Return which block `inode_no` lives on. */
 static INLINE usize to_block_no(usize inode_no) {
@@ -32,7 +31,7 @@ static INLINE u32* get_addrs(Block* block) {
 /* Initialize inode tree. */
 void init_inodes(const SuperBlock* _sblock, const BlockCache* _cache) {
     init_spinlock(&lock);
-    init_list_node(&head);
+    list_init(&cached_inodes);
     sblock = _sblock;
     cache = _cache;
 
@@ -53,44 +52,128 @@ static void init_inode(Inode* inode) {
 
 static usize inode_alloc(OpContext* ctx, InodeType type) {
     ASSERT(type != INODE_INVALID);
-
-    // TODO
+    usize inode_no = 1;
+    while (inode_no < sblock->num_inodes) {
+        usize block_no = to_block_no(inode_no);
+        Block *b = cache->acquire(block_no);
+        InodeEntry* ie = get_entry(b, inode_no);
+        if (ie->type == INODE_INVALID) {
+          ie->type = type;
+          cache->sync(ctx, b);
+          cache->release(b);
+          return inode_no;
+        }
+        cache->release(b);
+        inode_no++;
+    }
+    PANIC();
     return 0;
 }
 
 static void inode_lock(Inode* inode) {
     ASSERT(inode->rc.count > 0);
-    // TODO
+    unalertable_wait_sem(&inode->lock);
 }
 
 static void inode_unlock(Inode* inode) {
     ASSERT(inode->rc.count > 0);
-    // TODO
+    post_sem(&inode->lock);
 }
 
 static void inode_sync(OpContext* ctx, Inode* inode, bool do_write) {
-    // TODO
+    usize block_no = to_block_no(inode->inode_no);
+    Block *b = cache->acquire(block_no);
+    // Writing operations are performed directly on the in-memory inodes. 
+    // To ensure data consistency with the external storage device, the process 
+    // involves two steps: first, copying the modified inode data to the cache, 
+    // and then synchronizing this cache with the storage device.
+    if (do_write && inode->valid) {
+        InodeEntry* ie = get_entry(b, inode->inode_no);
+        memcpy(ie, &inode->entry, sizeof(InodeEntry));
+        cache->sync(ctx, b);
+    }
+    if (!do_write && !inode->valid) {
+        InodeEntry* ie = get_entry(b, inode->inode_no);
+        // We don't need to grab the lock for inode here.
+        // The lock has been grabbed by the caller of this function.
+        memcpy(&inode->entry, ie, sizeof(InodeEntry));
+        inode->valid = true;
+    }
+    if (do_write && !inode->valid)
+        PANIC();
+    cache->release(b);
 }
 
 static Inode* inode_get(usize inode_no) {
     ASSERT(inode_no > 0);
     ASSERT(inode_no < sblock->num_inodes);
-    _acquire_spinlock(&lock);
-    // TODO
-    return NULL;
+    list_lock(&cached_inodes);
+    list_forall(p, cached_inodes) {
+        Inode *i = container_of(p, Inode, node);
+        if (i->inode_no == inode_no) {
+            increment_rc(&i->rc);
+            list_unlock(&cached_inodes);
+            return i;
+        }
+    }
+    // Not found in the cache.
+    Inode* new_inode = (Inode*)kalloc(sizeof(Inode));
+    init_inode(new_inode);
+    new_inode->inode_no = inode_no;
+    new_inode->valid = true;
+    list_push_head(&cached_inodes, &new_inode->node);
+    increment_rc(&new_inode->rc);
+    list_unlock(&cached_inodes);
+    return new_inode;
 }
 
 static void inode_clear(OpContext* ctx, Inode* inode) {
-    // TODO
+    InodeEntry *ie = &inode->entry;
+    // Free the direct blocks.
+    for (int i = 0; i < INODE_NUM_DIRECT; i++) {
+        u32 block_no = ie->addrs[i];
+        if (block_no)
+            cache->free(ctx, inode);
+    }
+    // Free the indirect blocks.
+    if (ie->indirect) {
+        Block *indirect = cache->acquire(ie->indirect);
+        u32* indir_addrs = get_addrs(indirect);
+        for (int i = 0; i < INODE_NUM_INDIRECT; i++) {
+            u32 block_no = indir_addrs[i];
+            if (block_no)
+                cache->free(ctx, inode);
+        }
+        cache->free(ctx, ie->indirect);
+    }
+    // Reset the metadata.
+    // inode->valid = false;
+    inode->entry.indirect = NULL;
+    memset((void*)inode->entry.addrs, 0, sizeof(u32) * INODE_NUM_DIRECT);
+    inode->entry.num_bytes = 0;
+    inode->entry.num_links = 0;
+    inode->entry.type = INODE_INVALID;
 }
 
 static Inode* inode_share(Inode* inode) {
-    // TODO
-    return 0;
+    increment_rc(&inode->rc);
+    return inode;
 }
 
 static void inode_put(OpContext* ctx, Inode* inode) {
-    // TODO
+    list_lock(&cached_inodes);
+    // Free the inode if no one needs it
+    if (inode->rc.count == 1 && inode->entry.num_links == 0) {
+        inode_lock(inode);
+        inode_clear(ctx, inode);
+        inode_unlock(inode);
+        inode_sync(ctx, inode, true);
+        list_remove(&cached_inodes, &inode->node);
+        kfree(inode);
+    } else {
+        decrement_rc(&inode->rc);
+    }
+    list_unlock(&cached_inodes);
 }
 
 /* 

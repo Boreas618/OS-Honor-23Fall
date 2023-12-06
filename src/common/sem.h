@@ -28,7 +28,6 @@ void _post_sem(Semaphore*);
 #define unlock_sem(checker, sem) checker_end_ctx_after_call(checker, _unlock_sem, sem)
 #define prelocked_wait_sem(checker, sem) checker_end_ctx_after_call(checker, _wait_sem, sem, true)
 #define prelocked_unalertable_wait_sem(checker, sem) ASSERT(checker_end_ctx_after_call(checker, _wait_sem, sem, false))
-// #define delayed_wait_sem(checker, sem) {checker_set_delayed_task(checker, _wait_sem, sem); _lock_sem(sem);}
 #define wait_sem(sem) (_lock_sem(sem), _wait_sem(sem, true))
 #define unalertable_wait_sem(sem) ASSERT((_lock_sem(sem), _wait_sem(sem, false)))
 #define post_sem(sem) (_lock_sem(sem), _post_sem(sem), _unlock_sem(sem))
