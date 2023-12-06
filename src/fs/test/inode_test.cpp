@@ -26,7 +26,6 @@ void test_alloc() {
     assert_eq(mock.count_inodes(), 2);
 
     auto* p = inodes.get(ino);
-    
     inodes.lock(p);
     inodes.unlock(p);
 
