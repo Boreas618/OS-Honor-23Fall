@@ -168,6 +168,7 @@ static void inode_clear(OpContext *ctx, Inode *inode) {
     inode->entry.num_bytes = 0;
     inode->entry.num_links = 0;
     inode->entry.type = INODE_INVALID;
+    inode_sync(ctx, inode, true);
 }
 
 static Inode *inode_share(Inode *inode) {
@@ -208,15 +209,50 @@ static void inode_put(OpContext *ctx, Inode *inode) {
  *
  * Modified true if some new block is allocated and `inode` has been changed.
  *
- * Return usize the block number of that block, or 0 if `ctx == NULL` and the
+ * Return the block number of that block, or 0 if `ctx == NULL` and the
  * required block has not been allocated.
  *
  * Note that the caller must hold the lock of `inode`.
  */
 static usize inode_map(OpContext *ctx, Inode *inode, usize offset,
                        bool *modified) {
-    // TODO
-    return 0;
+    InodeEntry *entry = &inode->entry;
+    ASSERT(offset < INODE_MAX_BYTES);
+    usize block_no = 0;
+    u32* new_block_slot = NULL;
+
+    // The block can be directly accessed.
+    if (offset / BLOCK_SIZE < INODE_NUM_DIRECT) {
+        block_no = entry->addrs[offset / BLOCK_SIZE];
+        new_block_slot = entry->addrs + offset / BLOCK_SIZE;
+    }
+
+    // The block cannot be accessed directly.
+    if (offset / BLOCK_SIZE >= INODE_NUM_DIRECT) {
+        // The indirect block is absent.
+        if (!entry->indirect) {
+            if (!ctx) return 0;
+            entry->indirect = cache->alloc(ctx);
+            *modified = true;
+        }
+
+        // Get the index in the indirect blocks.
+        usize idx = offset / BLOCK_SIZE - INODE_NUM_DIRECT;
+
+        // Get the block number from the indirect block.
+        Block *indirect_b = cache->acquire(entry->indirect);
+        block_no = get_addrs(indirect_b)[idx];
+        new_block_slot = get_addrs(indirect_b) + idx;
+        cache->release(indirect_b);
+    }
+
+    // Tackle the cases where the found block has not been allocated.
+    if (!block_no && ctx) {
+        block_no = cache->alloc(ctx);
+        *new_block_slot = block_no;
+        *modified = true;
+    }
+    return block_no;
 }
 
 static usize inode_read(Inode *inode, u8 *dest, usize offset, usize count) {
@@ -228,8 +264,19 @@ static usize inode_read(Inode *inode, u8 *dest, usize offset, usize count) {
     ASSERT(end <= entry->num_bytes);
     ASSERT(offset <= end);
 
-    // TODO
-    return 0;
+    // Get which block is the offset of the inode in.
+    usize block_no = inode_map(NULL, inode, offset, NULL);
+
+    // Read the block.
+    Block* b = cache->acquire(block_no);
+    u8* data = b->data;
+    usize start = offset % BLOCK_SIZE;
+    count = (BLOCK_SIZE - start + 1) > count ? count : (BLOCK_SIZE - start + 1);
+
+    // Copy the bytes to the destination.
+    memcpy(dest, data + start, count);
+    cache->release(b);
+    return count;
 }
 
 static usize inode_write(OpContext *ctx, Inode *inode, u8 *src, usize offset,
@@ -240,8 +287,20 @@ static usize inode_write(OpContext *ctx, Inode *inode, u8 *src, usize offset,
     ASSERT(end <= INODE_MAX_BYTES);
     ASSERT(offset <= end);
 
-    // TODO
-    return 0;
+    // Get which block is the offset of the inode in.
+    bool modified = false;
+    usize block_no = inode_map(ctx, inode, offset, &modified);
+    Block *b = cache->acquire(block_no);
+    u8* data = b->data;
+    usize start = offset % BLOCK_SIZE;
+    count = (BLOCK_SIZE - start + 1) > count ? count : (BLOCK_SIZE - start + 1);
+    inode->entry.num_bytes += count;
+    if (modified)
+        inode_sync(ctx, inode, true);
+    memcpy(data + start, src, count);
+    cache->sync(ctx, b);
+    cache->release(b);
+    return count;
 }
 
 static usize inode_lookup(Inode *inode, const char *name, usize *index) {
@@ -256,8 +315,6 @@ static usize inode_insert(OpContext *ctx, Inode *inode, const char *name,
                           usize inode_no) {
     InodeEntry *entry = &inode->entry;
     ASSERT(entry->type == INODE_DIRECTORY);
-
-    // TODO
     return 0;
 }
 
