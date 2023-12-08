@@ -185,6 +185,7 @@ static void inode_put(OpContext *ctx, Inode *inode) {
         inode->entry.type = INODE_INVALID;
         inode_sync(ctx, inode, true);
         inode_unlock(inode);
+        list_remove(&cached_inodes, &inode->node);
         kfree(inode);
     } else {
         decrement_rc(&inode->rc);
