@@ -275,6 +275,7 @@ static usize inode_read(Inode *inode, u8 *dest, usize offset, usize count) {
 
     // Copy the bytes to the destination.
     memcpy(dest, data + start, count);
+    
     cache->release(b);
     return count;
 }
@@ -291,14 +292,21 @@ static usize inode_write(OpContext *ctx, Inode *inode, u8 *src, usize offset,
     bool modified = false;
     usize block_no = inode_map(ctx, inode, offset, &modified);
     Block *b = cache->acquire(block_no);
+
+    // Get the data of the lock
     u8* data = b->data;
+
+    // Count the start and end of the dest area
     usize start = offset % BLOCK_SIZE;
     count = (BLOCK_SIZE - start + 1) > count ? count : (BLOCK_SIZE - start + 1);
-    inode->entry.num_bytes += count;
-    if (modified)
-        inode_sync(ctx, inode, true);
+
+    // Copy the data from src to the destination
     memcpy(data + start, src, count);
-    cache->sync(ctx, b);
+
+    // Recorcd that the change to the inode
+    inode->entry.num_bytes += count;
+    inode_sync(ctx, inode, true);
+    
     cache->release(b);
     return count;
 }
