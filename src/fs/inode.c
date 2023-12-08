@@ -167,7 +167,6 @@ static void inode_clear(OpContext *ctx, Inode *inode) {
     inode->entry.indirect = NULL;
     memset((void *)inode->entry.addrs, 0, sizeof(u32) * INODE_NUM_DIRECT);
     inode->entry.num_bytes = 0;
-    inode->entry.num_links = 0;
     inode_sync(ctx, inode, true);
 }
 
@@ -342,7 +341,8 @@ static usize inode_lookup(Inode *inode, const char *name, usize *index) {
     while (offset < entry->num_bytes) {
         inode_read(inode, (u8*)&de, offset, sizeof(DirEntry));
         if (de.inode_no && !strncmp(de.name, name, FILE_NAME_MAX_LENGTH)) {
-            *index = idx;
+            if (index)
+                *index = idx;
             return de.inode_no;
         }
         offset += sizeof(DirEntry);
