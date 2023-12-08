@@ -335,8 +335,16 @@ static usize inode_write(OpContext *ctx, Inode *inode, u8 *src, usize offset,
 static usize inode_lookup(Inode *inode, const char *name, usize *index) {
     InodeEntry *entry = &inode->entry;
     ASSERT(entry->type == INODE_DIRECTORY);
-
-    // TODO
+    usize offset = 0;
+    DirEntry de;
+    while (offset < entry->num_bytes) {
+        inode_read(inode, (u8*)&de, offset, sizeof(DirEntry));
+        if (de.inode_no && !strncmp(de.name, name, FILE_NAME_MAX_LENGTH)) {
+            *index = offset / sizeof(DirEntry);
+            return de.inode_no;
+        }
+        offset += sizeof(DirEntry);
+    }
     return 0;
 }
 
