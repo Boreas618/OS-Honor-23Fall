@@ -160,6 +160,7 @@ static void inode_clear(OpContext *ctx, Inode *inode) {
             if (block_no)
                 cache->free(ctx, block_no);
         }
+        cache->release(indirect);
         cache->free(ctx, ie->indirect);
     }
     // Reset the metadata.
@@ -167,7 +168,6 @@ static void inode_clear(OpContext *ctx, Inode *inode) {
     memset((void *)inode->entry.addrs, 0, sizeof(u32) * INODE_NUM_DIRECT);
     inode->entry.num_bytes = 0;
     inode->entry.num_links = 0;
-    inode->entry.type = INODE_INVALID;
     inode_sync(ctx, inode, true);
 }
 
@@ -182,9 +182,9 @@ static void inode_put(OpContext *ctx, Inode *inode) {
     if (inode->rc.count == 1 && inode->entry.num_links == 0) {
         inode_lock(inode);
         inode_clear(ctx, inode);
+        inode->entry.type = INODE_INVALID;
         inode_sync(ctx, inode, true);
         inode_unlock(inode);
-        list_remove(&cached_inodes, &inode->node);
         kfree(inode);
     } else {
         decrement_rc(&inode->rc);
@@ -283,7 +283,7 @@ static usize inode_read(Inode *inode, u8 *dest, usize offset, usize count) {
             length = MIN(BLOCK_SIZE, count - cnt);
         
         // Copy the bytes to the destination.
-        memcpy(dest, data + start, count);
+        memcpy(dest + cnt, data + start, length);
         cache->release(b);
         cnt += length;
     }
