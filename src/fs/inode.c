@@ -264,19 +264,29 @@ static usize inode_read(Inode *inode, u8 *dest, usize offset, usize count) {
     ASSERT(end <= entry->num_bytes);
     ASSERT(offset <= end);
 
-    // Get which block is the offset of the inode in.
-    usize block_no = inode_map(NULL, inode, offset, NULL);
+    usize cnt = 0;
+    while (cnt < count) {
+        // Get which block is the offset of the inode in.
+        usize block_no = inode_map(NULL, inode, offset + cnt, NULL);
+        // Read the block.
+        Block* b = cache->acquire(block_no);
+        u8* data = b->data;
 
-    // Read the block.
-    Block* b = cache->acquire(block_no);
-    u8* data = b->data;
-    usize start = offset % BLOCK_SIZE;
-    count = (BLOCK_SIZE - start + 1) > count ? count : (BLOCK_SIZE - start + 1);
+        // Find the start of the data.
+        usize start = (cnt == 0 ? offset % BLOCK_SIZE : 0);
 
-    // Copy the bytes to the destination.
-    memcpy(dest, data + start, count);
-    
-    cache->release(b);
+        // Find the length of the data to be read.
+        usize length = 0;
+        if (cnt == 0)
+            length = MIN(BLOCK_SIZE - start, count);
+        else
+            length = MIN(BLOCK_SIZE, count - cnt);
+        
+        // Copy the bytes to the destination.
+        memcpy(dest, data + start, count);
+        cache->release(b);
+        cnt += length;
+    }
     return count;
 }
 
@@ -288,26 +298,36 @@ static usize inode_write(OpContext *ctx, Inode *inode, u8 *src, usize offset,
     ASSERT(end <= INODE_MAX_BYTES);
     ASSERT(offset <= end);
 
-    // Get which block is the offset of the inode in.
-    bool modified = false;
-    usize block_no = inode_map(ctx, inode, offset, &modified);
-    Block *b = cache->acquire(block_no);
+    usize cnt = 0;
+    while (cnt < count) {
+        bool modified = false;
+        // Get which block is the offset of the inode in.
+        usize block_no = inode_map(ctx, inode, offset + cnt, &modified);
 
-    // Get the data of the lock
-    u8* data = b->data;
+        // Get the block.
+        Block* b = cache->acquire(block_no);
+        u8* data = b->data;
 
-    // Count the start and end of the dest area
-    usize start = offset % BLOCK_SIZE;
-    count = (BLOCK_SIZE - start + 1) > count ? count : (BLOCK_SIZE - start + 1);
+        // Find the start of the data.
+        usize start = (cnt == 0 ? offset % BLOCK_SIZE : 0);
 
-    // Copy the data from src to the destination
-    memcpy(data + start, src, count);
+        // Find the length of the data to be read.
+        usize length = 0;
+        if (cnt == 0)
+            length = MIN(BLOCK_SIZE - start, count);
+        else
+            length = MIN(BLOCK_SIZE, count - cnt);
+        
+        // Copy the bytes to the destination.
+        memcpy(data + start, src + cnt, length);
 
-    // Recorcd that the change to the inode
-    inode->entry.num_bytes += count;
-    inode_sync(ctx, inode, true);
-    
-    cache->release(b);
+        // Record the change.
+        inode->entry.num_bytes += length;
+        inode_sync(ctx, inode, true);
+        
+        cache->release(b);
+        cnt += length;
+    }
     return count;
 }
 
