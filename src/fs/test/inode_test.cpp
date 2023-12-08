@@ -189,7 +189,7 @@ void test_small_file() {
     inodes.write(ctx, p, buf, 0, 1);
     assert_eq(mock.count_blocks(), 0);
     mock.end_op(ctx);
-
+    
     auto* q = mock.inspect(ino);
     assert_eq(q->indirect, 0);
     assert_ne(q->addrs[0], 0);
@@ -406,10 +406,10 @@ int main() {
     std::vector<Testcase> tests = {
         {"alloc", adhoc::test_alloc},
         {"sync", adhoc::test_sync},
-        {"touch", adhoc::test_touch},
         {"share", adhoc::test_share},
         {"small_file", adhoc::test_small_file},
         {"large_file", adhoc::test_large_file},
+        {"touch", adhoc::test_touch},
         {"dir", adhoc::test_dir},
     };
     Runner(tests).run();

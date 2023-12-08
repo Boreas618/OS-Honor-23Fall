@@ -325,6 +325,7 @@ static usize inode_write(OpContext *ctx, Inode *inode, u8 *src, usize offset,
         inode->entry.num_bytes += length;
         inode_sync(ctx, inode, true);
         
+        cache->sync(ctx, b);
         cache->release(b);
         cnt += length;
     }
