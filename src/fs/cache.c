@@ -28,12 +28,6 @@ struct {
     Semaphore work_done;
 } log;
 
-define_early_init(cache) {
-    /*init_spinlock(&lock);
-    list_init(&blocks);
-    init_bcache(sblock, device);*/
-}
-
 INLINE static void _boost_freq(Block* b);
 
 Block* _fetch_cached(usize block_no);
