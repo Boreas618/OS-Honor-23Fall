@@ -10,7 +10,7 @@
 static const SuperBlock *sblock;
 
 /* The reference to the underlying block device. */
-static const BlockDevice *device; 
+static const struct BlockDevice *device; 
 
 /* Global lock for block cache. */
 static SpinLock lock;
@@ -50,12 +50,12 @@ static INLINE void device_write(Block *block) {
 
 /* Read log header from disk. */
 static INLINE void read_header() {
-    device->read(sblock->log_start, (u8 *)&header);
+    device->read(sblock->log_start, (u8*)&header);
 }
 
 /* Write log header back to disk. */
 static INLINE void write_header() {
-    device->write(sblock->log_start, (u8 *)&header);
+    device->write(sblock->log_start, (u8*)&header);
 }
 
 /* Initialize a block struct. */
@@ -314,7 +314,7 @@ void write_log() {
 void spawn_ckpt() {
     // Sync the header.
     read_header();
-    
+
     // The transfer block which holds the block read from log.
     Block transfer_b;
     init_block(&transfer_b);

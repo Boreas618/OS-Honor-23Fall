@@ -1,8 +1,5 @@
 #include <driver/sddef.h>
 
-/* Initialize SD card. Returns zero if initialization was successful and non-zero otherwise. */
-int sdInit();
-
 /* Wait for interrupt. Return after interrupt handling. */
 static int SDWaitForInterrupt(unsigned int mask);
 
@@ -150,7 +147,7 @@ void sd_intr() {
         }
 
         b->flags = B_VALID;
-    } else if (flag == B_DIRTY) {
+    } else if (flag & B_DIRTY) {
         if (SDWaitForInterrupt(INT_DATA_DONE)) {
             printk("\n[Error] SD operation with return code: %d\n", code);
             PANIC();
