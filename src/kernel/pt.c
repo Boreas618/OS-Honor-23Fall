@@ -57,3 +57,10 @@ void attach_pgdir(struct pgdir* pgdir) {
     if (pgdir->pt) arch_set_ttbr0(K2P(pgdir->pt));
     else  arch_set_ttbr0(K2P(&invalid_pt));
 }
+
+void vmmap(struct pgdir *pd, u64 va, void *ka, u64 flags) {
+    // TODO
+    // Map virtual address 'va' to the physical address represented by kernel
+    // address 'ka' in page directory 'pd', 'flags' is the flags for the page
+    // table entry
+}

@@ -1,11 +1,17 @@
 #pragma once
 
-
 #include <common/defines.h>
 #include <aarch64/mmu.h>
+#include <common/defines.h>
 #include <common/list.h>
+#include <common/rc.h>
 
-typedef struct page Page;
+#define PAGE_COUNT ((P2K(PHYSTOP) - PAGE_BASE((u64) & end)) / PAGE_SIZE - 1)
+
+u64 left_page_cnt();
+
+WARN_RESULT void *get_zero_page();
+
 typedef struct partitioned_page_node PartitionedPageNode;
 
 typedef struct partitioned_page_node {
@@ -20,6 +26,7 @@ typedef struct page {
     u64 free_head;
     u32 alloc_partitions_cnt;
     PartitionedPageNode partitioned_node;
+    RefCount ref;
 } Page;
 
 u16 _round_up(isize s, u32* rounded_size, u8* bucket_index);
