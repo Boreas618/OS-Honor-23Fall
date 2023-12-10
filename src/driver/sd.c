@@ -34,99 +34,58 @@ void sd_init() {
 }
 
 /* Start the request for b. Caller must hold sdlock. */
-void sd_start(Buf *b)
-{
-    int bno, write, cmd, resp, done;
-    u32 *intbuf;
+void sd_start(Buf *b) {
+    // Determine the SD card type and the corresponding address style.
+    // HC pass addresses as block numbers.
+    // SC pass addresses straight through.
+    int bno = (SDCard.type == SD_TYPE_2_HC) ? (int)b->blockno : (int)b->blockno << 9;
+    int write = b->flags & B_DIRTY;
+    u32 *intbuf = (u32 *)b->data;
+    int cmd = write ? IX_WRITE_SINGLE : IX_READ_SINGLE;
+    int i = 0;
 
-    /* Determine the SD card type and the corresponding address style.
-     * HC pass addresses as block numbers.
-     * SC pass addresses straight through.
-     */
-    bno = (SDCard.type == SD_TYPE_2_HC) ? (int)b->blockno
-                                        : (int)b->blockno << 9;
-    write = b->flags & B_DIRTY;
+    // Ensure that any data operation has completed before doing the transfer.
+    arch_dsb_sy(); if (*EMMC_INTERRUPT) PANIC();
 
-    arch_dsb_sy();
+    arch_dsb_sy(); *EMMC_BLKSIZECNT = 512;
 
-    /* Ensure that any data operation has completed before doing the transfer. */
-    if (*EMMC_INTERRUPT) {
-        printk("emmc interrupt flag should be empty: 0x%x.\n", *EMMC_INTERRUPT);
-        PANIC();
-    }
+    if ((sd_send_command_arg(cmd, bno))) PANIC();
 
-    /* Work out the status, interrupt, and command values for the transfer. */
-    cmd = write ? IX_WRITE_SINGLE : IX_READ_SINGLE;
-
-    arch_dsb_sy();
-    *EMMC_BLKSIZECNT = 512;
-
-    if ((resp = sd_send_command_arg(cmd, bno))) {
-        printk("* EMMC send command error.\n");
-        PANIC();
-    }
-
-    done = 0;
-    intbuf = (u32 *)b->data;
-    if (((i64)b->data & 0x03) != 0) {
-        printk("Only support word-aligned buffers.\n");
-        PANIC();
-    }
+    if (((i64)b->data & 0x03) != 0) PANIC();
 
     if (write) {
-        /* Wait for ready interrupt for the next block. */
-        if ((resp = sd_wait_for_interrupt(INT_WRITE_RDY))) {
-            printk("* EMMC ERROR: Timeout waiting for ready to write\n");
-            PANIC();
-        }
+        // Wait for ready interrupt for the next block.
+        if ((sd_wait_for_interrupt(INT_WRITE_RDY))) PANIC();
 
-        arch_dsb_sy();
-        if (*EMMC_INTERRUPT) {
-            printk("%d\n", *EMMC_INTERRUPT);
-            PANIC();
-        }
+        arch_dsb_sy(); if (*EMMC_INTERRUPT) PANIC();
 
-        while (done < 128)
-            *EMMC_DATA = intbuf[done++];
+        while (i < 128) {
+            arch_dsb_sy(); *EMMC_DATA = intbuf[i];
+            i++;
+        }
     }
 }
 
 /* The interrupt handler. Sync buf with disk. */
-void sd_intr()
-{
-    Buf *b;
-    u32 *intbuf;
-    int flags, code, i;
+void sd_intr() {
+    Buf *b = container_of(queue_front(&bufs), Buf, bq_node);
+    u32 *intbuf = (u32 *)b->data;
+    int flags = b->flags;
 
     queue_lock(&bufs);
 
-    b = container_of(queue_front(&bufs), Buf, bq_node);
-    flags = b->flags;
-    intbuf = (u32 *)b->data;
-    code = 0;
-
     if (flags == 0) {
-        if ((code = sd_wait_for_interrupt(INT_READ_RDY))) {
-            printk("\n[Error] SD operation with return code: %d\n", code);
-            PANIC();
-        }
+        if (sd_wait_for_interrupt(INT_READ_RDY)) PANIC();
 
-        for (i = 0; i < 128; ++i) {
+        for (usize i = 0; i < 128; i++) {
             arch_dsb_sy();
             intbuf[i] = *EMMC_DATA;
         }
 
-        if ((code = sd_wait_for_interrupt(INT_DATA_DONE))) {
-            printk("\n[Error] SD operation with return code: %d\n", code);
-            PANIC();
-        }
+        if (sd_wait_for_interrupt(INT_DATA_DONE)) PANIC();
     } else if (flags & B_DIRTY) {
-        if (sd_wait_for_interrupt(INT_DATA_DONE)) {
-            printk("\n[Error] SD operation with return code: %d\n", code);
-            PANIC();
-        }
+        if (sd_wait_for_interrupt(INT_DATA_DONE)) PANIC();
     } else {
-        printk("\n[Error] Unknown buf flag.\n");
         PANIC();
     }
 
@@ -137,21 +96,17 @@ void sd_intr()
 
     if (!queue_empty(&bufs)) {
         b = container_of(queue_front(&bufs), Buf, bq_node);
-        _acquire_spinlock(&sd_lock);
         sd_start(b);
-        _release_spinlock(&sd_lock);
     }
 
     queue_unlock(&bufs);
 }
 
-
 void sdrw(Buf *b) {
     init_sem(&(b->sem), 0);
-    _acquire_spinlock(&sd_lock);
+    queue_lock(&bufs);
     queue_push(&bufs, &(b->bq_node));
-    if (bufs.size == 1)
-        sd_start(b);
-    _release_spinlock(&sd_lock);
+    if (bufs.size == 1) sd_start(b);
+    queue_unlock(&bufs);
     unalertable_wait_sem(&(b->sem));
 }

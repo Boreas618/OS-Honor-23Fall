@@ -44,7 +44,7 @@ void interrupt_global_handler() {
     }
 
     if (source != 0) {
-        printk("unknown interrupt sources: %x", source);
+        printk("Unknown interrupt sources: %x", source);
         PANIC();
     }
 }
