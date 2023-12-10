@@ -10,7 +10,7 @@
 static const SuperBlock *sblock;
 
 /* The reference to the underlying block device. */
-static const struct BlockDevice *device; 
+static const BlockDevice *device; 
 
 /* Global lock for block cache. */
 static SpinLock lock;

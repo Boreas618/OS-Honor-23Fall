@@ -1,7 +1,7 @@
 #include <driver/sddef.h>
 
 /* Wait for interrupt. Return after interrupt handling. */
-static int SDWaitForInterrupt(unsigned int mask);
+static int sd_wait_for_interrupt(unsigned int mask);
 
 /* Data synchronization barrier. Use before access memory. */
 static ALWAYS_INLINE void arch_dsb_sy();
@@ -38,7 +38,7 @@ ALWAYS_INLINE u32 get_and_clear_EMMC_INTERRUPT() {
  * 4. Read and parse 1st block (MBR) and collect whatever information you want.
  */
 void sd_init() {
-    SDInit();
+    sd_launch();
     init_spinlock(&sd_lock);
     queue_init(&bufs);
 
@@ -78,7 +78,7 @@ void sd_start(Buf* b) {
     int resp;
     *EMMC_BLKSIZECNT = 512;
 
-    if ((resp = SDSendCommandA(cmd, bno))) {
+    if ((resp = sd_send_command_arg(cmd, bno))) {
         printk("* EMMC send command error.\n");
         PANIC();
     }
@@ -92,7 +92,7 @@ void sd_start(Buf* b) {
 
     if (write) {
         // Wait for ready interrupt for the next block.
-        if ((resp = SDWaitForInterrupt(INT_WRITE_RDY))) {
+        if ((resp = sd_wait_for_interrupt(INT_WRITE_RDY))) {
             printk("* EMMC ERROR: Timeout waiting for ready to write\n");
             PANIC();
         }
@@ -133,7 +133,7 @@ void sd_intr() {
     u32* intbuf = (u32*)b->data;
     int code = 0;
     if (flag == 0) {
-        if ((code = SDWaitForInterrupt(INT_READ_RDY))) {
+        if ((code = sd_wait_for_interrupt(INT_READ_RDY))) {
             printk("\n[Error] SD operation with return code: %d\n", code);
             PANIC();
         }
@@ -141,14 +141,14 @@ void sd_intr() {
         for (int i = 0; i < 128; ++i)
             intbuf[i] = get_EMMC_DATA();
 
-        if ((code = SDWaitForInterrupt(INT_DATA_DONE))) {
+        if ((code = sd_wait_for_interrupt(INT_DATA_DONE))) {
             printk("\n[Error] SD operation with return code: %d\n", code);
             PANIC();
         }
 
         b->flags = B_VALID;
     } else if (flag & B_DIRTY) {
-        if (SDWaitForInterrupt(INT_DATA_DONE)) {
+        if (sd_wait_for_interrupt(INT_DATA_DONE)) {
             printk("\n[Error] SD operation with return code: %d\n", code);
             PANIC();
         }

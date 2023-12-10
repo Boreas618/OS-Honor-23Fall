@@ -6,6 +6,8 @@
 #include <kernel/init.h>
 #include <kernel/printk.h>
 
+extern BlockDevice block_device;
+
 define_rest_init(fs) {
     init_block_device();
 

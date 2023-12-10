@@ -18,7 +18,7 @@
 /* Private functions */
 static void sd_start(struct buf* b);
 static void SD_delayus(u32 cnt);
-static int sd_init();
+static int sd_launch();
 static void sd_parse_cid();
 static void sd_parse_csd();
 static int sd_send_command(int index);
@@ -1043,7 +1043,7 @@ int SDGetBaseClock() {
  * Initialize SD card.
  * Returns zero if initialization was successful, non-zero otherwise.
  */
-int sd_init() {
+int sd_launch() {
     // Ensure we've initialized GPIO.
     if (!SDCard.init)
         sd_initGPIO();
