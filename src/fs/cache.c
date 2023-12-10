@@ -28,7 +28,7 @@ struct {
     Semaphore work_done;
 } log;
 
-INLINE static void _boost_freq(Block* b);
+INLINE static void boost_frequency(Block* b);
 
 Block* _fetch_cached(usize block_no);
 
@@ -95,7 +95,7 @@ static Block *cache_acquire(usize block_no) {
             get_sem(&b->lock);
             b->acquired = true;
         }
-        _boost_freq(b);
+        boost_frequency(b);
         _release_spinlock(&lock);
         return b;
     }
@@ -117,7 +117,7 @@ static Block *cache_acquire(usize block_no) {
     // Load from disk.
     device_read(b);
     b->valid = true;
-    _boost_freq(b);
+    boost_frequency(b);
     _release_spinlock(&lock);
     return b;
 }
@@ -294,7 +294,7 @@ INLINE bool _evict() {
  * block to the end of the list and evict pages from the front of the list
  * whenever we need to remove some pages.
  */
-INLINE static void _boost_freq(Block* b) {
+INLINE static void boost_frequency(Block* b) {
     blocks.head = b->node.next;
 }
 

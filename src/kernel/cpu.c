@@ -8,8 +8,7 @@
 
 struct cpu cpus[NCPU];
 
-static bool __timer_cmp(rb_node lnode, rb_node rnode)
-{
+static bool __timer_cmp(rb_node lnode, rb_node rnode) {
     i64 d = container_of(lnode, struct timer, _node)->_key - container_of(rnode, struct timer, _node)->_key;
     if (d < 0)
         return true;
@@ -18,11 +17,9 @@ static bool __timer_cmp(rb_node lnode, rb_node rnode)
     return false;
 }
 
-static void __timer_set_clock()
-{
+static void __timer_set_clock() {
     auto node = _rb_first(&cpus[cpuid()].timer);
-    if (!node)
-    {
+    if (!node) {
         reset_clock(1000);
         return;
     }
@@ -35,8 +32,7 @@ static void __timer_set_clock()
 }
 
 static void timer_clock_handler() {
-    while (1)
-    {
+    while (1) {
         auto node = _rb_first(&cpus[cpuid()].timer);
         if (!node)
             break;
@@ -53,24 +49,22 @@ define_early_init(clock_handler) {
     set_clock_handler(&timer_clock_handler);
 }
 
-void set_cpu_timer(struct timer* timer)
-{
+void set_cpu_timer(struct timer* timer) {
     timer->triggered = false;
     timer->_key = get_timestamp_ms() + timer->elapse;
     ASSERT(0 == _rb_insert(&timer->_node, &cpus[cpuid()].timer, __timer_cmp));
     __timer_set_clock();
 }
 
-void cancel_cpu_timer(struct timer* timer)
-{
+void cancel_cpu_timer(struct timer* timer) {
     ASSERT(!timer->triggered);
     _rb_erase(&timer->_node, &cpus[cpuid()].timer);
     __timer_set_clock();
 }
 
 static struct timer hello_timer[4];
-static void hello(struct timer* t)
-{
+
+static void hello(struct timer* t) {
     printk("CPU %d: living\n", cpuid());
     t->data++;
     set_cpu_timer(&hello_timer[cpuid()]);
@@ -78,7 +72,7 @@ static void hello(struct timer* t)
 
 void set_cpu_on() {
     ASSERT(!_arch_disable_trap());
-    // disable the lower-half address to prevent stupid errors
+    // Disable the lower-half address to prevent stupid errors.
     extern PTEntries invalid_pt;
     arch_set_ttbr0(K2P(&invalid_pt));
     extern char exception_vector[];

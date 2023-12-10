@@ -488,23 +488,21 @@ static int SDDebugResponse(int resp) {
 }
 
 /* Wait for interrupt. */
-static int  sd_wait_for_interrupt(unsigned int mask) {
+static int sd_wait_for_interrupt(unsigned int mask) {
     // Wait up to 1 second for the interrupt.
     int count = 1000000;
-    int waitMask = (int)(mask | INT_ERROR_MASK);
+    int wait_mask = (int)(mask | INT_ERROR_MASK);
     int ival;
 
     // Wait for the specified interrupt or any error.
-    while (!(*EMMC_INTERRUPT & (u32)waitMask) && count--)
+    while (!(*EMMC_INTERRUPT & (u32)wait_mask) && count--)
         SD_delayus(1);
     ival = (int)(*EMMC_INTERRUPT);
-    // printk("- SD intr 0x%x cost %d loops\n", mask, 1000000 - count);
 
     // Check for success.
     if (count <= 0 || (ival & INT_CMD_TIMEOUT) || (ival & INT_DATA_TIMEOUT)) {
         // Clear the interrupt register completely.
         *EMMC_INTERRUPT = (u32)ival;
-
         return SD_TIMEOUT;
     } else if (ival & INT_ERROR_MASK) {
         printk("* EMMC: Error waiting for interrupt: %x %x %x\n", *EMMC_STATUS,
@@ -512,7 +510,6 @@ static int  sd_wait_for_interrupt(unsigned int mask) {
 
         // Clear the interrupt register completely.
         *EMMC_INTERRUPT = (u32)ival;
-
         return SD_ERROR;
     }
 
