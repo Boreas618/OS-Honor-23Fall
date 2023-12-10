@@ -1,9 +1,10 @@
+#include <kernel/init.h>
 #include <driver/sd.h>
 #include <fs/block_device.h>
 
 usize block_no_sb;
 
-define_early_init(block_device) {
+define_early_init(block_dev) {
     init_block_device();
 }
 
@@ -51,8 +52,7 @@ void init_block_device() {
     block_device.read = sd_read;
     block_device.write = sd_write;
 
-    ASSERT(block_no_sb != 0);
-    block_device.read(block_no_sb, (u8*)sblock_data);
+    block_device.read(1, (u8*)sblock_data);
 }
 
 const SuperBlock *get_super_block() { return (const SuperBlock *)sblock_data; }

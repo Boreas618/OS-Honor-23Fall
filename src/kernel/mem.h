@@ -16,7 +16,7 @@ typedef struct partitioned_page_node PartitionedPageNode;
 
 typedef struct partitioned_page_node {
     struct ListNode pp_node;
-    Page* page; // Use forward-declared type
+    struct page* page;
     u8 bucket_index;
 } PartitionedPageNode;
 

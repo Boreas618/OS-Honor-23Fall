@@ -194,3 +194,11 @@ u64 _alloc_partition(Page* p) {
   p->alloc_partitions_cnt++;
   return addr_frag;
 }
+
+u64 left_page_cnt() { return PAGE_COUNT - alloc_page_cnt.count; }
+
+WARN_RESULT void *get_zero_page() {
+    // TODO
+    // Return the shared zero page
+    return NULL;
+}

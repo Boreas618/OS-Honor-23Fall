@@ -4,6 +4,7 @@
 #include <kernel/mem.h>
 #include <kernel/printk.h>
 #include <kernel/proc.h>
+#include <kernel/init.h>
 
 /* The private reference to the super block. */
 static const SuperBlock *sblock;
@@ -28,10 +29,12 @@ struct {
 } log;
 
 define_early_init(cache) {
-    init_spinlock(&lock);
+    /*init_spinlock(&lock);
     list_init(&blocks);
-    init_bcache(sblock, device);
+    init_bcache(sblock, device);*/
 }
+
+INLINE static void _boost_freq(Block* b);
 
 Block* _fetch_cached(usize block_no);
 
@@ -39,7 +42,7 @@ bool _evict();
 
 void write_log();
 
-int spawn_ckpt();
+void spawn_ckpt();
 
 /* Read the content from disk. */
 static INLINE void device_read(Block *block) {
@@ -82,7 +85,7 @@ static Block *cache_acquire(usize block_no) {
     _acquire_spinlock(&lock);
 
     // The requested block is right in the cache.
-    if (b = _fetch_cached(block_no)) {
+    if ((b = _fetch_cached(block_no))) {
         // If the block is currently acquired, we wait for the lock of the block.
         while (b->acquired) {
             _release_spinlock(&lock);
@@ -164,7 +167,7 @@ static void cache_sync(OpContext *ctx, Block *block) {
     // Detect if this block has a place in the log section
     // If so, we are free to go.
     _acquire_spinlock(&log.lock);
-    for (int i =0; i < header.num_blocks; i++) {
+    for (usize i =0; i < header.num_blocks; i++) {
         if (header.block_no[i] == block->block_no) {
             _release_spinlock(&log.lock);
             return;
@@ -184,6 +187,7 @@ static void cache_sync(OpContext *ctx, Block *block) {
 }
 
 static void cache_end_op(OpContext *ctx) {
+    (void)ctx;
     _acquire_spinlock(&log.lock);
     log.contributors_cnt--;
     // If there are other contributors to the log, we wait for them to complete
@@ -219,10 +223,10 @@ static usize cache_alloc(OpContext *ctx) {
     
     usize num_bitmap_blocks = (sblock->num_data_blocks + BIT_PER_BLOCK - 1) / BIT_PER_BLOCK;
 
-    for (int i = 0; i < num_bitmap_blocks; i++) {
+    for (usize i = 0; i < num_bitmap_blocks; i++) {
         // Acquire the bitmap block.
         Block *bm_block = cache_acquire(sblock->bitmap_start + i);
-        for (int j = 0; j < BLOCK_SIZE * 8; j++) {
+        for (usize j = 0; j < BLOCK_SIZE * 8; j++) {
             // The index in the bitmap is beyond the number of blocks
             if (i * BLOCK_SIZE * 8 + j >= sblock->num_blocks) {
                 cache_release(bm_block);
@@ -296,7 +300,7 @@ INLINE bool _evict() {
  * block to the end of the list and evict pages from the front of the list
  * whenever we need to remove some pages.
  */
-INLINE void _boost_freq(Block* b) {
+INLINE static void _boost_freq(Block* b) {
     blocks.head = b->node.next;
 }
 
@@ -305,7 +309,7 @@ void write_log() {
     // to the log. Note that we don't just sequentially write the `blocks`
     // back because the sequence of the logged blocks is specified in
     // `block_no` of the log header.
-    for (int i = 0; i < header.num_blocks; i++) {
+    for (usize i = 0; i < header.num_blocks; i++) {
         Block* b = cache_acquire(header.block_no[i]);
         device->write(sblock->log_start + i + 1, b->data);
         b->pinned = false;
@@ -313,7 +317,7 @@ void write_log() {
     }
 }
 
-int spawn_ckpt() {
+void spawn_ckpt() {
     // Sync the header.
     read_header();
     
@@ -329,7 +333,7 @@ int spawn_ckpt() {
     // number based on the number of log_start.
     // The exact block number of the logged blocks are stored
     // in the header of the log area.
-    for(int i = 0; i < header.num_blocks; i++) {
+    for(usize i = 0; i < header.num_blocks; i++) {
         transfer_b.block_no = sblock->log_start + 1 + i;
         device_read(&transfer_b);
         transfer_b.block_no = header.block_no[i];

@@ -63,4 +63,8 @@ void vmmap(struct pgdir *pd, u64 va, void *ka, u64 flags) {
     // Map virtual address 'va' to the physical address represented by kernel
     // address 'ka' in page directory 'pd', 'flags' is the flags for the page
     // table entry
+    (void)pd;
+    (void)va;
+    (void)ka;
+    (void)flags;
 }

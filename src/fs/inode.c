@@ -155,7 +155,7 @@ static void inode_clear(OpContext *ctx, Inode *inode) {
     if (ie->indirect) {
         Block *indirect = cache->acquire(ie->indirect);
         u32 *indir_addrs = get_addrs(indirect);
-        for (int i = 0; i < INODE_NUM_INDIRECT; i++) {
+        for (usize i = 0; i < INODE_NUM_INDIRECT; i++) {
             u32 block_no = indir_addrs[i];
             if (block_no)
                 cache->free(ctx, block_no);
@@ -283,9 +283,9 @@ static usize inode_read(Inode *inode, u8 *dest, usize offset, usize count) {
         // Find the length of the data to be read.
         usize length = 0;
         if (cnt == 0)
-            length = MIN(BLOCK_SIZE - start, count);
+            length = MIN((usize)BLOCK_SIZE - start, count);
         else
-            length = MIN(BLOCK_SIZE, count - cnt);
+            length = MIN((usize)BLOCK_SIZE, count - cnt);
         
         // Copy the bytes to the destination.
         memcpy(dest + cnt, data + start, length);
@@ -319,9 +319,9 @@ static usize inode_write(OpContext *ctx, Inode *inode, u8 *src, usize offset,
         // Find the length of the data to be read.
         usize length = 0;
         if (cnt == 0)
-            length = MIN(BLOCK_SIZE - start, count);
+            length = MIN((usize)BLOCK_SIZE - start, count);
         else
-            length = MIN(BLOCK_SIZE, count - cnt);
+            length = MIN((usize)BLOCK_SIZE, count - cnt);
         
         // Copy the bytes to the destination.
         memcpy(data + start, src + cnt, length);
@@ -410,7 +410,7 @@ static void inode_remove(OpContext *ctx, Inode *inode, usize index) {
     Block* ib = cache->acquire(block_no);
     u32 *addrs = get_addrs(ib);
 
-    for (int i = 0; i < INODE_NUM_INDIRECT; i++)
+    for (usize i = 0; i < INODE_NUM_INDIRECT; i++)
         if (addrs[i] == block_no) {
             block_idx = INODE_NUM_DIRECT + i;
             addr_entry = &inode->entry.addrs[i];

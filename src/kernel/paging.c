@@ -18,19 +18,23 @@ define_rest_init(paging) {
 }
 
 void init_sections(ListNode *section_head) {
+    (void)section_head;
     // TODO
 }
 
 void free_sections(struct pgdir *pd) {
+    (void)pd;
     // TODO
 }
 
 u64 sbrk(i64 size) {
+    (void)size;
     // TODO:
     // Increase the heap size of current process by `size`
     // If `size` is negative, decrease heap size
     // `size` must be a multiple of PAGE_SIZE
     // Return the previous heap_end
+    return 0;
 }
 
 int pgfault_handler(u64 iss) {
@@ -43,4 +47,8 @@ int pgfault_handler(u64 iss) {
     // 2. Check section flags to determine page fault type
     // 3. Handle the page fault accordingly
     // 4. Return to user code or kill the process
+    (void)iss;
+    (void)pd;
+    (void)addr;
+    return 0;
 }
