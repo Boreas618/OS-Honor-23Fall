@@ -1,6 +1,6 @@
 #pragma once
 
-#include <common/variadic.h>
+#include <lib/variadic.h>
 
 typedef void (*PutCharFunc)(void *ctx, char c);
 

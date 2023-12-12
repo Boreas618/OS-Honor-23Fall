@@ -1,4 +1,4 @@
-#include <common/list.h>
+#include <lib/list.h>
 
 void init_list_node(ListNode* node) {
     node->prev = node;

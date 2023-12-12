@@ -1,4 +1,4 @@
-#include <common/string.h>
+#include <lib/string.h>
 #include <fs/inode.h>
 #include <kernel/mem.h>
 #include <kernel/printk.h>

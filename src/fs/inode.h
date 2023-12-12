@@ -1,7 +1,7 @@
 #pragma once
-#include <common/list.h>
-#include <common/rc.h>
-#include <common/spinlock.h>
+#include <lib/list.h>
+#include <lib/rc.h>
+#include <lib/spinlock.h>
 #include <fs/cache.h>
 #include <fs/defines.h>
 

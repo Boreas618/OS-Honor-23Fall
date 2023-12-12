@@ -1,3 +1,3 @@
 extern "C" {
-#include <common/rc.c>
+#include <lib/rc.c>
 }

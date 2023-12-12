@@ -1,7 +1,7 @@
 #pragma once
 
-#include <common/defines.h>
-#include <common/spinlock.h>
+#include <lib/defines.h>
+#include <lib/spinlock.h>
 
 /* ListNode represents one node on a circular list. */
 typedef struct ListNode {

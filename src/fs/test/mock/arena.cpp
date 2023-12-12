@@ -1,5 +1,5 @@
 extern "C" {
-#include <common/defines.h>
+#include <lib/defines.h>
 }
 
 #include "map.hpp"

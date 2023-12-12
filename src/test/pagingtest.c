@@ -1,12 +1,12 @@
-#include <common/rc.h>
-#include <common/sem.h>
-#include <common/string.h>
+#include <lib/rc.h>
+#include <lib/sem.h>
+#include <lib/string.h>
 #include <kernel/mem.h>
 #include <kernel/paging.h>
 #include <kernel/printk.h>
-#include <kernel/proc.h>
+#include <proc/proc.h>
 #include <kernel/pt.h>
-#include <kernel/sched.h>
+#include <proc/sched.h>
 #include <kernel/syscall.h>
 #include <test/test.h>
 

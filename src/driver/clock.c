@@ -1,5 +1,5 @@
 #include <aarch64/intrinsic.h>
-#include <kernel/sched.h>
+#include <proc/sched.h>
 #include <driver/base.h>
 #include <driver/clock.h>
 

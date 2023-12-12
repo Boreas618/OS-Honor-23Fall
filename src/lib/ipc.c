@@ -1,7 +1,7 @@
 #include "ipc.h"
 #include "string.h"
 #include "kernel/mem.h"
-#include "kernel/sched.h"
+#include "proc/sched.h"
 #include "kernel/init.h"
 #include "kernel/printk.h"
 static ipc_ids msg_ids;

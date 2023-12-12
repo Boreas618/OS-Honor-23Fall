@@ -1,9 +1,9 @@
 #include <aarch64/trap.h>
 #include <aarch64/intrinsic.h>
-#include <kernel/sched.h>
+#include <proc/sched.h>
 #include <kernel/printk.h>
 #include <driver/interrupt.h>
-#include <kernel/proc.h>
+#include <proc/proc.h>
 #include <kernel/syscall.h>
 
 void trap_global_handler(UserContext* context)

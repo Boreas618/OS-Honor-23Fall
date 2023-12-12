@@ -1,6 +1,6 @@
 #pragma once
 
-#include <common/defines.h>
+#include <lib/defines.h>
 
 void *memset(void *s, int c, usize n);
 void *memcpy(void *restrict dest, const void *restrict src, usize n);

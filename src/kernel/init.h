@@ -1,6 +1,6 @@
 #pragma once
 
-#include <common/defines.h>
+#include <lib/defines.h>
 
 // #define early_init_func(func) __attribute__((section(".init.early"), used)) static void* __initcall_##func = &func;
 // #define init_func(func) __attribute__((section(".init"), used)) static void* __initcall_##func = &func;

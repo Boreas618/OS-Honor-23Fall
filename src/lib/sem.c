@@ -1,6 +1,6 @@
-#include <common/sem.h>
+#include <lib/sem.h>
 #include <kernel/mem.h>
-#include <kernel/sched.h>
+#include <proc/sched.h>
 #include <kernel/printk.h>
 
 void init_sem(Semaphore* sem, int val)

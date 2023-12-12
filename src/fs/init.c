@@ -2,7 +2,7 @@
 #include <fs/cache.h>
 #include <fs/defines.h>
 #include <fs/inode.h>
-#include <common/defines.h>
+#include <lib/defines.h>
 #include <kernel/init.h>
 #include <kernel/printk.h>
 

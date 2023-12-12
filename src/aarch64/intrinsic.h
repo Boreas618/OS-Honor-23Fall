@@ -1,6 +1,6 @@
 #pragma once
 
-#include <common/defines.h>
+#include <lib/defines.h>
 
 static WARN_RESULT ALWAYS_INLINE int cpuid() {
     u64 id;

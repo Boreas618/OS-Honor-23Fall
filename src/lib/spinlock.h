@@ -1,8 +1,8 @@
 #pragma once
 
-#include <common/defines.h>
+#include <lib/defines.h>
 #include <aarch64/intrinsic.h>
-#include <common/checker.h>
+#include <lib/checker.h>
 
 typedef struct {
     volatile bool locked;

@@ -33,16 +33,17 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} \
     -Wl,--build-id=none")
 
 add_subdirectory(aarch64)
-add_subdirectory(common)
+add_subdirectory(lib)
 add_subdirectory(kernel)
 add_subdirectory(driver)
 add_subdirectory(user)
 add_subdirectory(test)
 add_subdirectory(fs)
+add_subdirectory(proc)
 
 set(kernel_name kernel8)
 add_executable(${kernel_name}.elf main.c start.S)
-target_link_libraries(${kernel_name}.elf test kernelx user fs driver common aarch64)
+target_link_libraries(${kernel_name}.elf test kernelx user fs driver lib aarch64 proc)
 
 set(kernel_prefix "${CMAKE_CURRENT_BINARY_DIR}/${kernel_name}")
 set(kernel_elf "${kernel_prefix}.elf")

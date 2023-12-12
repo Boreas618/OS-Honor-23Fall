@@ -2,7 +2,7 @@
 #include "kernel/init.h"
 #include "kernel/printk.h"
 #include <aarch64/intrinsic.h>
-#include <common/string.h>
+#include <lib/string.h>
 #include <kernel/init.h>
 #include <driver/memlayout.h>
 #include <aarch64/mmu.h>

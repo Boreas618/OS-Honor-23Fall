@@ -1,4 +1,4 @@
-#include <common/string.h>
+#include <lib/string.h>
 
 void *memset(void *s, int c, usize n) {
     for (usize i = 0; i < n; i++)

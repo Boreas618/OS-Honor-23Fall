@@ -1,6 +1,6 @@
 #pragma once
 
-#include <common/defines.h>
+#include <lib/defines.h>
 
 // bitmap is a compact representation of boolean array.
 // consecutive 64 bits are stored in one u64 (BitmapCell).

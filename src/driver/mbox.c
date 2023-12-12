@@ -4,7 +4,7 @@
 
 #include <aarch64/intrinsic.h>
 #include <aarch64/mmu.h>
-#include <common/defines.h>
+#include <lib/defines.h>
 #include <driver/memlayout.h>
 #include <kernel/printk.h>
 

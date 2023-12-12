@@ -1,11 +1,11 @@
 #pragma once
 
 #include <aarch64/intrinsic.h>
-#include <common/buf.h>
-#include <common/defines.h>
-#include <common/sem.h>
-#include <common/spinlock.h>
-#include <common/string.h>
+#include <lib/buf.h>
+#include <lib/defines.h>
+#include <lib/sem.h>
+#include <lib/spinlock.h>
+#include <lib/string.h>
 #include <driver/clock.h>
 #include <driver/gpio.h>
 #include <driver/interrupt.h>
@@ -334,7 +334,7 @@ static EMMCCommand SDCommandTable[] = {
  * CSD flags
  * 
  * Note: all flags are shifted down by 8 bits as the CRC is not included.
- * Most flags are common:
+ * Most flags are lib:
  * - in V1 the size is 12 bits with a 3 bit multiplier.
  * - in V1 currents for read and write are specified.
  * - in V2 the size is 22 bits, no multiplier, no currents.
@@ -941,7 +941,7 @@ static int SDResetCard(int resetType) {
 }
 
 /*
- * Common routine for APP_SEND_OP_COND.
+ * lib routine for APP_SEND_OP_COND.
  * This is used for both SC and HC cards based on the parameter.
  */
 static int SDAppSendOpCond(int arg) {

@@ -1,7 +1,7 @@
 #pragma once
 
 extern "C" {
-#include "common/defines.h"
+#include "lib/defines.h"
 }
 
 struct MockLockConfig {

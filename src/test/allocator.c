@@ -1,6 +1,6 @@
 #include <aarch64/intrinsic.h>
-#include <common/rc.h>
-#include <common/string.h>
+#include <lib/rc.h>
+#include <lib/string.h>
 #include <kernel/mem.h>
 #include <kernel/printk.h>
 #include <test/test.h>

@@ -1,4 +1,4 @@
-#include <common/spinlock.h>
+#include <lib/spinlock.h>
 
 // this file is compiled with `fs` library.
 // some symbols may conflict with those in the standard libc, e.g. `sleep`, so we

@@ -1,7 +1,7 @@
-#include <common/sem.h>
+#include <lib/sem.h>
 #include <kernel/mem.h>
 #include <kernel/printk.h>
-#include <kernel/sched.h>
+#include <proc/sched.h>
 #include <test/test.h>
 
 void set_parent_to_this(struct proc* proc);

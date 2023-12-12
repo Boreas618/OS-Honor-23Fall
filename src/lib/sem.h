@@ -1,6 +1,6 @@
 #pragma once
 
-#include <common/list.h>
+#include <lib/list.h>
 
 struct proc;
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <common/defines.h>
-#include <common/checker.h>
+#include <lib/defines.h>
+#include <lib/checker.h>
 
 typedef struct {
     isize count;

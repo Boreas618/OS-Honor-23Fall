@@ -1,17 +1,17 @@
 #include <aarch64/mmu.h>
-#include <common/defines.h>
-#include <common/list.h>
-#include <common/sem.h>
-#include <common/string.h>
+#include <lib/defines.h>
+#include <lib/list.h>
+#include <lib/sem.h>
+#include <lib/string.h>
 #include <fs/block_device.h>
 #include <fs/cache.h>
 #include <kernel/init.h>
 #include <kernel/mem.h>
 #include <kernel/paging.h>
 #include <kernel/printk.h>
-#include <kernel/proc.h>
+#include <proc/proc.h>
 #include <kernel/pt.h>
-#include <kernel/sched.h>
+#include <proc/sched.h>
 
 define_rest_init(paging) {
     // TODO

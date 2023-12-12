@@ -1,7 +1,7 @@
-#include "common/rbtree.h"
+#include "lib/rbtree.h"
 #include "aarch64/intrinsic.h"
-#include "common/rc.h"
-#include "common/spinlock.h"
+#include "lib/rc.h"
+#include "lib/spinlock.h"
 #include "test.h"
 #include <kernel/printk.h>
 

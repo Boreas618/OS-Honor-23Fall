@@ -1,6 +1,6 @@
 #pragma once
 
-#include <common/defines.h>
+#include <lib/defines.h>
 
 __attribute__((error("Checker: context mismatching"), unused)) void __checker_match_fail();
 __attribute__((error("Checker: delayed task in invalid context"), unused)) void __checker_task_fail();

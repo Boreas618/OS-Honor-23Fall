@@ -1,7 +1,7 @@
 #include <kernel/cpu.h>
 #include <kernel/printk.h>
 #include <kernel/init.h>
-#include <kernel/sched.h>
+#include <proc/sched.h>
 #include <test/test.h>
 
 void sd_init();

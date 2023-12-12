@@ -1,6 +1,6 @@
 #pragma once
 
-#include <common/buf.h>
+#include <lib/buf.h>
 
 #define SD_OK 0
 #define SD_ERROR 1

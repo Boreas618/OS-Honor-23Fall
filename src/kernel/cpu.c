@@ -2,8 +2,8 @@
 #include <kernel/printk.h>
 #include <kernel/init.h>
 #include <driver/clock.h>
-#include <kernel/sched.h>
-#include <kernel/proc.h>
+#include <proc/sched.h>
+#include <proc/proc.h>
 #include <aarch64/mmu.h>
 
 struct cpu cpus[NCPU];

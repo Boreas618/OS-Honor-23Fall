@@ -1,6 +1,6 @@
-#include <common/defines.h>
-#include <common/format.h>
-#include <common/string.h>
+#include <lib/defines.h>
+#include <lib/format.h>
+#include <lib/string.h>
 
 static void _print_int(PutCharFunc put_char, void *ctx, i64 u, int _base, bool is_signed) {
     static char digit[] = "0123456789abcdef";

@@ -1,11 +1,12 @@
 #include <test/test.h>
-#include <common/rc.h>
+#include <lib/rc.h>
 #include <kernel/pt.h>
 #include <kernel/mem.h>
 #include <kernel/printk.h>
-#include <common/sem.h>
-#include <kernel/proc.h>
+#include <lib/sem.h>
+#include <proc/proc.h>
 #include <kernel/syscall.h>
+
 #define NPROC 32
 
 PTEntry* get_pte(struct pgdir* pgdir, u64 va, bool alloc);
@@ -75,7 +76,7 @@ void user_proc_test()
             *get_pte(&p->pgdir, 0x400000 + q - (u64)loop_start, true) = K2P(q) | PTE_USER_DATA;
         }
         ASSERT(p->pgdir.pt);
-        p->ucontext->gp_regs[0] = i;
+        p->ucontext->gregs[0] = i;
         p->ucontext->elr = 0x400000;
         p->ucontext->spsr = 0;
         pids[i] = start_proc(p, trap_return, 0);

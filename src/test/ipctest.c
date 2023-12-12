@@ -1,7 +1,7 @@
-#include "common/ipc.h"
+#include "lib/ipc.h"
 #include "test.h"
 #include "kernel/printk.h"
-#include "kernel/proc.h"
+#include "proc/proc.h"
 #include "kernel/mem.h"
 struct mytype {
     int mtype;

@@ -1,9 +1,9 @@
 #include <aarch64/intrinsic.h>
-#include <common/string.h>
+#include <lib/string.h>
 #include <driver/clock.h>
-#include <common/rbtree.h>
-#include <kernel/sched.h>
-#include <kernel/proc.h>
+#include <lib/rbtree.h>
+#include <proc/sched.h>
+#include <proc/proc.h>
 #include <kernel/init.h>
 #include <kernel/mem.h>
 #include <kernel/printk.h>
@@ -14,7 +14,6 @@
 extern void swtch(KernelContext* new_ctx, KernelContext** old_ctx);
 extern struct proc root_proc;
 extern struct proc* running[];
-
 static struct timer sched_timer[NCPU];
 static RBTree rq[NCPU];
 
@@ -34,7 +33,7 @@ static bool _cmp_runtime(rb_node n1, rb_node n2) {
            container_of(n2, struct schinfo, rq_node)->runtime;
 }
 
-inline struct proc* thisproc() {
+struct proc* thisproc() {
     return cpus[cpuid()].sched.running;
 }
 

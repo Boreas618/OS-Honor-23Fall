@@ -1,7 +1,7 @@
 #ifndef _MYRBTREE_H
 #define _MYRBTREE_H
-#include <common/defines.h>
-#include <common/spinlock.h>
+#include <lib/defines.h>
+#include <lib/spinlock.h>
 
 struct rb_node_ {
     unsigned long __rb_parent_color;

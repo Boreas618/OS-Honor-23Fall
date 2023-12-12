@@ -1,9 +1,9 @@
 #pragma once
 
-#include <common/defines.h>
-#include <common/list.h>
-#include <common/sem.h>
-#include <common/string.h>
+#include <lib/defines.h>
+#include <lib/list.h>
+#include <lib/sem.h>
+#include <lib/string.h>
 
 #define BSIZE 512
 

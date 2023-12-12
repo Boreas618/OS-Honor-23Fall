@@ -1,26 +1,30 @@
 #pragma once
 
-#include <common/defines.h>
-#include <common/list.h>
-#include <common/sem.h>
+#include <lib/defines.h>
+#include <lib/list.h>
+#include <lib/sem.h>
 #include <kernel/schinfo.h>
 #include <kernel/pt.h>
 
+typedef struct uctx UserContext;
+typedef struct kctx KernelContext;
+typedef struct proc Proc;
+
 enum procstate { UNUSED, RUNNABLE, RUNNING, SLEEPING, DEEPSLEEPING, ZOMBIE };
 
-typedef struct UserContext {
+struct uctx {
     u64 spsr;
     u64 elr;
     u64 sp;
     // General Purpose registers
-    u64 gp_regs[31];
-} UserContext;
+    u64 gregs[31];
+};
 
-typedef struct KernelContext {
+typedef struct kctx {
     u64 x0; 
     u64 x1;
     // Callee-saved General Purpose registers
-    u64 csgp_regs[12];
+    u64 csregs[12];
 } KernelContext;
 
 struct proc {

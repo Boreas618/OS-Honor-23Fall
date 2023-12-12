@@ -1,5 +1,5 @@
 #include <kernel/syscallno.h>
-#include <kernel/proc.h>
+#include <proc/proc.h>
 #include <kernel/init.h>
 
 #define NR_SYSCALL 512

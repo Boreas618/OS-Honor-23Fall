@@ -1,6 +1,6 @@
 #pragma once
 
-#include <common/defines.h>
+#include <lib/defines.h>
 
 #define ESR_EC_SHIFT 26
 #define ESR_ISS_MASK 0xFFFFFF

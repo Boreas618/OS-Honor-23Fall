@@ -1,11 +1,11 @@
 #include <aarch64/intrinsic.h>
 #include <aarch64/mmu.h>
-#include <common/checker.h>
-#include <common/defines.h>
-#include <common/list.h>
-#include <common/rc.h>
-#include <common/spinlock.h>
-#include <common/string.h>
+#include <lib/checker.h>
+#include <lib/defines.h>
+#include <lib/list.h>
+#include <lib/rc.h>
+#include <lib/spinlock.h>
+#include <lib/string.h>
 #include <driver/memlayout.h>
 #include <kernel/init.h>
 #include <kernel/mem.h>
@@ -122,7 +122,7 @@ kalloc(isize s)
         usize i = 0;
         for (ListNode *p = candidate_pages.head; i < candidate_pages.size;
              p = p->next, i++) {
-            Page *page = container_of(p, PartitionedPageNode, pp_node)->page;
+            Page *page = container_of(p, PartitionedNode, pp_node)->page;
             if (page->alloc_partitions_cnt + 1 <
                 (u32)(PAGE_SIZE / (page->base_size))) {
                 void *allocated = (void *)__alloc_partition(page);
@@ -134,7 +134,7 @@ kalloc(isize s)
 
     // Cannot find the page with a free partition. Therefore, fetch a new page
     // and partition it.
-    PartitionedPageNode *new_partitioned =
+    PartitionedNode *new_partitioned =
         __partition_page(rounded_size, bucket_index);
     list_push_back(&(partitioned_pages[bucket_index]),
                    &(new_partitioned->pp_node));
@@ -187,7 +187,7 @@ __round_up(isize s, u32 *rounded_size, u8 *bucket_index)
     return result;
 }
 
-PartitionedPageNode *
+PartitionedNode *
 __partition_page(u32 rounded_size, u8 bucket_index) {
     // Fetch a new page which will be partitioned later.
     u64 page_to_partition = (u64)kalloc_page();

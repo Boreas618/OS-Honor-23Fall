@@ -1,6 +1,6 @@
 #pragma once
 
-#include <common/defines.h>
+#include <lib/defines.h>
 
 /* This file contains on-disk representations of primitives in our filesystem. */
 

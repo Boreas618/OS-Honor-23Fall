@@ -1,9 +1,9 @@
-#include <common/bitmap.h>
-#include <common/string.h>
+#include <lib/bitmap.h>
+#include <lib/string.h>
 #include <fs/cache.h>
 #include <kernel/mem.h>
 #include <kernel/printk.h>
-#include <kernel/proc.h>
+#include <proc/proc.h>
 #include <kernel/init.h>
 
 /* The private reference to the super block. */

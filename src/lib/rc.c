@@ -1,4 +1,4 @@
-#include <common/rc.h>
+#include <lib/rc.h>
 
 void init_rc(RefCount *rc) {
     rc->count = 0;

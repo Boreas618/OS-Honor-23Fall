@@ -1,5 +1,5 @@
 #include <aarch64/intrinsic.h>
-#include <common/defines.h>
+#include <lib/defines.h>
 
 static u64 next[4] = {1111, 2222, 3333, 4444};
 

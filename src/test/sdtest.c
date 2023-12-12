@@ -1,4 +1,4 @@
-#include <common/buf.h>
+#include <lib/buf.h>
 #include <kernel/printk.h>
 
 void sdrw(Buf* b);

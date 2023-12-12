@@ -1,6 +1,6 @@
 #pragma once
-#include <common/list.h>
-#include <common/sem.h>
+#include <lib/list.h>
+#include <lib/sem.h>
 #include <fs/block_device.h>
 #include <fs/defines.h>
 
