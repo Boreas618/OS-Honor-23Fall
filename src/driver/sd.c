@@ -18,7 +18,9 @@ static Queue bufs;
 SpinLock sd_lock;
 
 /* Initialize SD card and parse MBR. */
-void sd_init() {
+void 
+sd_init() 
+{
     sd_launch();
     init_spinlock(&sd_lock);
     queue_init(&bufs);
@@ -34,7 +36,9 @@ void sd_init() {
 }
 
 /* Start the request for b. Caller must hold sdlock. */
-void sd_start(Buf *b) {
+void 
+sd_start(Buf *b) 
+{
     // Determine the SD card type and the corresponding address style.
     // HC pass addresses as block numbers.
     // SC pass addresses straight through.
@@ -67,7 +71,9 @@ void sd_start(Buf *b) {
 }
 
 /* The interrupt handler. Sync buf with disk. */
-void sd_intr() {
+void 
+sd_intr() 
+{
     Buf *b = container_of(queue_front(&bufs), Buf, bq_node);
     u32 *intbuf = (u32 *)b->data;
     int flags = b->flags;
@@ -102,7 +108,9 @@ void sd_intr() {
     queue_unlock(&bufs);
 }
 
-void sdrw(Buf *b) {
+void 
+sdrw(Buf *b) 
+{
     init_sem(&(b->sem), 0);
     queue_lock(&bufs);
     queue_push(&bufs, &(b->bq_node));

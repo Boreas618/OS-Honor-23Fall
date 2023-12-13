@@ -6,7 +6,8 @@
 #include <proc/proc.h>
 #include <kernel/syscall.h>
 
-void trap_global_handler(UserContext* context)
+void 
+trap_global_handler(UserContext* context)
 {
     thisproc()->ucontext = context;
 
@@ -53,7 +54,8 @@ void trap_global_handler(UserContext* context)
     }
 }
 
-NO_RETURN void trap_error_handler(u64 type)
+NO_RETURN void 
+trap_error_handler(u64 type)
 {
     printk("Unknown trap type %llu\n", type);
     PANIC();
