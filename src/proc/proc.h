@@ -41,7 +41,7 @@ struct proc {
     ListNode ptnode;
     struct proc* parent;
     struct schinfo schinfo;
-    struct pgdir pgdir;
+    struct vmspace pgdir;
     void* kstack;
     UserContext* ucontext;
     KernelContext* kcontext;

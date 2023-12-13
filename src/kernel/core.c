@@ -4,7 +4,7 @@
 #include <proc/sched.h>
 #include <test/test.h>
 
-void sd_init();
+void disk_init();
 
 bool panic_flag;
 
@@ -26,7 +26,7 @@ NO_RETURN void idle_entry() {
 
 NO_RETURN void kernel_entry() {
     printk("Hello, world!\n");
-    // sd_init();
+    disk_init();
     // sd_test();
     // proc_test();
     // vm_test();

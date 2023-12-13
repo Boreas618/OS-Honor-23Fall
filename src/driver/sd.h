@@ -18,7 +18,7 @@
 #define SD_READ_BLOCKS 0
 #define SD_WRITE_BLOCKS 1
 
-void sd_init();
-void sd_intr();
+void disk_init();
+void disk_intr();
 void sd_test();
-void sdrw(Buf*);
+void disk_rw(Buf*);

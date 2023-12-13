@@ -23,7 +23,7 @@ void pgfault_first_test() {
     // init
     i64 limit = 10; // do not need too big
     struct proc *p = thisproc();
-    struct pgdir *pd = &p->pgdir;
+    struct vmspace *pd = &p->pgdir;
     ASSERT(pd->pt); // make sure the attached pt is valid
     attach_pgdir(pd);
     struct section *st = NULL;
@@ -81,7 +81,7 @@ void pgfault_first_test() {
 void pgfault_second_test() {
     // init
     i64 limit = 10; // do not need too big
-    struct pgdir *pd = &thisproc()->pgdir;
+    struct vmspace *pd = &thisproc()->pgdir;
     init_pgdir(pd);
     attach_pgdir(pd);
     struct section *st = NULL;

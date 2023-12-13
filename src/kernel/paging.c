@@ -22,7 +22,7 @@ void init_sections(ListNode *section_head) {
     // TODO
 }
 
-void free_sections(struct pgdir *pd) {
+void free_sections(struct vmspace *pd) {
     (void)pd;
     // TODO
 }
@@ -39,7 +39,7 @@ u64 sbrk(i64 size) {
 
 int pgfault_handler(u64 iss) {
     struct proc *p = thisproc();
-    struct pgdir *pd = &p->pgdir;
+    struct vmspace *pd = &p->pgdir;
     u64 addr = arch_get_far(); // Attempting to access this address caused the
                                // page fault
     // TODO:

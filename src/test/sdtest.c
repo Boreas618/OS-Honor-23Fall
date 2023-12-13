@@ -1,7 +1,7 @@
 #include <lib/buf.h>
 #include <kernel/printk.h>
 
-void sdrw(Buf* b);
+void disk_rw(Buf* b);
 
 /* SD card test and benchmark. */
 void sd_test() {
@@ -21,18 +21,18 @@ void sd_test() {
         // Backup.
         b[0].flags = 0;
         b[0].blockno = (u32)i;
-        sdrw(&b[0]);
+        disk_rw(&b[0]);
         // Write some value.
         b[i].flags = B_DIRTY;
         b[i].blockno = (u32)i;
         for (int j = 0; j < BSIZE; j++)
             b[i].data[j] = (u8)((i * j) & 0xFF);
-        sdrw(&b[i]);
+        disk_rw(&b[i]);
 
         memset(b[i].data, 0, sizeof(b[i].data));
         // Read back and check
         b[i].flags = 0;
-        sdrw(&b[i]);
+        disk_rw(&b[i]);
         for (int j = 0; j < BSIZE; j++) {
             //   assert(b[i].data[j] == (i * j & 0xFF));
             if (b[i].data[j] != (i * j & 0xFF))
@@ -40,7 +40,7 @@ void sd_test() {
         }
         // Restore previous value.
         b[0].flags = B_DIRTY;
-        sdrw(&b[0]);
+        disk_rw(&b[0]);
     }
 
     // Read benchmark
@@ -50,7 +50,7 @@ void sd_test() {
     for (int i = 0; i < n; i++) {
         b[i].flags = 0;
         b[i].blockno = (u32)i;
-        sdrw(&b[i]);
+        disk_rw(&b[i]);
     }
     arch_dsb_sy();
     t = (i64)get_timestamp() - t;
@@ -65,7 +65,7 @@ void sd_test() {
     for (int i = 0; i < n; i++) {
         b[i].flags = B_DIRTY;
         b[i].blockno = (u32)i;
-        sdrw(&b[i]);
+        disk_rw(&b[i]);
     }
     arch_dsb_sy();
     t = (i64)get_timestamp() - t;

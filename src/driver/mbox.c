@@ -34,7 +34,7 @@ mbox_read(u8 chan)
         arch_dsb_sy();
         u32 r = *MBOX_READ;
         if ((r & 0xF) == chan) {
-            printk("- mbox_read: 0x%x\n", r);
+            // printk("- mbox_read: 0x%x\n", r);
             return (i32)(r >> 4);
         }
     }
@@ -52,7 +52,7 @@ mbox_write(u32 buf, u8 chan)
     while (*MBOX_STATUS & MBOX_FULL)
         ;
     arch_dsb_sy();
-    printk("- mbox write: 0x%x\n", (buf & ~0xFu) | chan);
+    // printk("- mbox write: 0x%x\n", (buf & ~0xFu) | chan);
     *MBOX_WRITE = (buf & ~0xFu) | chan;
     arch_dsb_sy();
 }
@@ -108,6 +108,6 @@ mbox_get_clock_rate()
     arch_dccivac(buf, sizeof(buf));
     arch_dsb_sy();
 
-    printk("- clock rate %d\n", buf[6]);
+    // printk("- clock rate %d\n", buf[6]);
     return (int)buf[6];
 }

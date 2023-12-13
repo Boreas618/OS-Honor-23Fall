@@ -23,5 +23,5 @@ struct section {
 
 int pgfault_handler(u64 iss);
 void init_sections(ListNode *section_head);
-void free_sections(struct pgdir *pd);
+void free_sections(struct vmspace *pd);
 u64 sbrk(i64 size);

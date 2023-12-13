@@ -211,7 +211,7 @@ Proc *
 create_idle_proc() 
 {
     Proc *p = create_proc();
-    // Do some configurations to the idle entry
+    // Do some configurations to the idle entry.
     p->idle = true;
     p->parent = p;
     start_proc(p, &idle_entry, 0);

@@ -4,7 +4,7 @@
 #include <kernel/pt.h>
 
 PTEntry *
-get_pte(struct pgdir *pgdir, u64 va, bool alloc) 
+get_pte(struct vmspace *pgdir, u64 va, bool alloc) 
 {
     if (!pgdir->pt && !alloc)
         return NULL;
@@ -39,10 +39,10 @@ get_pte(struct pgdir *pgdir, u64 va, bool alloc)
     return (PTEntry *)(pgtbl + idxs[3]);
 }
 
-void init_pgdir(struct pgdir *pgdir) { pgdir->pt = NULL; }
+void init_pgdir(struct vmspace *pgdir) { pgdir->pt = NULL; }
 
 void 
-free_pgdir(struct pgdir *pgdir) 
+free_pgdir(struct vmspace *pgdir) 
 {
     if (pgdir->pt == NULL)
         return;
@@ -77,7 +77,7 @@ free_pgdir(struct pgdir *pgdir)
     pgdir->pt = NULL;
 }
 
-void attach_pgdir(struct pgdir *pgdir) {
+void attach_pgdir(struct vmspace *pgdir) {
     extern PTEntries invalid_pt;
     if (pgdir->pt)
         arch_set_ttbr0(K2P(pgdir->pt));
@@ -85,7 +85,7 @@ void attach_pgdir(struct pgdir *pgdir) {
         arch_set_ttbr0(K2P(&invalid_pt));
 }
 
-void vmmap(struct pgdir *pd, u64 va, void *ka, u64 flags) {
+void vmmap(struct vmspace *pd, u64 va, void *ka, u64 flags) {
     // TODO
     // Map virtual address 'va' to the physical address represented by kernel
     // address 'ka' in page directory 'pd', 'flags' is the flags for the page

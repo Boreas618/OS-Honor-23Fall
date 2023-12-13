@@ -9,7 +9,7 @@
 
 #define NPROC 32
 
-PTEntry* get_pte(struct pgdir* pgdir, u64 va, bool alloc);
+PTEntry* get_pte(struct vmspace* pgdir, u64 va, bool alloc);
 
 extern struct proc* running[];
 extern ListNode runnable;
@@ -18,7 +18,7 @@ void vm_test() {
     printk("vm_test\n");
     static void* p[100000];
     extern RefCount alloc_page_cnt;
-    struct pgdir pg;
+    struct vmspace pg;
     int p0 = alloc_page_cnt.count;
     init_pgdir(&pg);
     for (u64 i = 0; i < 100000; i++)

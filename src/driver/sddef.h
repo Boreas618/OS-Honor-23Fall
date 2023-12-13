@@ -16,9 +16,9 @@
 #include <kernel/printk.h>
 
 /* Private functions */
-static void sd_start(struct buf* b);
+static void disk_start(struct buf* b);
 static void SD_delayus(u32 cnt);
-static int sd_launch();
+static int sd_init();
 static void sd_parse_cid();
 static void sd_parse_csd();
 static int sd_send_command(int index);
@@ -842,8 +842,7 @@ static u32 SDGetClockDivider(u32 freq) {
         shiftcount = 0;  // Match shift to above just for debug notification
     }
 
-    printk("- Divisor selected = %u, pow 2 shift count = %u\n", divisor,
-           shiftcount);
+    // printk("- Divisor selected = %u, pow 2 shift count = %u\n", divisor, shiftcount);
     u32 hi = 0;
     if (SDHostVer > HOST_SPEC_V2)
         hi = (divisor & 0x300) >> 2;  // Only 10 bits on Hosts specs above 2
@@ -888,8 +887,7 @@ static int SDSetClock(int freq) {
         return SD_ERROR_CLOCK;
     }
 
-    printk("- EMMC: Set clock, status 0x%x CONTROL1: 0x%x\n", *EMMC_STATUS,
-           *EMMC_CONTROL1);
+    // printk("- EMMC: Set clock, status 0x%x CONTROL1: 0x%x\n", *EMMC_STATUS, *EMMC_CONTROL1);
     return SD_OK;
 }
 
@@ -934,7 +932,7 @@ static int SDResetCard(int resetType) {
     SDCard.uhsi = 0;
 
     // Send GO_IDLE_STATE
-    printk("- Send IX_GO_IDLE_STATE command\n");
+    // printk("- Send IX_GO_IDLE_STATE command\n");
     resp = sd_send_command(IX_GO_IDLE_STATE);
 
     return resp;
@@ -949,7 +947,7 @@ static int SDAppSendOpCond(int arg) {
     // Note: The host shall set ACMD41 timeout more than 1 second to abort
     // repeat of issuing ACMD41
     // TODO: how to set ACMD41 timeout? Is that the wait?
-    printk("- EMMC: Sending ACMD41 SEND_OP_COND status %x\n", *EMMC_STATUS);
+    // printk("- EMMC: Sending ACMD41 SEND_OP_COND status %x\n", *EMMC_STATUS);
     int resp, count;
     if ((resp = sd_send_command_arg(IX_APP_SEND_OP_COND, arg)) &&
         resp != SD_TIMEOUT) {
@@ -1032,7 +1030,7 @@ int SDGetBaseClock() {
         printk("* EMMC: Error, failed to get base clock from mailbox\n");
         return SD_ERROR;
     }
-    printk("- SD base clock rate from mailbox: %d.\n", SDBaseClock);
+    // printk("- SD base clock rate from mailbox: %d.\n", SDBaseClock);
     return SD_OK;
 }
 
@@ -1040,7 +1038,7 @@ int SDGetBaseClock() {
  * Initialize SD card.
  * Returns zero if initialization was successful, non-zero otherwise.
  */
-int sd_launch() {
+int sd_init() {
     // Ensure we've initialized GPIO.
     if (!SDCard.init)
         sd_initGPIO();
@@ -1087,7 +1085,7 @@ int sd_launch() {
         return resp;
 
     // Reset the card.
-    printk("- sd_init: reset the card\n");
+    // printk("- sd_init: reset the card\n");
     if ((resp = SDResetCard(C1_SRST_HC)))
         return resp;
 
@@ -1095,7 +1093,7 @@ int sd_launch() {
     // Send SEND_IF_COND,0x000001AA (CMD8) voltage range 0x1 check pattern 0xAA
     // If voltage range and check pattern don't match, look for older card.
     resp = sd_send_command_arg(IX_SEND_IF_COND, 0x000001AA);
-    printk("- sd_send_command_arg response: %d\n", resp);
+    // printk("- sd_send_command_arg response: %d\n", resp);
     if (resp == SD_OK) {
         // Card responded with voltage and check pattern.
         // Resolve voltage and check for high capacity card.
@@ -1232,9 +1230,7 @@ static void sd_parse_cid() {
     int dateY = (int)((SDCard.cid[3] & 0x00000ff0) >> 4) + 2000;
     int dateM = (int)(SDCard.cid[3] & 0x0000000f);
 
-    printk(
-        "- EMMC: SD Card %s %dMb UHS-I %d mfr %d '%s:%s' r%d.%d %d/%d, #%x RCA "
-        "%x\n",
+    printk("EMMC: SD Card %s %dMb UHS-I %d mfr %d '%s:%s' r%d.%d %d/%d, #%x RCA %x\n",
         SD_TYPE_NAME[SDCard.type], (int)(SDCard.capacity >> 20), SDCard.uhsi,
         manId, appId, name, revH, revL, dateM, dateY, serial, SDCard.rca >> 16);
 }

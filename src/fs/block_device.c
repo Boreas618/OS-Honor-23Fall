@@ -15,7 +15,7 @@ static void sd_read(usize block_no, u8 *buffer) {
     struct buf b;
     b.blockno = (u32)block_no + block_no_sb;
     b.flags = 0;
-    sdrw(&b);
+    disk_rw(&b);
     memcpy(buffer, b.data, BLOCK_SIZE);
 }
 
@@ -30,7 +30,7 @@ static void sd_write(usize block_no, u8 *buffer) {
     b.blockno = (u32)block_no + block_no_sb;
     b.flags = B_DIRTY | B_VALID;
     memcpy(b.data, buffer, BLOCK_SIZE);
-    sdrw(&b);
+    disk_rw(&b);
 }
 
 /*

@@ -19,17 +19,17 @@ SpinLock sd_lock;
 
 /* Initialize SD card and parse MBR. */
 void 
-sd_init() 
+disk_init() 
 {
-    sd_launch();
+    sd_init();
     init_spinlock(&sd_lock);
     queue_init(&bufs);
 
-    set_interrupt_handler(IRQ_SDIO, sd_intr);
-    set_interrupt_handler(IRQ_ARASANSDIO, sd_intr);
+    set_interrupt_handler(IRQ_SDIO, disk_intr);
+    set_interrupt_handler(IRQ_ARASANSDIO, disk_intr);
 
     Buf mbr_buf;
-    sdrw(&mbr_buf);
+    disk_rw(&mbr_buf);
 
     // Set the base LBA of the super block
     block_no_sb = *(u32 *)(mbr_buf.data + 0x1ce + 0x8);
@@ -37,7 +37,7 @@ sd_init()
 
 /* Start the request for b. Caller must hold sdlock. */
 void 
-sd_start(Buf *b) 
+disk_start(Buf *b) 
 {
     // Determine the SD card type and the corresponding address style.
     // HC pass addresses as block numbers.
@@ -72,7 +72,7 @@ sd_start(Buf *b)
 
 /* The interrupt handler. Sync buf with disk. */
 void 
-sd_intr() 
+disk_intr() 
 {
     Buf *b = container_of(queue_front(&bufs), Buf, bq_node);
     u32 *intbuf = (u32 *)b->data;
@@ -102,19 +102,19 @@ sd_intr()
 
     if (!queue_empty(&bufs)) {
         b = container_of(queue_front(&bufs), Buf, bq_node);
-        sd_start(b);
+        disk_start(b);
     }
 
     queue_unlock(&bufs);
 }
 
 void 
-sdrw(Buf *b) 
+disk_rw(Buf *b) 
 {
     init_sem(&(b->sem), 0);
     queue_lock(&bufs);
     queue_push(&bufs, &(b->bq_node));
-    if (bufs.size == 1) sd_start(b);
+    if (bufs.size == 1) disk_start(b);
     queue_unlock(&bufs);
     unalertable_wait_sem(&(b->sem));
 }
