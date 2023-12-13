@@ -12,15 +12,19 @@ get_pte(struct pgdir *pgdir, u64 va, bool alloc)
     if (!pgdir->pt && alloc)
         pgdir->pt = (PTEntry *)K2P(kalloc_page());
 
+    /* We store the physical address of the page table in PCB. */
     PTEntry *pgtbl = (PTEntry *)P2K(pgdir->pt);
 
+    /* The 4 parts of the virtual address. */
     int idxs[] = {VA_PART0(va), VA_PART1(va), VA_PART2(va), VA_PART3(va)};
 
-    unsigned int flags[] = {PTE_TABLE, PTE_TABLE, PTE_TABLE, PTE_USER_DATA};
+    /* The flags with respect to the four levels in page table. */
+    u32 flags[] = {PTE_TABLE, PTE_TABLE, PTE_TABLE, PTE_USER_DATA};
 
     int i = 0;
 
     while (i < 3) {
+        /* The PTE is invalid. */
         if (!(pgtbl[idxs[i]] & PTE_VALID)) {
             if (!alloc) return NULL;
             if (alloc) {
@@ -45,6 +49,7 @@ free_pgdir(struct pgdir *pgdir)
 
     PTEntry *p_pgtbl_0 = (PTEntry *)P2K(pgdir->pt);
 
+    /* Recursively free the pages. */
     for (int i = 0; i < N_PTE_PER_TABLE; i++) {
         PTEntry *p_pte_level_0 = p_pgtbl_0 + i;
         if (!(*p_pte_level_0 & PTE_VALID))
@@ -61,7 +66,7 @@ free_pgdir(struct pgdir *pgdir)
                     (PTEntry *)P2K(PTE_ADDRESS(*p_pte_level_1)) + k;
                 if (!(*p_pte_level_2 & PTE_VALID))
                     continue;
-                    
+
                 kfree_page((void *)P2K(PTE_ADDRESS(*p_pte_level_2)));
             }
             kfree_page((void *)P2K(PTE_ADDRESS(*p_pte_level_1)));
