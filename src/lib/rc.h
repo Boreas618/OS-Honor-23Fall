@@ -3,9 +3,10 @@
 #include <lib/defines.h>
 #include <lib/checker.h>
 
-typedef struct {
+typedef struct refcount RefCount;
+struct refcount{
     isize count;
-} RefCount;
+};
 
 void increment_rc(RefCount*);
 bool decrement_rc(RefCount*);

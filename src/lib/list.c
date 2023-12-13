@@ -1,11 +1,15 @@
 #include <lib/list.h>
 
-void init_list_node(ListNode* node) {
+void 
+init_list_node(ListNode* node) 
+{
     node->prev = node;
     node->next = node;
 }
 
-ListNode* _merge_list(ListNode* node1, ListNode* node2) {
+ListNode* 
+_merge_list(ListNode* node1, ListNode* node2) 
+{
     if (!node1)
         return node2;
     if (!node2)
@@ -31,7 +35,9 @@ ListNode* _merge_list(ListNode* node1, ListNode* node2) {
     return node1;
 }
 
-ListNode* _detach_from_list(ListNode* node) {
+ListNode* 
+_detach_from_list(ListNode* node) 
+{
     ListNode* prev = node->prev;
 
     node->prev->next = node->next;
@@ -43,7 +49,9 @@ ListNode* _detach_from_list(ListNode* node) {
     return prev;
 }
 
-QueueNode* add_to_queue(QueueNode** head, QueueNode* node) {
+QueueNode* 
+add_to_queue(QueueNode** head, QueueNode* node) 
+{
     do
         node->next = *head;
     while (!__atomic_compare_exchange_n(head, &node->next, node, true, __ATOMIC_ACQ_REL,
@@ -51,7 +59,9 @@ QueueNode* add_to_queue(QueueNode** head, QueueNode* node) {
     return node;
 }
 
-QueueNode* fetch_from_queue(QueueNode** head) {
+QueueNode* 
+fetch_from_queue(QueueNode** head) 
+{
     QueueNode* node;
     do
         node = *head;
@@ -61,25 +71,35 @@ QueueNode* fetch_from_queue(QueueNode** head) {
     return node;
 }
 
-QueueNode* fetch_all_from_queue(QueueNode** head) {
+QueueNode* 
+fetch_all_from_queue(QueueNode** head) 
+{
     return __atomic_exchange_n(head, NULL, __ATOMIC_ACQ_REL);
 }
 
-void queue_init(Queue* x) {
+void 
+queue_init(Queue* x) 
+{
     x->begin = x->end = 0;
     x->size = 0;
     init_spinlock(&x->lock);
 }
 
-void queue_lock(Queue* x) {
+void 
+queue_lock(Queue* x) 
+{
     _acquire_spinlock(&x->lock);
 }
 
-void queue_unlock(Queue* x) {
+void 
+queue_unlock(Queue* x) 
+{
     _release_spinlock(&x->lock);
 }
 
-void queue_push(Queue* x, ListNode* item) {
+void 
+queue_push(Queue* x, ListNode* item) 
+{
     init_list_node(item);
     if (x->size == 0) {
         x->begin = x->end = item;
@@ -90,7 +110,9 @@ void queue_push(Queue* x, ListNode* item) {
     x->size++;
 }
 
-void queue_pop(Queue* x) {
+void 
+queue_pop(Queue* x) 
+{
     if (x->size == 0)
         PANIC();
     if (x->size == 1) {
@@ -103,32 +125,44 @@ void queue_pop(Queue* x) {
     x->size--;
 }
 
-ListNode* queue_front(Queue* x) {
+ListNode* 
+queue_front(Queue* x) 
+{
     if (!x || !x->begin)
         PANIC();
     return x->begin;
 }
 
-bool queue_empty(Queue* x) {
+bool 
+queue_empty(Queue* x) 
+{
     return x->size == 0;
 }
 
-void list_init(List* l) {
+void 
+list_init(List* l) 
+{
     l->head = NULL;
     l->size = 0;
     init_spinlock(&l->lock);
 }
 
-void list_lock(List* l) {
+void 
+list_lock(List* l) 
+{
     _acquire_spinlock(&l->lock);
 }
 
-void list_unlock(List* l) {
+void 
+list_unlock(List* l) 
+{
     _release_spinlock(&l->lock);
 }
 
 /* Insert the item before the target. */
-void list_insert(List* l, ListNode* item, ListNode* target) {
+void 
+list_insert(List* l, ListNode* item, ListNode* target) 
+{
     init_list_node(item);
     if (l->size == 0) {
         l->head = item;
@@ -141,26 +175,36 @@ void list_insert(List* l, ListNode* item, ListNode* target) {
     l->size++;
 }
 
-void list_remove(List* l, ListNode* item) {
+void 
+list_remove(List* l, ListNode* item) 
+{
     if (item == l->head)
         l->head = item->next;
     _detach_from_list(item); 
     l->size--;
 }
 
-void list_push_head(List* l, ListNode* item) {
+void 
+list_push_head(List* l, ListNode* item) 
+{
     list_insert(l, item, l->head);
     l->head = item;
 }
 
-void list_push_back(List* l, ListNode* item) {
+void 
+list_push_back(List* l, ListNode* item) 
+{
     list_insert(l, item, l->head);
 }
 
-void list_pop_head(List* l) {
+void 
+list_pop_head(List* l) 
+{
     list_remove(l, l->head);
 }
 
-void list_pop_back(List* l) {
+void 
+list_pop_back(List* l) 
+{
     list_remove(l, l->head->prev);
 }

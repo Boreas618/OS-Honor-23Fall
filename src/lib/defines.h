@@ -43,6 +43,7 @@ typedef u64 usize;
 #define BIT(i) (1ull << (i))
 
 #define NO_BSS __attribute__((section(".data")))
+/* NOTE: no_return will disable traps. */
 #define NO_RETURN __attribute__((noreturn))
 #define INLINE inline __attribute__((unused))
 #define ALWAYS_INLINE inline __attribute__((unused, always_inline))
@@ -50,44 +51,34 @@ typedef u64 usize;
 #define NO_IPA __attribute__((noipa))
 #define WARN_RESULT __attribute__ ((warn_unused_result))
 
-// NOTE: no_return will disable traps.
-// NO_RETURN NO_INLINE void no_return();
-
-// `offset_of` returns the offset of `member` inside struct `type`.
+/* `offset_of` returns the offset of `member` inside struct `type`. */
 #define offset_of(type, member) ((usize)(&((type*)NULL)->member))
 
-// assume `mptr` is a pointer to `member` inside struct `type`, this
-// macro returns the pointer to the "container" struct `type`.
-//
-// this is useful for lists. We often embed a `ListNode` inside a struct:
-//
-// > typedef struct {
-// >     u64 data;
-// >     ListNode node;
-// > } Container;
-// > Container a;
-// > ListNode b = &a.node;
-//
-// then `container_of(b, Container, node)` will be the same as `&a`.
 #define container_of(mptr, type, member) \
     ({ \
         const typeof(((type*)NULL)->member)* _mptr = (mptr); \
         (type*)((u8*)_mptr - offset_of(type, member)); \
     })
 
-// return the largest c that c is a multiple of b and c <= a.
-static INLINE u64 round_down(u64 a, u64 b) {
+/* Return the largest c that c is a multiple of b and c <= a. */
+static INLINE u64 
+round_down(u64 a, u64 b) 
+{
     return a - a % b;
 }
 
-// return the smallest c that c is a multiple of b and c >= a.
-static INLINE u64 round_up(u64 a, u64 b) {
+/* return the smallest c that c is a multiple of b and c >= a. */
+static INLINE u64 
+round_up(u64 a, u64 b) 
+{
     return round_down(a + b - 1, b);
 }
 
-// panic
+/* Panic */
 NO_INLINE NO_RETURN void _panic(const char*, int);
+
 #define PANIC() _panic(__FILE__, __LINE__)
+
 #define ASSERT(expr) \
     ({ \
         if (!(expr)) \
