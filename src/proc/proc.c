@@ -12,8 +12,6 @@ Proc root_proc;
 
 SpinLock proc_lock;
 
-extern u64 proc_entry();
-
 define_early_init(proc_d) 
 {
     init_spinlock(&proc_lock);

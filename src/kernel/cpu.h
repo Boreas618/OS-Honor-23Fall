@@ -1,6 +1,6 @@
 #pragma once
 
-#include <kernel/schinfo.h>
+#include <proc/schinfo.h>
 #include <lib/rbtree.h>
 
 #define NCPU 4

@@ -3,12 +3,14 @@
 #include <lib/defines.h>
 #include <lib/list.h>
 #include <lib/sem.h>
-#include <kernel/schinfo.h>
+#include <proc/schinfo.h>
 #include <kernel/pt.h>
 
 typedef struct uctx UserContext;
 typedef struct kctx KernelContext;
 typedef struct proc Proc;
+
+extern struct proc root_proc;
 
 enum procstate { UNUSED, RUNNABLE, RUNNING, SLEEPING, DEEPSLEEPING, ZOMBIE };
 
