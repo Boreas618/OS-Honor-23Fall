@@ -6,7 +6,7 @@
 struct vmspace {
     PTEntry *pgtbl;
     SpinLock lock;
-    ListNode section_head;
+    List vmregions;
 };
 
 void init_pgdir(struct vmspace *vms);

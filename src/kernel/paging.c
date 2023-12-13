@@ -17,8 +17,8 @@ define_rest_init(paging) {
     // TODO
 }
 
-void init_sections(ListNode *section_head) {
-    (void)section_head;
+void init_sections(List* vmregions) {
+    (void)vmregions;
     // TODO
 }
 

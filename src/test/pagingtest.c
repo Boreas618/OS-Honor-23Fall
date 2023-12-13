@@ -27,8 +27,8 @@ void pgfault_first_test() {
     ASSERT(pd->pgtbl); // make sure the attached pt is valid
     attach_pgdir(pd);
     struct section *st = NULL;
-    _for_in_list(node, &pd->section_head) {
-        if (node == &pd->section_head)
+    _for_in_list(node, pd->vmregions.head) {
+        if (node == pd->vmregions.head)
             continue;
         st = container_of(node, struct section, stnode);
         if (st->flags & ST_HEAP)
@@ -85,8 +85,8 @@ void pgfault_second_test() {
     init_pgdir(pd);
     attach_pgdir(pd);
     struct section *st = NULL;
-    _for_in_list(node, &pd->section_head) {
-        if (node == &pd->section_head)
+    _for_in_list(node, pd->vmregions.head) {
+        if (node == pd->vmregions.head)
             continue;
         st = container_of(node, struct section, stnode);
         if (st->flags & ST_HEAP)

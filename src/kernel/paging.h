@@ -16,12 +16,13 @@ struct section {
     u64 begin;
     u64 end;
     ListNode stnode;
-    // These are for file-backed sections
+
+    /* For file-backed sections. */
     struct file *fp;
     u64 offset;
 };
 
 int pgfault_handler(u64 iss);
-void init_sections(ListNode *section_head);
+void init_sections(List* vmregions);
 void free_sections(struct vmspace *pd);
 u64 sbrk(i64 size);
