@@ -9,7 +9,7 @@
 
 #define NPROC 32
 
-PTEntry* get_pte(struct vmspace* pgdir, u64 va, bool alloc);
+PTEntry* get_pte(struct vmspace* vms, u64 va, bool alloc);
 
 extern struct proc* running[];
 extern ListNode runnable;
@@ -73,9 +73,9 @@ void user_proc_test()
         auto p = create_proc();
         for (u64 q = (u64)loop_start; q < (u64)loop_end; q += PAGE_SIZE)
         {
-            *get_pte(&p->pgdir, 0x400000 + q - (u64)loop_start, true) = K2P(q) | PTE_USER_DATA;
+            *get_pte(&p->vmspace, 0x400000 + q - (u64)loop_start, true) = K2P(q) | PTE_USER_DATA;
         }
-        ASSERT(p->pgdir.pt);
+        ASSERT(p->vmspace.pgtbl);
         p->ucontext->gregs[0] = i;
         p->ucontext->elr = 0x400000;
         p->ucontext->spsr = 0;

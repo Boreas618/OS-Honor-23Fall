@@ -121,7 +121,7 @@ schedule(enum procstate new_state)
     auto next = pick_next();
     update_this_proc(next);
     if (next != this) {
-        attach_pgdir(&(next->pgdir));
+        attach_pgdir(&next->vmspace);
         swtch(next->kcontext, &(this->kcontext));
     }
 }

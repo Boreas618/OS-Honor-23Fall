@@ -23,8 +23,8 @@ void pgfault_first_test() {
     // init
     i64 limit = 10; // do not need too big
     struct proc *p = thisproc();
-    struct vmspace *pd = &p->pgdir;
-    ASSERT(pd->pt); // make sure the attached pt is valid
+    struct vmspace *pd = &p->vmspace;
+    ASSERT(pd->pgtbl); // make sure the attached pt is valid
     attach_pgdir(pd);
     struct section *st = NULL;
     _for_in_list(node, &pd->section_head) {
@@ -81,7 +81,7 @@ void pgfault_first_test() {
 void pgfault_second_test() {
     // init
     i64 limit = 10; // do not need too big
-    struct vmspace *pd = &thisproc()->pgdir;
+    struct vmspace *pd = &thisproc()->vmspace;
     init_pgdir(pd);
     attach_pgdir(pd);
     struct section *st = NULL;

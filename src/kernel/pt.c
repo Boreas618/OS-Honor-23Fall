@@ -4,16 +4,16 @@
 #include <kernel/pt.h>
 
 PTEntry *
-get_pte(struct vmspace *pgdir, u64 va, bool alloc) 
+get_pte(struct vmspace *vms, u64 va, bool alloc) 
 {
-    if (!pgdir->pt && !alloc)
+    if (!vms->pgtbl && !alloc)
         return NULL;
 
-    if (!pgdir->pt && alloc)
-        pgdir->pt = (PTEntry *)K2P(kalloc_page());
+    if (!vms->pgtbl && alloc)
+        vms->pgtbl = (PTEntry *)K2P(kalloc_page());
 
     /* We store the physical address of the page table in PCB. */
-    PTEntry *pgtbl = (PTEntry *)P2K(pgdir->pt);
+    PTEntry *pgtbl = (PTEntry *)P2K(vms->pgtbl);
 
     /* The 4 parts of the virtual address. */
     int idxs[] = {VA_PART0(va), VA_PART1(va), VA_PART2(va), VA_PART3(va)};
@@ -39,15 +39,15 @@ get_pte(struct vmspace *pgdir, u64 va, bool alloc)
     return (PTEntry *)(pgtbl + idxs[3]);
 }
 
-void init_pgdir(struct vmspace *pgdir) { pgdir->pt = NULL; }
+void init_pgdir(struct vmspace *vms) { vms->pgtbl = NULL; }
 
 void 
-free_pgdir(struct vmspace *pgdir) 
+free_pgdir(struct vmspace *vms) 
 {
-    if (pgdir->pt == NULL)
+    if (vms->pgtbl == NULL)
         return;
 
-    PTEntry *p_pgtbl_0 = (PTEntry *)P2K(pgdir->pt);
+    PTEntry *p_pgtbl_0 = (PTEntry *)P2K(vms->pgtbl);
 
     /* Recursively free the pages. */
     for (int i = 0; i < N_PTE_PER_TABLE; i++) {
@@ -73,14 +73,14 @@ free_pgdir(struct vmspace *pgdir)
         }
         kfree_page((void *)P2K(PTE_ADDRESS(*p_pte_level_0)));
     }
-    kfree_page((void *)P2K(pgdir->pt));
-    pgdir->pt = NULL;
+    kfree_page((void *)P2K(vms->pgtbl));
+    vms->pgtbl = NULL;
 }
 
-void attach_pgdir(struct vmspace *pgdir) {
+void attach_pgdir(struct vmspace *vms) {
     extern PTEntries invalid_pt;
-    if (pgdir->pt)
-        arch_set_ttbr0(K2P(pgdir->pt));
+    if (vms->pgtbl)
+        arch_set_ttbr0(K2P(vms->pgtbl));
     else
         arch_set_ttbr0(K2P(&invalid_pt));
 }

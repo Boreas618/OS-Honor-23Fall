@@ -79,7 +79,7 @@ exit(int code)
     p->exitcode = code;
 
     // Free the page table.
-    free_pgdir(&(p->pgdir));
+    free_pgdir(&p->vmspace);
 
     // Transfer the children and zombies to the root proc.
     transfer_children(&root_proc, p);
@@ -188,7 +188,7 @@ init_proc(Proc *p)
     init_list_node(&p->ptnode);
     p->parent = NULL;
     p->schinfo.runtime = 0;
-    init_pgdir(&p->pgdir);
+    init_pgdir(&p->vmspace);
     p->kstack = kalloc_page();
     ASSERT(p->kstack != NULL);
     memset((void *)p->kstack, 0, PAGE_SIZE);

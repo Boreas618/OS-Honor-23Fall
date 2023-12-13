@@ -39,7 +39,7 @@ u64 sbrk(i64 size) {
 
 int pgfault_handler(u64 iss) {
     struct proc *p = thisproc();
-    struct vmspace *pd = &p->pgdir;
+    struct vmspace *vs = &p->vmspace;
     u64 addr = arch_get_far(); // Attempting to access this address caused the
                                // page fault
     // TODO:
@@ -48,7 +48,7 @@ int pgfault_handler(u64 iss) {
     // 3. Handle the page fault accordingly
     // 4. Return to user code or kill the process
     (void)iss;
-    (void)pd;
+    (void)vs;
     (void)addr;
     return 0;
 }
