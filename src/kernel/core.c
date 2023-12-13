@@ -26,8 +26,8 @@ NO_RETURN void idle_entry() {
 
 NO_RETURN void kernel_entry() {
     printk("Hello, world!\n");
-    sd_init();
-    sd_test();
+    // sd_init();
+    // sd_test();
     // proc_test();
     // vm_test();
     // user_proc_test();

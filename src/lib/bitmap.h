@@ -25,21 +25,27 @@ typedef u64 BitmapCell;
 void init_bitmap(BitmapCell* bitmap, usize size);
 
 /* Get the bit at `index`. */
-static INLINE bool bitmap_get(BitmapCell* bitmap, usize index) {
+static INLINE bool 
+bitmap_get(BitmapCell* bitmap, usize index) 
+{
     usize idx, offset;
     BITMAP_PARSE_INDEX(index, idx, offset);
     return (bitmap[idx] >> offset) & 1;
 }
 
 /* Set the bit at `index` to 1. */
-static INLINE void bitmap_set(BitmapCell* bitmap, usize index) {
+static INLINE void 
+bitmap_set(BitmapCell* bitmap, usize index) 
+{
     usize idx, offset;
     BITMAP_PARSE_INDEX(index, idx, offset);
     bitmap[idx] |= BIT(offset);
 }
 
 /* Set the bit at `index` to 0. */
-static INLINE void bitmap_clear(BitmapCell* bitmap, usize index) {
+static INLINE void 
+bitmap_clear(BitmapCell* bitmap, usize index) 
+{
     usize idx, offset;
     BITMAP_PARSE_INDEX(index, idx, offset);
     bitmap[idx] &= ~BIT(offset);
