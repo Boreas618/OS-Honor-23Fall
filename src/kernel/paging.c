@@ -13,13 +13,27 @@
 #include <kernel/pt.h>
 #include <proc/sched.h>
 
+#define HEAP_BEGIN 0
+
 define_rest_init(paging) {
     // TODO
 }
 
 void init_sections(List* vmregions) {
-    (void)vmregions;
-    // TODO
+    list_init(vmregions);
+
+    /* Init heap section. */
+    struct vmregion* heap = (struct vmregion*)kalloc(sizeof(struct vmregion));
+    heap->flags |= ST_HEAP;
+    heap->begin = HEAP_BEGIN;
+    heap->end = heap->begin + PAGE_SIZE;
+    PTEntry *pte = get_pte(container_of(vmregions, struct vmspace, vmregions), HEAP_BEGIN, true);
+    if (!pte) {
+        printk("[Error] Init heap section failed.\n");
+        PANIC();
+    }
+    init_list_node(&heap->stnode);
+    list_push_back(vmregions, &heap->stnode);
 }
 
 void free_sections(struct vmspace *pd) {

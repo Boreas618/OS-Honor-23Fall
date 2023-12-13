@@ -11,7 +11,7 @@
 #define ST_DATA ST_FILE
 #define ST_BSS ST_FILE
 
-struct section {
+struct vmregion {
     u64 flags;
     u64 begin;
     u64 end;
