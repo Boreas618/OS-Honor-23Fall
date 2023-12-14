@@ -1,16 +1,14 @@
+#include <kernel/mem.h>
+#include <kernel/syscall.h>
+#include <lib/printk.h>
 #include <lib/rc.h>
 #include <lib/sem.h>
 #include <lib/string.h>
-#include <kernel/mem.h>
-#include <vm/paging.h>
-#include <lib/printk.h>
 #include <proc/proc.h>
-#include <vm/pt.h>
 #include <proc/sched.h>
-#include <kernel/syscall.h>
 #include <test/test.h>
-
-extern bool pf_flag;
+#include <vm/paging.h>
+#include <vm/pt.h>
 
 bool check_zero_page() {
     for (u64 i = 0; i < PAGE_SIZE; i++)
@@ -62,7 +60,6 @@ void pgfault_first_test() {
     printk("in COW\n");
     pc = left_page_cnt();
     sbrk(limit * PAGE_SIZE);
-    pf_flag = true;
     for (i64 i = 0; i < limit; ++i) {
         u64 va = i * PAGE_SIZE;
         vmmap(vm, va, get_zero_page(), PTE_RO | PTE_USER_DATA);

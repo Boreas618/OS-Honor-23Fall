@@ -15,8 +15,6 @@
 
 #define HEAP_BEGIN 0
 
-bool pf_flag = FALSE;
-
 define_rest_init(paging) {
     // TODO
 }
