@@ -1,7 +1,7 @@
 #include <lib/string.h>
 #include <fs/inode.h>
 #include <kernel/mem.h>
-#include <kernel/printk.h>
+#include <lib/printk.h>
 
 static const SuperBlock *sblock;
 

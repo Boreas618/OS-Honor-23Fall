@@ -1,6 +1,6 @@
 #include "lib/ipc.h"
 #include "test.h"
-#include "kernel/printk.h"
+#include "lib/printk.h"
 #include "proc/proc.h"
 #include "kernel/mem.h"
 struct mytype {

@@ -4,7 +4,7 @@
 #include <driver/interrupt.h>
 #include <driver/irq.h>
 #include <kernel/init.h>
-#include <kernel/printk.h>
+#include <lib/printk.h>
 #include <proc/sched.h>
 
 static InterruptHandler int_handler[NUM_IRQ_TYPES];

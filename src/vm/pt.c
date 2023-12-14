@@ -1,9 +1,9 @@
 #include <aarch64/intrinsic.h>
 #include <lib/string.h>
 #include <kernel/mem.h>
-#include <kernel/pt.h>
-#include <kernel/paging.h>
-#include <kernel/printk.h>
+#include <vm/pt.h>
+#include <vm/paging.h>
+#include <lib/printk.h>
 
 PTEntry *
 get_pte(struct vmspace *vms, u64 va, bool alloc) 

@@ -1,7 +1,7 @@
 #include <lib/format.h>
 #include <lib/spinlock.h>
 #include <kernel/init.h>
-#include <kernel/printk.h>
+#include <lib/printk.h>
 
 static SpinLock printk_lock;
 

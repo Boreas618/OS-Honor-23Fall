@@ -1,5 +1,5 @@
 #include <kernel/cpu.h>
-#include <kernel/printk.h>
+#include <lib/printk.h>
 #include <kernel/init.h>
 #include <driver/clock.h>
 #include <proc/sched.h>

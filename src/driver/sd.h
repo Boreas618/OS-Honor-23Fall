@@ -8,7 +8,7 @@
 #include <driver/disk.h>
 #include <driver/uart.h>
 #include <kernel/init.h>
-#include <kernel/printk.h>
+#include <lib/printk.h>
 #include <lib/buf.h>
 #include <lib/defines.h>
 #include <lib/sem.h>

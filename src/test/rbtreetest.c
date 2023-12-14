@@ -3,7 +3,7 @@
 #include "lib/rc.h"
 #include "lib/spinlock.h"
 #include "test.h"
-#include <kernel/printk.h>
+#include <lib/printk.h>
 
 struct mytype {
     struct rb_node_ node;

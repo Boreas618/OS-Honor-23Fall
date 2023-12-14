@@ -40,10 +40,11 @@ add_subdirectory(user)
 add_subdirectory(test)
 add_subdirectory(fs)
 add_subdirectory(proc)
+add_subdirectory(vm)
 
 set(kernel_name kernel8)
 add_executable(${kernel_name}.elf main.c start.S)
-target_link_libraries(${kernel_name}.elf test kernelx user fs driver lib aarch64 proc)
+target_link_libraries(${kernel_name}.elf test kernelx user fs driver lib aarch64 proc vm)
 
 set(kernel_prefix "${CMAKE_CURRENT_BINARY_DIR}/${kernel_name}")
 set(kernel_elf "${kernel_prefix}.elf")

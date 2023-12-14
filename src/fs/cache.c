@@ -2,7 +2,7 @@
 #include <lib/string.h>
 #include <fs/cache.h>
 #include <kernel/mem.h>
-#include <kernel/printk.h>
+#include <lib/printk.h>
 #include <proc/proc.h>
 #include <kernel/init.h>
 

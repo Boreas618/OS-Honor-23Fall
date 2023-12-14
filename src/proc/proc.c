@@ -3,7 +3,7 @@
 #include <kernel/cpu.h>
 #include <kernel/init.h>
 #include <kernel/mem.h>
-#include <kernel/printk.h>
+#include <lib/printk.h>
 #include <proc/proc.h>
 #include <proc/sched.h>
 #include <proc/pid.h>

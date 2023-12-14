@@ -2,10 +2,10 @@
 #include <lib/sem.h>
 #include <lib/string.h>
 #include <kernel/mem.h>
-#include <kernel/paging.h>
-#include <kernel/printk.h>
+#include <vm/paging.h>
+#include <lib/printk.h>
 #include <proc/proc.h>
-#include <kernel/pt.h>
+#include <vm/pt.h>
 #include <proc/sched.h>
 #include <kernel/syscall.h>
 #include <test/test.h>

@@ -2,7 +2,7 @@
 #include <lib/rc.h>
 #include <lib/string.h>
 #include <kernel/mem.h>
-#include <kernel/printk.h>
+#include <lib/printk.h>
 #include <test/test.h>
 
 extern RefCount alloc_page_cnt;

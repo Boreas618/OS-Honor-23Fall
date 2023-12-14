@@ -1,11 +1,11 @@
 #include <aarch64/trap.h>
 #include <aarch64/intrinsic.h>
 #include <proc/sched.h>
-#include <kernel/printk.h>
+#include <lib/printk.h>
 #include <driver/interrupt.h>
 #include <proc/proc.h>
 #include <kernel/syscall.h>
-#include <kernel/paging.h>
+#include <vm/paging.h>
 
 void 
 trap_global_handler(UserContext* context)

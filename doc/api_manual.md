@@ -1587,7 +1587,7 @@ define_early_init(printk)
 
 -   `do_early_init`、`do_init`、`do_rest_init` 分别执行所有 early init、init 和 rest init 初始化函数。前两者一般只应在 main 函数中由 cpu0 先后执行一次，后者一般只应在 kernel entry 中执行一次。
 
-# **\<kernel/printk.h\>**
+# **\<lib/printk.h\>**
 
 ## **putch**
 

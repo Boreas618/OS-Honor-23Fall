@@ -4,7 +4,7 @@
 #include <lib/list.h>
 #include <lib/sem.h>
 #include <proc/schinfo.h>
-#include <kernel/pt.h>
+#include <vm/pt.h>
 
 typedef struct uctx UserContext;
 typedef struct kctx KernelContext;

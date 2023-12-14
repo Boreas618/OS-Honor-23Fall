@@ -4,7 +4,7 @@
 #include <fs/inode.h>
 #include <lib/defines.h>
 #include <kernel/init.h>
-#include <kernel/printk.h>
+#include <lib/printk.h>
 
 extern BlockDevice block_device;
 

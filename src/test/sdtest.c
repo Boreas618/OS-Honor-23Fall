@@ -1,5 +1,5 @@
 #include <lib/buf.h>
-#include <kernel/printk.h>
+#include <lib/printk.h>
 
 void disk_rw(Buf* b);
 

@@ -3,7 +3,7 @@
 #include <kernel/cpu.h>
 #include <kernel/init.h>
 #include <kernel/mem.h>
-#include <kernel/printk.h>
+#include <lib/printk.h>
 #include <lib/rbtree.h>
 #include <lib/string.h>
 #include <proc/proc.h>

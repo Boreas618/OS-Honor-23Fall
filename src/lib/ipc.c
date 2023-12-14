@@ -1,7 +1,7 @@
 #include <lib/ipc.h>
 #include <kernel/init.h>
 #include <kernel/mem.h>
-#include <kernel/printk.h>
+#include <lib/printk.h>
 #include <proc/sched.h>
 #include <lib/string.h>
 

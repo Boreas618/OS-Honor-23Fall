@@ -1,7 +1,7 @@
 #include <kernel/init.h>
 #include <driver/disk.h>
 #include <fs/block_device.h>
-#include <kernel/printk.h>
+#include <lib/printk.h>
 
 extern usize block_no_sb;
 

@@ -1,8 +1,8 @@
 #include <test/test.h>
 #include <lib/rc.h>
-#include <kernel/pt.h>
+#include <vm/pt.h>
 #include <kernel/mem.h>
-#include <kernel/printk.h>
+#include <lib/printk.h>
 #include <lib/sem.h>
 #include <proc/proc.h>
 #include <kernel/syscall.h>

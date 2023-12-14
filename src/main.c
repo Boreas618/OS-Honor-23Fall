@@ -1,6 +1,6 @@
 #include "driver/uart.h"
 #include "kernel/init.h"
-#include "kernel/printk.h"
+#include "lib/printk.h"
 #include <aarch64/intrinsic.h>
 #include <lib/string.h>
 #include <kernel/init.h>

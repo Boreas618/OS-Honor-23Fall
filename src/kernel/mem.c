@@ -9,7 +9,7 @@
 #include <driver/memlayout.h>
 #include <kernel/init.h>
 #include <kernel/mem.h>
-#include <kernel/printk.h>
+#include <lib/printk.h>
 
 RefCount alloc_page_cnt;
 
