@@ -5,6 +5,7 @@
 #include <driver/interrupt.h>
 #include <proc/proc.h>
 #include <kernel/syscall.h>
+#include <kernel/paging.h>
 
 void 
 trap_global_handler(UserContext* context)
@@ -15,7 +16,6 @@ trap_global_handler(UserContext* context)
     u64 ec = esr >> ESR_EC_SHIFT;
     u64 iss = esr & ESR_ISS_MASK;
     u64 ir = esr & ESR_IR_MASK;
-    (void)iss;
     arch_reset_esr();
 
     switch (ec)
@@ -29,19 +29,22 @@ trap_global_handler(UserContext* context)
             }
             else
                 interrupt_global_handler();
-        } break;
+        } 
+        break;
         case ESR_EC_SVC64:
         {
             syscall_entry(context);
-        } break;
+        } 
+        break;
         case ESR_EC_IABORT_EL0:
         case ESR_EC_IABORT_EL1:
         case ESR_EC_DABORT_EL0:
         case ESR_EC_DABORT_EL1:
         {
-            printk("Page fault %llu\n", ec);
-            PANIC();
-        } break;
+            // printk("Page fault %llu\n", ec);
+            pgfault_handler(iss);
+        } 
+        break;
         default:
         {
             printk("Unknwon exception %llu\n", ec);

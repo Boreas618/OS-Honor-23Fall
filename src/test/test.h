@@ -11,3 +11,5 @@ void user_proc_test();
 unsigned rand();
 void srand(unsigned seed);
 void sd_test();
+void pgfault_first_test();
+void pgfault_second_test();

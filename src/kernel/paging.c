@@ -15,54 +15,113 @@
 
 #define HEAP_BEGIN 0
 
+bool pf_flag = FALSE;
+
 define_rest_init(paging) {
     // TODO
 }
 
-void init_sections(List* vmregions) {
+void 
+init_vmregions(List* vmregions)
+{
     list_init(vmregions);
-
+    list_lock(vmregions);
     /* Init heap section. */
     struct vmregion* heap = (struct vmregion*)kalloc(sizeof(struct vmregion));
     heap->flags |= ST_HEAP;
     heap->begin = HEAP_BEGIN;
-    heap->end = heap->begin + PAGE_SIZE;
-    PTEntry *pte = get_pte(container_of(vmregions, struct vmspace, vmregions), HEAP_BEGIN, true);
-    if (!pte) {
-        printk("[Error] Failed to init heap section.\n");
-        PANIC();
-    }
+    heap->end = HEAP_BEGIN;
     init_list_node(&heap->stnode);
     list_push_back(vmregions, &heap->stnode);
+    list_unlock(vmregions);
 }
 
-void free_sections(struct vmspace *pd) {
-    (void)pd;
-    // TODO
+void 
+free_vmregions(struct vmspace *vms) 
+{
+    List vmregions = vms->vmregions;
+    list_lock(&vmregions);
+    while (vmregions.size) {
+        struct vmregion* vmr = container_of(vmregions.head, struct vmregion, stnode);
+        u64 b = vmr->begin;
+        u64 e = vmr->end;
+        while (b < e) {
+            PTEntry* pte = get_pte(&thisproc()->vmspace, b, false);
+            b += PAGE_SIZE;
+            if (!pte) continue;
+            *pte &= !PTE_VALID;
+        }
+        list_remove(&vmregions, &vmr->stnode);
+        kfree(vmr);
+    }
+    list_unlock(&vmregions);
 }
 
-u64 sbrk(i64 size) {
-    (void)size;
-    // TODO:
-    // Increase the heap size of current process by `size`
-    // If `size` is negative, decrease heap size
-    // `size` must be a multiple of PAGE_SIZE
-    // Return the previous heap_end
-    return 0;
+u64 
+sbrk(i64 size) 
+{
+    ASSERT(size % PAGE_SIZE == 0);
+    u64 old = 0;
+    u64 new = 0;
+    list_forall(p, thisproc()->vmspace.vmregions) {
+        struct vmregion* v = container_of(p, struct vmregion, stnode);
+        if (v->flags & ST_HEAP) {
+            old = v->end; 
+            v->end += size;
+            new = v->end;
+            while (new < old) {
+                PTEntry* pte = get_pte(&thisproc()->vmspace, new, false);
+                new += PAGE_SIZE;
+                if (!pte) continue;
+                *pte &= !PTE_VALID;
+            }
+            goto heap_found;
+        }
+    }
+    
+    /* Heap section not found. */
+    printk("[Error] Heap section not found.\n");
+    return -1;
+
+    /* The new heap region is invalid. */
+    heap_found:
+    list_forall(p, thisproc()->vmspace.vmregions) {
+        struct vmregion* v = container_of(p, struct vmregion, stnode);
+        if (v->begin < new && new < v->end) {
+            printk("[Error] Invalid size.\n");
+            return -1; 
+        }
+    }
+    return old;
 }
 
-int pgfault_handler(u64 iss) {
+int 
+pgfault_handler(u64 iss) 
+{
     struct proc *p = thisproc();
     struct vmspace *vs = &p->vmspace;
-    u64 addr = arch_get_far(); // Attempting to access this address caused the
-                               // page fault
-    // TODO:
-    // 1. Find the section struct that contains the faulting address `addr`
-    // 2. Check section flags to determine page fault type
-    // 3. Handle the page fault accordingly
-    // 4. Return to user code or kill the process
+    /* The address which caused the page fault. */
+    u64 addr = arch_get_far();
     (void)iss;
-    (void)vs;
-    (void)addr;
+    
+    list_forall(p, vs->vmregions) {
+        struct vmregion* v = container_of(p, struct vmregion, stnode);
+        if (v->begin <= addr && addr < v->end) {
+            if (v->flags & ST_HEAP) {
+                vmmap(vs, addr, kalloc_page(), PTE_VALID | PTE_USER_DATA);
+                if (!p) {
+                    printk("[Error] Lazy allocation failed.\n");
+                    PANIC();
+                }
+            } else {
+                printk("[Error] Invalid Memory Access.");
+                if (kill(thisproc()->pid) == -1) {
+                    printk("[Error] Failed to kill.");
+                }
+                PANIC();
+            }
+        }
+    }
+    arch_tlbi_vmalle1is();
     return 0;
 }

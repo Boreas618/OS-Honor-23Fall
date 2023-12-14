@@ -43,6 +43,9 @@ static List partitioned_pages[MAX_BUCKETS];
  */
 extern char end[];
 
+/* The shared zero page. */
+void* zero;
+
 /* Initialization routine of the memory management module. */
 define_early_init(pages) 
 {
@@ -73,6 +76,12 @@ define_early_init(pages)
     // Initialize the slab lists
     for (int i = 0; i < MAX_BUCKETS; i++)
         list_init(&partitioned_pages[i]);
+}
+
+define_init(zero_page) 
+{
+    zero = (void*)kalloc_page();
+    memset(zero, 0, PAGE_SIZE);
 }
 
 void*
@@ -221,13 +230,15 @@ __alloc_partition(Page *p)
 u64 
 left_page_cnt() 
 { 
-  return PAGE_COUNT - alloc_page_cnt.count; 
+    return PAGE_COUNT - alloc_page_cnt.count; 
 }
 
 WARN_RESULT void*
 get_zero_page() 
 {
-    // TODO
-    // Return the shared zero page
-    return NULL;
+    if (!zero) {
+        printk("[Error] Zero page not initialized!");
+        return NULL;
+    }
+    return zero;
 }

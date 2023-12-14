@@ -23,6 +23,6 @@ struct vmregion {
 };
 
 int pgfault_handler(u64 iss);
-void init_sections(List* vmregions);
-void free_sections(struct vmspace *pd);
+void init_vmregions(List* vmregions);
+void free_vmregions(struct vmspace *pd);
 u64 sbrk(i64 size);

@@ -20,7 +20,7 @@ void vm_test() {
     extern RefCount alloc_page_cnt;
     struct vmspace pg;
     int p0 = alloc_page_cnt.count;
-    init_pgdir(&pg);
+    init_vmspace(&pg);
     for (u64 i = 0; i < 100000; i++)
     {
         p[i] = kalloc_page();

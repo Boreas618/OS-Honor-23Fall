@@ -188,7 +188,7 @@ init_proc(Proc *p)
     init_list_node(&p->ptnode);
     p->parent = NULL;
     p->schinfo.runtime = 0;
-    init_pgdir(&p->vmspace);
+    init_vmspace(&p->vmspace);
     p->kstack = kalloc_page();
     ASSERT(p->kstack != NULL);
     memset((void *)p->kstack, 0, PAGE_SIZE);

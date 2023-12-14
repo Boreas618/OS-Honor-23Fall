@@ -2,6 +2,8 @@
 #include <lib/string.h>
 #include <kernel/mem.h>
 #include <kernel/pt.h>
+#include <kernel/paging.h>
+#include <kernel/printk.h>
 
 PTEntry *
 get_pte(struct vmspace *vms, u64 va, bool alloc) 
@@ -39,7 +41,14 @@ get_pte(struct vmspace *vms, u64 va, bool alloc)
     return (PTEntry *)(pgtbl + idxs[3]);
 }
 
-void init_pgdir(struct vmspace *vms) { vms->pgtbl = NULL; }
+void 
+init_vmspace(struct vmspace *vms) 
+{ 
+    vms->pgtbl = (PTEntry*)K2P(kalloc_page()); 
+    memset((void*)P2K(vms->pgtbl), 0, PAGE_SIZE);
+    init_spinlock(&vms->lock);
+    init_vmregions(&vms->vmregions);
+}
 
 void 
 free_pgdir(struct vmspace *vms) 
@@ -85,13 +94,8 @@ void attach_pgdir(struct vmspace *vms) {
         arch_set_ttbr0(K2P(&invalid_pt));
 }
 
-void vmmap(struct vmspace *pd, u64 va, void *ka, u64 flags) {
-    // TODO
-    // Map virtual address 'va' to the physical address represented by kernel
-    // address 'ka' in page directory 'pd', 'flags' is the flags for the page
-    // table entry
-    (void)pd;
-    (void)va;
-    (void)ka;
-    (void)flags;
+void vmmap(struct vmspace *vs, u64 va, void *ka, u64 flags) {
+    PTEntry* pte = get_pte(vs, va, true);
+    *pte = (PTEntry) (K2P(ka) | flags);
+    arch_tlbi_vmalle1is();
 }

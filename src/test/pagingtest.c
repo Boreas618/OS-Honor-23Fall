@@ -10,6 +10,8 @@
 #include <kernel/syscall.h>
 #include <test/test.h>
 
+extern bool pf_flag;
+
 bool check_zero_page() {
     for (u64 i = 0; i < PAGE_SIZE; i++)
         if (((u8 *)get_zero_page())[i] != 0)
@@ -23,13 +25,11 @@ void pgfault_first_test() {
     // init
     i64 limit = 10; // do not need too big
     struct proc *p = thisproc();
-    struct vmspace *pd = &p->vmspace;
-    ASSERT(pd->pgtbl); // make sure the attached pt is valid
-    attach_pgdir(pd);
+    struct vmspace *vm = &p->vmspace;
+    ASSERT(vm->pgtbl); // make sure the attached pt is valid
+    attach_pgdir(vm);
     struct vmregion *st = NULL;
-    _for_in_list(node, pd->vmregions.head) {
-        if (node == pd->vmregions.head)
-            continue;
+    _for_in_list(node, vm->vmregions.head) {
         st = container_of(node, struct vmregion, stnode);
         if (st->flags & ST_HEAP)
             break;
@@ -62,9 +62,10 @@ void pgfault_first_test() {
     printk("in COW\n");
     pc = left_page_cnt();
     sbrk(limit * PAGE_SIZE);
+    pf_flag = true;
     for (i64 i = 0; i < limit; ++i) {
         u64 va = i * PAGE_SIZE;
-        vmmap(pd, va, get_zero_page(), PTE_RO | PTE_USER_DATA);
+        vmmap(vm, va, get_zero_page(), PTE_RO | PTE_USER_DATA);
         ASSERT(*(i64 *)va == 0);
     }
     ASSERT(pc == left_page_cnt());
@@ -82,12 +83,10 @@ void pgfault_second_test() {
     // init
     i64 limit = 10; // do not need too big
     struct vmspace *pd = &thisproc()->vmspace;
-    init_pgdir(pd);
+    init_vmspace(pd);
     attach_pgdir(pd);
     struct vmregion *st = NULL;
     _for_in_list(node, pd->vmregions.head) {
-        if (node == pd->vmregions.head)
-            continue;
         st = container_of(node, struct vmregion, stnode);
         if (st->flags & ST_HEAP)
             break;
