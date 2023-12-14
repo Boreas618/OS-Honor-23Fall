@@ -7,7 +7,7 @@
 #include <proc/proc.h>
 #include <kernel/syscall.h>
 
-#define NPROC 32
+#define NPROC 64
 
 PTEntry* get_pte(struct vmspace* vms, u64 va, bool alloc);
 

@@ -8,9 +8,9 @@ void disk_init();
 
 bool panic_flag;
 
-NO_RETURN void idle_entry() {
-    // alloc_test();
-    // rbtree_test();
+NO_RETURN void 
+idle_entry() 
+{
     set_cpu_on();
     while (1) {
         yield();
@@ -24,13 +24,15 @@ NO_RETURN void idle_entry() {
     arch_stop_cpu();
 }
 
-NO_RETURN void kernel_entry() {
+NO_RETURN void 
+kernel_entry() 
+{
     printk("Hello, world!\n");
     disk_init();
     // sd_test();
     // proc_test();
     // vm_test();
-    // user_proc_test();
+    user_proc_test();
     
     do_rest_init();
 
@@ -39,13 +41,13 @@ NO_RETURN void kernel_entry() {
 }
 
 NO_INLINE NO_RETURN void _panic(const char* file, int line) {
-    printk("=====%s:%d PANIC%d!=====\n", file, line, cpuid());
+    printk("[CPU %d PANIC] ", cpuid());
     panic_flag = true;
     set_cpu_off();
     for (int i = 0; i < NCPU; i++) {
         if (cpus[i].online)
             i--;
     }
-    printk("Kernel PANIC invoked at %s:%d. Stopped.\n", file, line);
+    printk("Kernel PANIC invoked at %s:%d.\n", file, line);
     arch_stop_cpu();
 }

@@ -29,7 +29,7 @@ void init_sections(List* vmregions) {
     heap->end = heap->begin + PAGE_SIZE;
     PTEntry *pte = get_pte(container_of(vmregions, struct vmspace, vmregions), HEAP_BEGIN, true);
     if (!pte) {
-        printk("[Error] Init heap section failed.\n");
+        printk("[Error] Failed to init heap section.\n");
         PANIC();
     }
     init_list_node(&heap->stnode);

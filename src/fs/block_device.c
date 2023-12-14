@@ -1,5 +1,5 @@
 #include <kernel/init.h>
-#include <driver/sd.h>
+#include <driver/disk.h>
 #include <fs/block_device.h>
 #include <kernel/printk.h>
 
