@@ -2,7 +2,7 @@
 #include <driver/sd.h>
 
 /* Base point for super block. */
-usize block_no_sb = 0;
+usize sb_base = 0;
 
 static Queue bufs;
 
@@ -19,43 +19,57 @@ disk_init()
     set_interrupt_handler(IRQ_SDIO, disk_intr);
     set_interrupt_handler(IRQ_ARASANSDIO, disk_intr);
 
-    Buf mbr_buf;
+    /* First read MBR to obtain some metadata. */
+    struct buf mbr_buf;
     disk_rw(&mbr_buf);
 
-    // Set the base LBA of the super block
-    block_no_sb = *(u32 *)(mbr_buf.data + 0x1ce + 0x8);
+    /* Set the base LBA of the super block. */
+    sb_base = *(u32 *)(mbr_buf.data + 0x1ce + 0x8);
 }
 
 /* Start the request for b. Caller must hold sdlock. */
 void 
-disk_start(Buf *b) 
+disk_start(struct buf *b) 
 {
-    // Determine the SD card type and the corresponding address style.
-    // HC pass addresses as block numbers.
-    // SC pass addresses straight through.
+    /* 
+     * Determine the SD card type and the corresponding address style.
+     * HC pass addresses as block numbers.
+     * SC pass addresses straight through. 
+     */
     int bno = (sdd.type == SD_TYPE_2_HC) ? (int)b->blockno : (int)b->blockno << 9;
     int write = b->flags & B_DIRTY;
-    u32 *intbuf = (u32 *)b->data;
+    u32 *intbuf = (u32*)b->data;
     int cmd = write ? IX_WRITE_SINGLE : IX_READ_SINGLE;
-    int i = 0;
 
-    // Ensure that any data operation has completed before doing the transfer.
-    arch_dsb_sy(); if (*EMMC_INTERRUPT) PANIC();
+    /* Ensure that any data operation has completed before doing the transfer. */
+    if (*EMMC_INTERRUPT) PANIC();
 
-    arch_dsb_sy(); *EMMC_BLKSIZECNT = 512;
+    arch_dsb_sy(); 
+    
+    *EMMC_BLKSIZECNT = 512;
 
-    if ((sd_send_command_arg(cmd, bno))) PANIC();
+    arch_dsb_sy();
+
+    if (sd_send_command_arg(cmd, bno)) PANIC();
+
+    arch_dsb_sy();
 
     if (((i64)b->data & 0x03) != 0) PANIC();
 
+    arch_dsb_sy();
+
     if (write) {
-        // Wait for ready interrupt for the next block.
+        /* Wait for ready interrupt for the next block. */
         if ((sd_wait_for_interrupt(INT_WRITE_RDY))) PANIC();
 
-        arch_dsb_sy(); if (*EMMC_INTERRUPT) PANIC();
+        arch_dsb_sy(); 
+        
+        if (*EMMC_INTERRUPT) PANIC();
 
+        int i = 0;
         while (i < 128) {
-            arch_dsb_sy(); *EMMC_DATA = intbuf[i];
+            arch_dsb_sy(); 
+            *EMMC_DATA = intbuf[i];
             i++;
         }
     }
@@ -65,47 +79,55 @@ disk_start(Buf *b)
 void 
 disk_intr() 
 {
-    Buf *b = container_of(queue_front(&bufs), Buf, bq_node);
+    _acquire_spinlock(&sd_lock);
+    struct buf *b = container_of(queue_front(&bufs), struct buf, bq_node);
     u32 *intbuf = (u32 *)b->data;
     int flags = b->flags;
 
-    queue_lock(&bufs);
-
     if (flags == 0) {
+        /* Gets the ready signal and starts reading. */
         if (sd_wait_for_interrupt(INT_READ_RDY)) PANIC();
-
+        /* Reads the data. */
         for (usize i = 0; i < 128; i++) {
             arch_dsb_sy();
             intbuf[i] = *EMMC_DATA;
         }
-
+        /* Reading has finished. */
         if (sd_wait_for_interrupt(INT_DATA_DONE)) PANIC();
-    } else if (flags & B_DIRTY) {
+        goto wrap_up;
+    }
+    
+    if (flags & B_DIRTY) {
+        /* Writing has finished. */
         if (sd_wait_for_interrupt(INT_DATA_DONE)) PANIC();
-    } else {
-        PANIC();
+        goto wrap_up;
     }
 
+    PANIC();
+
+    wrap_up:
+    /* Set the flag back to B_VALID. */
     b->flags = B_VALID;
-
     queue_pop(&bufs);
+    /* Wake up the disk_rw task. */
     post_sem(&b->sem);
-
+    /* Turn to the next buf. */
     if (!queue_empty(&bufs)) {
-        b = container_of(queue_front(&bufs), Buf, bq_node);
+        b = container_of(queue_front(&bufs), struct buf, bq_node);
         disk_start(b);
     }
-
-    queue_unlock(&bufs);
+    _release_spinlock(&sd_lock);
 }
 
 void 
-disk_rw(Buf *b) 
+disk_rw(struct buf *b) 
 {
     init_sem(&(b->sem), 0);
-    queue_lock(&bufs);
+    _acquire_spinlock(&sd_lock);
     queue_push(&bufs, &(b->bq_node));
-    if (bufs.size == 1) disk_start(b);
-    queue_unlock(&bufs);
-    unalertable_wait_sem(&(b->sem));
+    if (bufs.size == 1) 
+        disk_start(b);
+    _lock_sem(&b->sem);
+    _release_spinlock(&sd_lock);
+    ASSERT(_wait_sem(&b->sem, false));
 }

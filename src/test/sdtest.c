@@ -1,7 +1,7 @@
 #include <lib/buf.h>
 #include <lib/printk.h>
 
-void disk_rw(Buf* b);
+void disk_rw(struct buf* b);
 
 /* SD card test and benchmark. */
 void sd_test() {

@@ -10,10 +10,10 @@
 #define B_VALID 0x2 /* Buffer has been read from disk. */
 #define B_DIRTY 0x4 /* Buffer needs to be written to disk. */
 
-typedef struct buf {
+struct buf {
     int flags;
     u32 blockno;
     u8 data[BSIZE];  // 1B*512
     ListNode bq_node;
     Semaphore sem;
-} Buf;
+};

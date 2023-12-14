@@ -21,4 +21,4 @@
 void disk_init();
 void disk_intr();
 void sd_test();
-void disk_rw(Buf*);
+void disk_rw(struct buf*);

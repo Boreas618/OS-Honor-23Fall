@@ -3,7 +3,7 @@
 #include <fs/block_device.h>
 #include <lib/printk.h>
 
-extern usize block_no_sb;
+extern usize sb_base;
 
 /*
  * A simple implementation of reading a block from SD card.
@@ -13,7 +13,7 @@ extern usize block_no_sb;
  */
 static void sd_read(usize block_no, u8 *buffer) {
     struct buf b;
-    b.blockno = (u32)block_no + block_no_sb;
+    b.blockno = (u32)block_no + sb_base;
     b.flags = 0;
     disk_rw(&b);
     memcpy(buffer, b.data, BLOCK_SIZE);
@@ -27,7 +27,7 @@ static void sd_read(usize block_no, u8 *buffer) {
  */
 static void sd_write(usize block_no, u8 *buffer) {
     struct buf b;
-    b.blockno = (u32)block_no + block_no_sb;
+    b.blockno = (u32)block_no + sb_base;
     b.flags = B_DIRTY | B_VALID;
     memcpy(b.data, buffer, BLOCK_SIZE);
     disk_rw(&b);
