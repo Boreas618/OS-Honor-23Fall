@@ -7,7 +7,7 @@
 #include <proc/proc.h>
 #include <kernel/syscall.h>
 
-#define NPROC 64
+#define NPROC 512
 
 PTEntry* get_pte(struct vmspace* vms, u64 va, bool alloc);
 
@@ -27,14 +27,14 @@ void vm_test() {
         *get_pte(&pg, i << 12, true) = K2P(p[i]) | PTE_USER_DATA;
         *(int*)p[i] = i;
     }
-    attach_pgdir(&pg);
+    attach_vmspace(&pg);
     for (u64 i = 0; i < 100000; i++)
     {
         ASSERT(*(int*)(P2K(PTE_ADDRESS(*get_pte(&pg, i << 12, false)))) == (int)i);
         ASSERT(*(int*)(i << 12) == (int)i);
     }
     free_pgdir(&pg);
-    attach_pgdir(&pg);
+    attach_vmspace(&pg);
     for (u64 i = 0; i < 100000; i++)
         kfree_page(p[i]);
     ASSERT(alloc_page_cnt.count == p0);

@@ -86,7 +86,7 @@ free_pgdir(struct vmspace *vms)
     vms->pgtbl = NULL;
 }
 
-void attach_pgdir(struct vmspace *vms) {
+void attach_vmspace(struct vmspace *vms) {
     extern PTEntries invalid_pt;
     if (vms->pgtbl)
         arch_set_ttbr0(K2P(vms->pgtbl));

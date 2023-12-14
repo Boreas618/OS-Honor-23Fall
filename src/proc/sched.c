@@ -9,7 +9,7 @@
 #include <proc/proc.h>
 #include <proc/sched.h>
 
-#define SLICE_LEN 1
+#define SLICE_LEN 2
 
 static struct timer sched_timer[NCPU];
 static RBTree rq[NCPU];
@@ -121,7 +121,7 @@ schedule(enum procstate new_state)
     auto next = pick_next();
     update_this_proc(next);
     if (next != this) {
-        attach_pgdir(&next->vmspace);
+        attach_vmspace(&next->vmspace);
         swtch(next->kcontext, &(this->kcontext));
     }
 }
