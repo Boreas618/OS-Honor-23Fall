@@ -1,15 +1,15 @@
 #include <aarch64/intrinsic.h>
 #include <aarch64/mmu.h>
-#include <lib/checker.h>
-#include <lib/defines.h>
-#include <lib/list.h>
-#include <lib/rc.h>
-#include <lib/spinlock.h>
-#include <lib/string.h>
 #include <driver/memlayout.h>
 #include <kernel/init.h>
 #include <kernel/mem.h>
+#include <lib/checker.h>
+#include <lib/defines.h>
+#include <lib/list.h>
 #include <lib/printk.h>
+#include <lib/rc.h>
+#include <lib/spinlock.h>
+#include <lib/string.h>
 
 RefCount alloc_page_cnt;
 
@@ -44,16 +44,16 @@ static List partitioned_pages[MAX_BUCKETS];
 extern char end[];
 
 /* The shared zero page. */
-void* zero;
+void *zero;
 
 /* Initialization routine of the memory management module. */
 define_early_init(pages) 
 {
-    // Initialize the page counter.
+    /* Initialize the page counter. */
     init_rc(&alloc_page_cnt);
-    // Initialize the list for free pages.
+    /* Initialize the list for free pages. */
     list_init(&pages_free);
-    // The number of pages under track.
+    /* The number of pages under track. */
     u64 inited_pages = 0;
 
     for (u64 p = PAGE_BASE((u64)&end) + PAGE_SIZE; p < P2K(PHYSTOP);
@@ -73,19 +73,19 @@ define_early_init(pages)
         inited_pages++;
     }
 
-    // Initialize the slab lists
+    /* Initialize the slab lists */
     for (int i = 0; i < MAX_BUCKETS; i++)
         list_init(&partitioned_pages[i]);
 }
 
 define_init(zero_page) 
 {
-    zero = (void*)kalloc_page();
+    zero = (void *)kalloc_page();
     memset(zero, 0, PAGE_SIZE);
 }
 
-void*
-kalloc_page() 
+void 
+*kalloc_page() 
 {
     increment_rc(&alloc_page_cnt);
     list_lock(&pages_free);
@@ -104,8 +104,8 @@ kfree_page(void *p)
     list_unlock(&pages_free);
 }
 
-void*
-kalloc(isize s)
+void *
+kalloc(isize s) 
 {
     ASSERT(s > 0 && s <= PAGE_SIZE);
     if (s == 0 && s > PAGE_SIZE)
@@ -113,21 +113,21 @@ kalloc(isize s)
     if (s > 2048)
         return kalloc_page();
 
-    // Round the requested size to 2^n.
+    /* Round the requested size to 2^n. */
     u32 rounded_size = 0;
     u8 bucket_index = 0;
     __round_up(s, &rounded_size, &bucket_index);
 
-    // Acquire the bucket-level lock.
+    /* Acquire the bucket-level lock. */
     list_lock(&(partitioned_pages[bucket_index]));
 
-    // In most cases, there are partitioned pages in the bucket and we can fetch
-    // partitions from them.
+    /* In most cases, there are partitioned pages in the bucket and we can fetch
+     * partitions from them. */
     if (partitioned_pages[bucket_index].size) {
-        // Take the list of candidate pages from the bucket.
+        /* Take the list of candidate pages from the bucket. */
         List candidate_pages = partitioned_pages[bucket_index];
 
-        // Find the page with a free partition in the candidate pages.
+        /* Find the page with a free partition in the candidate pages. */
         usize i = 0;
         for (ListNode *p = candidate_pages.head; i < candidate_pages.size;
              p = p->next, i++) {
@@ -141,8 +141,8 @@ kalloc(isize s)
         }
     }
 
-    // Cannot find the page with a free partition. Therefore, fetch a new page
-    // and partition it.
+    /* Cannot find the page with a free partition. Therefore, fetch a new page
+     * and partition it. */
     PartitionedNode *new_partitioned =
         __partition_page(rounded_size, bucket_index);
     list_push_back(&(partitioned_pages[bucket_index]),
@@ -162,12 +162,12 @@ kfree(void *p)
     (void)((page_info[id].alloc_partitions_cnt > 0) &&
            (page_info[id].alloc_partitions_cnt--));
 
-    // Insert the free partition to be freed into the free list
+    /* Insert the free partition to be freed into the free list */
     u64 tmp = *(u64 *)(page_info[id].free_head);
     *(u64 *)(page_info[id].free_head) = (u64)p;
     *(u64 *)p = tmp;
 
-    // Recycle the partitioned pages if the partitions are all freed.
+    /* Recycle the partitioned pages if the partitions are all freed. */
     if (page_info[id].alloc_partitions_cnt == 0) {
         list_remove(
             &partitioned_pages[page_info[id].partitioned_node.bucket_index],
@@ -197,8 +197,9 @@ __round_up(isize s, u32 *rounded_size, u8 *bucket_index)
 }
 
 PartitionedNode *
-__partition_page(u32 rounded_size, u8 bucket_index) {
-    // Fetch a new page which will be partitioned later.
+__partition_page(u32 rounded_size, u8 bucket_index) 
+{
+    /* Fetch a new page which will be partitioned later. */
     u64 page_to_partition = (u64)kalloc_page();
     if (page_to_partition == NULL)
         return NULL;
@@ -208,7 +209,7 @@ __partition_page(u32 rounded_size, u8 bucket_index) {
         *((u64 *)p) = p + rounded_size;
     *((u64 *)p) = 0;
 
-    // Configure the control info of the page.
+    /* Configure the control info of the page. */
     u64 id = VA2ID(page_to_partition);
     page_info[id].addr = page_to_partition;
     page_info[id].base_size = rounded_size;
@@ -227,13 +228,9 @@ __alloc_partition(Page *p)
     return addr_frag;
 }
 
-u64 
-left_page_cnt() 
-{ 
-    return PAGE_COUNT - alloc_page_cnt.count; 
-}
+u64 left_page_cnt() { return PAGE_COUNT - alloc_page_cnt.count; }
 
-WARN_RESULT void*
+WARN_RESULT void *
 get_zero_page() 
 {
     if (!zero) {
