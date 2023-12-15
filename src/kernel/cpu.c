@@ -86,11 +86,13 @@ void
 set_cpu_on() 
 {
     ASSERT(!_arch_disable_trap());
-    // Disable the lower-half address to prevent stupid errors.
+    /* Disable the lower-half address to prevent stupid errors. */
     extern PTEntries invalid_pt;
     arch_set_ttbr0(K2P(&invalid_pt));
+
     extern char exception_vector[];
     arch_set_vbar(exception_vector);
+    
     arch_reset_esr();
     init_clock();
     cpus[cpuid()].online = true;

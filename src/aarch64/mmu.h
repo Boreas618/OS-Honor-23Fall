@@ -42,16 +42,16 @@
 
 #define KSPACE_MASK 0xffff000000000000
 
-// convert kernel address into physical address.
+/* Convert kernel address into physical address. */
 #define K2P(addr) ((u64)(addr) - (KSPACE_MASK))
 
-// convert physical address into kernel address.
+/* Convert physical address into kernel address. */
 #define P2K(addr) ((u64)(addr) + (KSPACE_MASK))
 
-// convert any address into kernel address space.
+/* Convert any address into kernel address space. */
 #define KSPACE(addr) ((u64)(addr) | (KSPACE_MASK))
 
-// conver any address into physical address space.
+/* Conver any address into physical address space. */
 #define PSPACE(addr) ((u64)(addr) & (~KSPACE_MASK))
 
 typedef u64 PTEntry;
