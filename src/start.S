@@ -47,7 +47,7 @@
 #define TCR_VALUE       (TCR_T0SZ | TCR_T1SZ | TCR_TG0_4K | TCR_TG1_4K | \
                          TCR_SH0_OUTER | TCR_SH1_OUTER | TCR_ORGN0_IRGN0 | TCR_ORGN1_IRGN1)
 
-/* memory region attributes */
+/* Memory region attributes */
 #define MT_DEVICE_nGnRnE       0x0
 #define MT_NORMAL              0x1
 #define MT_NORMAL_NC           0x2
@@ -58,19 +58,15 @@
                                 (MT_NORMAL_FLAGS << (8 * MT_NORMAL)) | \
                                 (MT_NORMAL_NC_FLAGS << (8 * MT_NORMAL_NC)))
 
-/* kernel stack size per CPU. Kernel stack sizes are fixed. */
+/* Kernel stack size per CPU. Kernel stack sizes are fixed. */
 #define KERNEL_STACK_SIZE 4096
 
 .section ".text.boot"
 
 .global _start
 _start:
-    /**
-     * wake up other CPUs.
-     * see <https://github.com/raspberrypi/tools/blob/master/armstubs/armstub8.S>.
-     * which has been incorporated in `start.elf` (or `bootcode.bin`?).
-     */
-    mov x15, x0
+    /* Wake up other CPUs. */
+    mov     x15, x0
     adr     x0, entry
     mov     x1, #1
     mov     x2, #2
@@ -86,7 +82,7 @@ _start:
     sev
 
 entry:
-    /* get current exception level from CurrentEL[3:2]. */
+    /* Get current exception level from CurrentEL[3:2]. */
     mrs     x9, CurrentEL
     and     x9, x9, #0xc
     cmp     x9, #8
@@ -103,7 +99,7 @@ el3:
     eret
 
 el2:
-    /**
+    /*
      * HCR_EL2.RW, bit[31] = 1: the execution state for EL1 is AArch64.
      * the execution state for EL0 is determined by the current
      * value of PSTATE.nRW when executing at EL0.
@@ -111,15 +107,15 @@ el2:
     mov     x9, #HCR_VALUE
     msr     hcr_el2, x9
 
-    /* setup SCTLR access. */
+    /* Setup SCTLR access. */
     ldr     x9, =SCTLR_VALUE_MMU_DISABLED
     msr     sctlr_el1, x9
 
-    /* enable SIMD instructions. */
+    /* Enable SIMD instructions. */
     ldr     x9, =CPACR_VALUE
     msr     cpacr_el1, x9
 
-    /* change execution level to EL1. */
+    /* Change execution level to EL1. */
     mov     x9, #SPSR_EL2_VALUE
     msr     spsr_el2, x9
     adr     x9, el1
@@ -129,7 +125,7 @@ el2:
 el1:
     adr     x9, kernel_pt
 
-    /* higher and lower half map to same physical memory region. */
+    /* Higher and lower half map to same physical memory region. */
     msr     ttbr0_el1, x9
     msr     ttbr1_el1, x9
 
@@ -141,14 +137,14 @@ el1:
 
     isb
 
-    /* enable MMU. */
+    /* Enable MMU. */
     mrs     x9, sctlr_el1
     orr     x9, x9, #SCTLR_MMU_ENABLED
     msr     sctlr_el1, x9
 
     isb
 
-    /* read CPUID. */
+    /* Read CPUID. */
     mrs     x0, mpidr_el1
     and     x0, x0, #3
 
@@ -158,7 +154,7 @@ el1:
     ldr     x9, =_start
     sub     x9, x9, x10
 
-    /* set up stack pointer, must always be aligned to 16 bytes. */
+    /* Set up stack pointer, must always be aligned to 16 bytes. */
     msr     spsel, #1
     mov     sp, x9
 
