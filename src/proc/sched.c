@@ -128,8 +128,8 @@ schedule(enum procstate new_state)
 
 __attribute__((weak, alias("schedule"))) void _sched(enum procstate new_state);
 
-u64 proc_entry
-(void (*entry)(u64), u64 arg) 
+u64 
+proc_entry (void (*entry)(u64), u64 arg) 
 {
     set_return_addr(entry);
     return arg;

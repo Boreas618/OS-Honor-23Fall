@@ -29,7 +29,7 @@ kernel_entry()
 {
     printk("Hello, world!\n");
     disk_init();
-    sd_test();
+    // sd_test();
     // proc_test();
     // vm_test();
     // user_proc_test();
