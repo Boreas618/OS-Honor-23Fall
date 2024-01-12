@@ -99,3 +99,12 @@ void vmmap(struct vmspace *vs, u64 va, void *ka, u64 flags) {
     *pte = (PTEntry) (K2P(ka) | flags);
     arch_tlbi_vmalle1is();
 }
+
+/*
+ * Copy len bytes from p to user address va in page table pgdir.
+ * Allocate physical pages if required.
+ * Useful when pgdir is not the current page table.
+ */
+int copyout(struct vmspace *pd, void *va, void *p, usize len) {
+    // TODO
+}

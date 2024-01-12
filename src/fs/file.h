@@ -1,12 +1,12 @@
 #pragma once
 
-#include <common/defines.h>
-#include <common/sem.h>
+#include <lib/defines.h>
+#include <lib/sem.h>
 #include <fs/defines.h>
 #include <fs/fs.h>
 #include <fs/inode.h>
 #include <sys/stat.h>
-#include <common/list.h>
+#include <lib/list.h>
 
 // maximum number of open files in the whole system.
 #define NFILE 65536  

@@ -217,3 +217,11 @@ create_idle_proc()
     start_proc(p, &idle_entry, 0);
     return p;
 }
+
+/*
+ * Create a new process copying p as the parent.
+ * Sets up stack to return as if from system call.
+ */
+void trap_return();
+int fork() { /* TODO: Your code here. */
+}

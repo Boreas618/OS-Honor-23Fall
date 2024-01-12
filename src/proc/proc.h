@@ -5,6 +5,8 @@
 #include <lib/sem.h>
 #include <proc/schinfo.h>
 #include <vm/pt.h>
+#include <fs/file.h>
+#include <fs/inode.h>
 
 typedef struct uctx UserContext;
 typedef struct kctx KernelContext;
@@ -45,6 +47,8 @@ struct proc {
     void* kstack;
     UserContext* ucontext;
     KernelContext* kcontext;
+    struct oftable oftable;
+    Inode *cwd; // current working dictionary
 };
 
 void kernel_entry();
@@ -56,3 +60,4 @@ int start_proc(struct proc*, void(*entry)(u64), u64 arg);
 NO_RETURN void exit(int code);
 WARN_RESULT int wait(int* exitcode);
 WARN_RESULT int kill(int pid);
+WARN_RESULT int fork();
