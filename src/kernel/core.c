@@ -1,6 +1,6 @@
 #include <kernel/cpu.h>
-#include <lib/printk.h>
 #include <kernel/init.h>
+#include <lib/printk.h>
 #include <proc/sched.h>
 #include <test/test.h>
 
@@ -16,9 +16,7 @@ idle_entry()
         yield();
         if (panic_flag)
             break;
-        arch_with_trap {
-            arch_wfi();
-        }
+        arch_with_trap { arch_wfi(); }
     }
     set_cpu_off();
     arch_stop_cpu();
@@ -38,8 +36,7 @@ kernel_entry()
     
     do_rest_init();
 
-    while (1)
-        yield();
+    // TODO: map init.S to user space and trap_return to run icode
 }
 
 NO_INLINE NO_RETURN void _panic(const char* file, int line) {
