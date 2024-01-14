@@ -13,6 +13,7 @@ struct console {
     #define INPUT_BUF_SIZE 128
 
     struct spinlock lock;
+    struct semaphore sem;
     char buf[INPUT_BUF_SIZE];
     usize read_idx;
     usize write_idx;
