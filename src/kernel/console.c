@@ -14,6 +14,12 @@ define_init(console) {
     init_sem(&cons.sem, 0);
 }
 
+/**
+ * console_write - write to uart from the console buffer.
+ * @ip: the pointer to the inode
+ * @buf: the buffer
+ * @n: number of bytes to write
+ */
 isize console_write(struct inode *ip, char *buf, isize n) {
     // The inode should represent a device.
     if (ip->entry.type != INODE_DEVICE)
@@ -28,15 +34,24 @@ isize console_write(struct inode *ip, char *buf, isize n) {
     return n;
 }
 
+/**
+ * console_read - read to the destination from the buffer
+ * @ip: the pointer to the inode
+ * @dst: the destination
+ * @n: number of bytes to read
+ */
 isize console_read(struct inode *ip, char *dst, isize n) {
     usize target = n;
     inodes.unlock(ip);
     acquire_spinlock(&cons.lock);
     while (n > 0) {
         while (cons.read_idx == cons.write_idx) {
-            _lock_sem(&cons.sem);
-            release_spinlock(&cons.lock);
-            if (!_wait_sem(&cons.sem, false)) {
+            if(is_killed(thisproc())){
+                release(&cons.lock);
+                inodes.lock(ip);
+                return -1;
+            }
+            if (!sleep(&cons.sem, &cons.lock)) {
                 inodes.lock(ip);
                 return -1;
             }
@@ -83,15 +98,14 @@ void console_intr(char (*getc)()) {
             }
         break;
         default:
-            if (c != 0 && cons.edit_idx - cons.read_idx < INPUT_BUF_SIZE) {
+            if (c != NULL && cons.edit_idx - cons.read_idx < INPUT_BUF_SIZE) {
                 c = (c == '\r') ? '\n' : c;
                 // Echo back to the user.
                 uart_put_char(c);
                 cons.buf[cons.edit_idx++ % INPUT_BUF_SIZE] = c;
-                
                 if (c == '\n' || c == C('D') || cons.edit_idx - cons.read_idx == INPUT_BUF_SIZE) {
                     cons.write_idx = cons.edit_idx;
-                    post_all_sem(&cons.sem);
+                    wakeup(&cons.sem);
                 }
             }
         break;

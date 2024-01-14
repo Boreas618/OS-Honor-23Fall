@@ -130,22 +130,14 @@ int kill(int pid) {
     return -1;
 }
 
-void sleep(void* chan, struct spinlock* lock) {
-    struct proc *p = thisproc();
-
-    acquire_spinlock(&p->lock);
+bool sleep(struct semaphore* sem, struct spinlock* lock) {
+    _lock_sem(sem);
     release_spinlock(lock);
-    
-    /* Go to sleep. */
-    p->chan = chan;
-    _sched(SLEEPING);
+    return _wait_sem(sem, false);
+}
 
-    /* Tidy up. */
-    p->chan = NULL;
-
-    /* Reacquire original lock. */
-    release_spinlock(&p->lock);
-    acquire(lock);
+inline void wakeup(struct semaphore* sem) {
+    post_all_sem(sem);
 }
 
 int start_proc(struct proc *p, void (*entry)(u64), u64 arg) {
