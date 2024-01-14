@@ -1,33 +1,58 @@
+#include <driver/interrupt.h>
+#include <driver/uart.h>
 #include <kernel/console.h>
 #include <kernel/init.h>
-#include <aarch64/intrinsic.h>
+#include <lib/sem.h>
+#include <lib/spinlock.h>
 #include <proc/sched.h>
-#include <driver/uart.h>
 
-#define INPUT_BUF 128
-struct {
-    char buf[INPUT_BUF];
-    usize r;  // Read index
-    usize w;  // Write index
-    usize e;  // Edit index
-} input;
-#define C(x)      ((x) - '@')  // Control-x
+struct console cons;
 
-
-isize console_write(Inode *ip, char *buf, isize n) {
-    // TODO
-    (void)ip;
-    (void)buf;
-    (void)n;
-    return 0;
+define_init(console) {
+    set_interrupt_handler(IRQ_AUX, console_intr);
+    init_spinlock(&cons.lock);
 }
 
-isize console_read(Inode *ip, char *dst, isize n) {
-    // TODO
-    (void)ip;
-    (void)dst;
-    (void)n;
-    return 0;
+isize console_write(struct inode *ip, char *buf, isize n) {
+    inodes.unlock(ip);
+    acquire_spinlock(&cons.lock);
+    for (isize i = 0; i < n; i++)
+        uart_put_char(buf[i]);
+    release_spinlock(&cons.lock);
+    inodes.lock(ip);
+    return n;
+}
+
+isize console_read(struct inode *ip, char *dst, isize n) {
+    usize target = n;
+    inodes.unlock(ip);
+    acquire_spinlock(&cons.lock);
+    while (n > 0) {
+        while (cons.read_idx == cons.write_idx) {
+            if (is_killed(thisproc())) {
+                release_spinlock(&cons.lock);
+                return -1;
+            }
+            sleep(&cons.read_idx, &cons.lock);
+        }
+
+        // Read the char from the buffer.
+        char c = cons.buf[cons.read_idx++ % INPUT_BUF_SIZE];
+        
+        // End-of-file
+        if (c == C('D'))
+            break;
+
+        dst[target-n] = c;
+        n--;
+
+        // A whole line has arrived.
+        if (c == '\n')
+            break;
+    }
+     _release_spinlock(&cons.lock);
+    inodes.lock(ip);
+    return target-n;
 }
 
 void console_intr(char (*getc)()) {

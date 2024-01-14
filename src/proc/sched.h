@@ -13,12 +13,14 @@ extern u64 proc_entry();
 
 #define yield() (_sched(RUNNABLE))
 
-bool _activate_proc(struct proc*, bool onalert);
+bool _activate_proc(struct proc *, bool onalert);
 
 void _sched(enum procstate new_state);
 
-WARN_RESULT struct proc* thisproc();
+WARN_RESULT struct proc *thisproc();
 
 void swtch(KernelContext *new_ctx, KernelContext **old_ctx);
 
 void trap_return();
+
+inline bool is_killed(struct proc *p);
