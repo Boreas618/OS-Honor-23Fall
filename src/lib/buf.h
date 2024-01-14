@@ -14,6 +14,6 @@ struct buf {
     int flags;
     u32 blockno;
     u8 data[BSIZE];  // 1B*512
-    ListNode bq_node;
-    Semaphore sem;
+    struct list_node bq_node;
+    struct semaphore sem;
 };

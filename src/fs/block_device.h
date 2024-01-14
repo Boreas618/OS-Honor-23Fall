@@ -17,5 +17,7 @@ typedef struct {
     void (*write)(usize block_no, u8 *buffer);
 } BlockDevice;
 
+extern usize sb_base;
+
 void init_block_device(void);
 const SuperBlock *get_super_block(void);
