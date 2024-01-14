@@ -24,26 +24,22 @@ void syscall_entry(UserContext *context) {
                     arg0, arg1, arg2, arg3, arg4, arg5)));
 }
 
-void syscall_entry(UserContext *context) {
-    // TODO
-    // Invoke syscall_table[id] with args and set the return value.
-    // id is stored in x8. args are stored in x0-x5. return value is stored in
-    // x0.
-    u64 id = 0, ret = 0;
-    if (id < NR_SYSCALL) {
-    }
-}
-
 // check if the virtual address [start,start+size) is READABLE by the current
 // user process
 bool user_readable(const void *start, usize size) {
     // TODO
+    (void) start;
+    (void) size;
+    return 0;
 }
 
 // check if the virtual address [start,start+size) is READABLE & WRITEABLE by
 // the current user process
 bool user_writeable(const void *start, usize size) {
     // TODO
+    (void) start;
+    (void) size;
+    return 0;
 }
 
 // get the length of a string including tailing '\0' in the memory space of

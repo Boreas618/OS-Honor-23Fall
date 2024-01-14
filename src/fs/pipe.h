@@ -1,9 +1,9 @@
 #ifndef _PIPE_H
 #define _PIPE_H
-#include <common/spinlock.h>
-#include <common/defines.h>
+#include <lib/spinlock.h>
+#include <lib/defines.h>
 #include <fs/file.h>
-#include <common/sem.h>
+#include <lib/sem.h>
 #define PIPESIZE 512
 typedef struct pipe {
     SpinLock lock;

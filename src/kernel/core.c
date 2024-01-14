@@ -27,16 +27,19 @@ kernel_entry()
 {
     printk("Hello, world!\n");
     disk_init();
-    // sd_test();
-    // proc_test();
-    // vm_test();
-    // user_proc_test();
-    // pgfault_first_test();
-    // pgfault_second_test();
+    sd_test();
+    proc_test();
+    vm_test();
+    user_proc_test();
+    pgfault_first_test();
+    pgfault_second_test();
     
     do_rest_init();
 
     // TODO: map init.S to user space and trap_return to run icode
+
+    while (1)
+        yield();
 }
 
 NO_INLINE NO_RETURN void _panic(const char* file, int line) {

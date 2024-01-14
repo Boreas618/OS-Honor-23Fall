@@ -107,4 +107,9 @@ void vmmap(struct vmspace *vs, u64 va, void *ka, u64 flags) {
  */
 int copyout(struct vmspace *pd, void *va, void *p, usize len) {
     // TODO
+    (void)pd;
+    (void)va;
+    (void)p;
+    (void)len;
+    return 0;
 }

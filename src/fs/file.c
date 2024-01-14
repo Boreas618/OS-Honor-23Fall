@@ -1,9 +1,9 @@
 #include "file.h"
-#include <common/defines.h>
-#include <common/spinlock.h>
-#include <common/sem.h>
+#include <lib/defines.h>
+#include <lib/spinlock.h>
+#include <lib/sem.h>
 #include <fs/inode.h>
-#include <common/list.h>
+#include <lib/list.h>
 #include <kernel/mem.h>
 
 // the global file table.

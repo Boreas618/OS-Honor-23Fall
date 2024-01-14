@@ -1,7 +1,7 @@
 #include <kernel/mem.h>
-#include <kernel/sched.h>
+#include <proc/sched.h>
 #include <fs/pipe.h>
-#include <common/string.h>
+#include <lib/string.h>
 
 int pipeAlloc(File** f0, File** f1) {
     // TODO

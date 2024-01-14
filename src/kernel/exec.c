@@ -1,13 +1,13 @@
 #include <elf.h>
-#include <common/string.h>
-#include <common/defines.h>
+#include <lib/string.h>
+#include <lib/defines.h>
 #include <kernel/console.h>
-#include <kernel/proc.h>
-#include <kernel/sched.h>
+#include <proc/proc.h>
+#include <proc/sched.h>
 #include <kernel/syscall.h>
-#include <kernel/pt.h>
+#include <vm/pt.h>
 #include <kernel/mem.h>
-#include <kernel/paging.h>
+#include <vm/paging.h>
 #include <aarch64/trap.h>
 #include <fs/file.h>
 #include <fs/inode.h>
@@ -17,4 +17,8 @@ extern int fdalloc(struct file* f);
 
 int execve(const char *path, char *const argv[], char *const envp[]) {
 	// TODO
+	(void)path;
+	(void)argv;
+	(void)envp;
+	return 0;
 }

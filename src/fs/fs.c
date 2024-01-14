@@ -4,9 +4,9 @@
 #include <fs/fs.h>
 #include <fs/inode.h>
 #include <fs/file.h>
-#include <common/defines.h>
+#include <lib/defines.h>
 #include <kernel/init.h>
-#include <kernel/printk.h>
+#include <lib/printk.h>
 
 void init_filesystem() {
     init_block_device();
