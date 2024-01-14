@@ -42,19 +42,21 @@
 #define release_sleeplock(checker, lock)                                       \
     (post_sem(lock), checker_end_ctx(checker))
 
-struct proc;
-
-typedef struct {
+struct wait_data {
     bool up;
     struct proc *proc;
-    ListNode slnode;
-} WaitData;
+    struct list_node slnode;
+};
 
-typedef struct {
-    SpinLock lock;
+typedef struct wait_data WaitData;
+
+struct semaphore {
+    struct spinlock lock;
     int val;
-    ListNode sleeplist;
-} Semaphore;
+    struct list_node sleeplist;
+};
+
+typedef struct semaphore Semaphore;
 
 void init_sem(Semaphore *, int val);
 int get_all_sem(Semaphore *);

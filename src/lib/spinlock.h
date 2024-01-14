@@ -4,22 +4,16 @@
 #include <aarch64/intrinsic.h>
 #include <lib/checker.h>
 
-// Try to acquire a spinlock. Return true on success.
-#define try_acquire_spinlock(checker, lock) (_try_acquire_spinlock(lock) && checker_begin_ctx(checker))
-
-// Acquire a spinlock. Spin until success.
-#define acquire_spinlock(checker, lock) checker_begin_ctx_before_call(checker, _acquire_spinlock, lock)
-
-// Release a spinlock
-#define release_spinlock(checker, lock) checker_end_ctx_after_call(checker, _release_spinlock, lock)
-
-typedef struct {
+struct spinlock {
     volatile bool locked;
-} SpinLock;
+};
 
-WARN_RESULT bool _try_acquire_spinlock(SpinLock*);
-void _acquire_spinlock(SpinLock*);
-void _release_spinlock(SpinLock*);
+typedef struct spinlock SpinLock;
 
-// Init a spinlock. It's optional for static objects.
+__attribute__ ((warn_unused_result)) bool try_acquire_spinlock(SpinLock*);
+
+void acquire_spinlock(SpinLock*);
+
+void release_spinlock(SpinLock*);
+
 void init_spinlock(SpinLock*);

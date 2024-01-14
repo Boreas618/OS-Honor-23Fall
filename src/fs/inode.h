@@ -10,7 +10,7 @@
 #define ROOT_INODE_NO 1
 
 /* An inode in memory. */
-typedef struct {
+struct inode {
     /* 
      * The lock protecting the inode metadata and its content.
      * 
@@ -40,6 +40,8 @@ typedef struct {
     /* The real in-memory copy of the inode on disk. */
     InodeEntry entry; 
 } Inode;
+
+typedef struct inode Inode;
 
 /* Interface of inode layer. */
 typedef struct {

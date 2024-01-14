@@ -18,3 +18,7 @@ bool _activate_proc(struct proc*, bool onalert);
 void _sched(enum procstate new_state);
 
 WARN_RESULT struct proc* thisproc();
+
+void swtch(KernelContext *new_ctx, KernelContext **old_ctx);
+
+void trap_return();

@@ -1,13 +1,11 @@
 #include <aarch64/intrinsic.h>
-#include <lib/string.h>
 #include <kernel/mem.h>
-#include <vm/pt.h>
-#include <vm/paging.h>
 #include <lib/printk.h>
+#include <lib/string.h>
+#include <vm/paging.h>
+#include <vm/pt.h>
 
-PTEntry *
-get_pte(struct vmspace *vms, u64 va, bool alloc) 
-{
+PTEntry *get_pte(struct vmspace *vms, u64 va, bool alloc) {
     if (!vms->pgtbl && !alloc)
         return NULL;
 
@@ -28,7 +26,8 @@ get_pte(struct vmspace *vms, u64 va, bool alloc)
     while (i < 3) {
         /* The PTE is invalid. */
         if (!(pgtbl[idxs[i]] & PTE_VALID)) {
-            if (!alloc) return NULL;
+            if (!alloc)
+                return NULL;
             if (alloc) {
                 pgtbl[idxs[i]] = K2P(kalloc_page()) | flags[i];
                 memset((void *)P2K(PTE_ADDRESS(pgtbl[idxs[i]])), 0, PAGE_SIZE);
@@ -41,18 +40,14 @@ get_pte(struct vmspace *vms, u64 va, bool alloc)
     return (PTEntry *)(pgtbl + idxs[3]);
 }
 
-void 
-init_vmspace(struct vmspace *vms) 
-{ 
-    vms->pgtbl = (PTEntry*)K2P(kalloc_page()); 
-    memset((void*)P2K(vms->pgtbl), 0, PAGE_SIZE);
+void init_vmspace(struct vmspace *vms) {
+    vms->pgtbl = (PTEntry *)K2P(kalloc_page());
+    memset((void *)P2K(vms->pgtbl), 0, PAGE_SIZE);
     init_spinlock(&vms->lock);
     init_vmregions(&vms->vmregions);
 }
 
-void 
-free_pgdir(struct vmspace *vms) 
-{
+void free_vmspace(struct vmspace *vms) {
     if (vms->pgtbl == NULL)
         return;
 
@@ -95,8 +90,8 @@ void attach_vmspace(struct vmspace *vms) {
 }
 
 void vmmap(struct vmspace *vs, u64 va, void *ka, u64 flags) {
-    PTEntry* pte = get_pte(vs, va, true);
-    *pte = (PTEntry) (K2P(ka) | flags);
+    PTEntry *pte = get_pte(vs, va, true);
+    *pte = (PTEntry)(K2P(ka) | flags);
     arch_tlbi_vmalle1is();
 }
 
