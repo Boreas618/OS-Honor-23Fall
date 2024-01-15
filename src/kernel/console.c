@@ -2,6 +2,7 @@
 #include <driver/uart.h>
 #include <kernel/console.h>
 #include <kernel/init.h>
+#include <lib/cond.h>
 #include <lib/sem.h>
 #include <lib/spinlock.h>
 #include <proc/sched.h>
@@ -24,7 +25,7 @@ isize console_write(struct inode *ip, char *buf, isize n) {
     // The inode should represent a device.
     if (ip->entry.type != INODE_DEVICE)
         return -1;
-    
+
     inodes.unlock(ip);
     acquire_spinlock(&cons.lock);
     for (isize i = 0; i < n; i++)
@@ -45,69 +46,68 @@ isize console_read(struct inode *ip, char *dst, isize n) {
     inodes.unlock(ip);
     acquire_spinlock(&cons.lock);
     while (n > 0) {
+        // It is well worth discussion that if it is a good idea to use a
+        // condition variable here. After all, I am unable to imagine a
+        // situation where there are multiple consoles in this tiny kernel.
         while (cons.read_idx == cons.write_idx) {
-            if(is_killed(thisproc())){
-                release(&cons.lock);
-                inodes.lock(ip);
-                return -1;
-            }
-            if (!sleep(&cons.sem, &cons.lock)) {
-                inodes.lock(ip);
-                return -1;
-            }
+            cond_wait(&cons.sem, &cons.lock);
+            release_spinlock(&cons.lock);
         }
 
         // Read the char from the buffer.
         char c = cons.buf[cons.read_idx++ % INPUT_BUF_SIZE];
-        
-        // End-of-file
+
+        // If the char is EoF, end here. Otherwise, copy the char from the
+        // buffer to destination.
         if (c == C('D'))
             break;
-
-        dst[target-n] = c;
+        dst[target - n] = c;
         n--;
 
-        // A whole line has arrived.
+        // The console also ends reading on a new line. However, the `\n` should
+        // be read into the desination.
         if (c == '\n')
             break;
     }
-     _release_spinlock(&cons.lock);
+    _release_spinlock(&cons.lock);
     inodes.lock(ip);
-    return target-n;
+    return target - n;
 }
 
 void console_intr(char (*getc)()) {
     acquire_spinlock(&cons.lock);
     char c = getc();
-    switch(c) {
-        case C('U'):
-            while (cons.edit_idx != cons.write_idx && cons.buf[(cons.edit_idx-1) % INPUT_BUF_SIZE] != '\n') {
-                cons.edit_idx--;
-                uart_put_char('\b'); 
-                uart_put_char(' '); 
-                uart_put_char('\b');
-            }
+    switch (c) {
+    case C('U'):
+        while (cons.edit_idx != cons.write_idx &&
+               cons.buf[(cons.edit_idx - 1) % INPUT_BUF_SIZE] != '\n') {
+            cons.edit_idx--;
+            uart_put_char('\b');
+            uart_put_char(' ');
+            uart_put_char('\b');
+        }
         break;
-        case C('H'): // Backspace
-        case '\x7f': // Delete key
-            if (cons.edit_idx != cons.write_idx) {
-                cons.edit_idx--;
-                uart_put_char('\b'); 
-                uart_put_char(' '); 
-                uart_put_char('\b');
-            }
+    case C('H'): // Backspace
+    case '\x7f': // Delete key
+        if (cons.edit_idx != cons.write_idx) {
+            cons.edit_idx--;
+            uart_put_char('\b');
+            uart_put_char(' ');
+            uart_put_char('\b');
+        }
         break;
-        default:
-            if (c != NULL && cons.edit_idx - cons.read_idx < INPUT_BUF_SIZE) {
-                c = (c == '\r') ? '\n' : c;
-                // Echo back to the user.
-                uart_put_char(c);
-                cons.buf[cons.edit_idx++ % INPUT_BUF_SIZE] = c;
-                if (c == '\n' || c == C('D') || cons.edit_idx - cons.read_idx == INPUT_BUF_SIZE) {
-                    cons.write_idx = cons.edit_idx;
-                    wakeup(&cons.sem);
-                }
+    default:
+        if (c != NULL && cons.edit_idx - cons.read_idx < INPUT_BUF_SIZE) {
+            c = (c == '\r') ? '\n' : c;
+            // Echo back to the user.
+            uart_put_char(c);
+            cons.buf[cons.edit_idx++ % INPUT_BUF_SIZE] = c;
+            if (c == '\n' || c == C('D') ||
+                cons.edit_idx - cons.read_idx == INPUT_BUF_SIZE) {
+                cons.write_idx = cons.edit_idx;
+                cond_signal(&cons.sem);
             }
+        }
         break;
-  }
+    }
 }
