@@ -5,6 +5,7 @@
 #include <lib/printk.h>
 #include <proc/proc.h>
 #include <kernel/init.h>
+#include <lib/cond.h>
 
 /* The private reference to the super block. */
 static const SuperBlock *sblock;
@@ -80,36 +81,25 @@ static Block *cache_acquire(usize block_no) {
 
     // The requested block is right in the cache.
     if ((b = _fetch_cached(block_no))) {
-        // If the block is currently acquired, we wait for the lock of the block.
-        while (b->acquired) {
-            _release_spinlock(&lock);
-            unalertable_wait_sem(&b->lock);
-            _acquire_spinlock(&lock);
-            if (get_sem(&b->lock)) {
-                b->acquired = true;
-                break;
-            }
-        }
-        // If the block is not acquired, we directly take the lock.
-        if (!b->acquired) {
-            get_sem(&b->lock);
-            b->acquired = true;
-        }
+        do {
+            cond_wait(&b->lock, &lock);
+        } while (b->acquired);
+        b->acquired = true;
         boost_frequency(b);
         _release_spinlock(&lock);
         return b;
     }
 
     // Best-effort eviction.
-    (void)((blocks.size >= EVICTION_THRESHOLD) && (_evict()));
+    if (blocks.size >= EVICTION_THRESHOLD)
+        _evict();
     
     // Initialize a new block cache.
     b = (Block*) kalloc(sizeof(Block));
     init_block(b);
-    (void)(
-        _get_sem(&b->lock) &&
-        (b->acquired = true) &&  
-        (b->block_no = block_no));
+    get_sem(&b->lock);
+    b->acquired = true; 
+    b->block_no = block_no;
     
     // Push to the cache list.
     list_push_back(&blocks, &b->node);
@@ -126,7 +116,7 @@ static void cache_release(Block *block) {
     ASSERT(block->acquired);
     _acquire_spinlock(&lock);
     block->acquired = false;
-    _post_sem(&block->lock);
+    cond_signal(&block->lock);
     _release_spinlock(&lock);
 }
 
@@ -186,17 +176,8 @@ static void cache_end_op(OpContext *ctx) {
     log.contributors_cnt--;
     // If there are other contributors to the log, we wait for them to complete
     if (log.contributors_cnt > 0) {
-        // Note on Potential Concurrency Issues
-        // Here we DO NOT use unalertable_wait_sem because it is possible that
-        // the contributor A here releases log.lock and contributor B immediately
-        // grabs the lock and triggers `post_all_sem(&log.work_done);` below. 
-        // In this case, the contributor A will never wake up because contributor A
-        // triggers wait operation after contributor B triggers post_all_sem operation.
-        _lock_sem(&(log.work_done));
+        cond_wait(&log.work_done, &log.lock);
         _release_spinlock(&log.lock);
-        if (!_wait_sem(&(log.work_done), false)) {
-            PANIC();
-        };
         return;
     }
     // After all the contributors call end_op, we write the cache back to the log,
@@ -206,7 +187,7 @@ static void cache_end_op(OpContext *ctx) {
         write_log();
         write_header();
         spawn_ckpt();
-        post_all_sem(&log.work_done);
+        cond_broadcast(&log.work_done);
     }
     _release_spinlock(&log.lock);
 }

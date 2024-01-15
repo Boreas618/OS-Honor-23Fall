@@ -1,5 +1,6 @@
 #include <aarch64/intrinsic.h>
 #include <driver/sd.h>
+#include <lib/cond.h>
 
 /* Base point for super block. */
 usize sb_base = 0;
@@ -100,11 +101,16 @@ void disk_intr() {
         /* Reading has finished. */
         if (sd_wait_for_interrupt(INT_DATA_DONE))
             PANIC();
+        if (sd_wait_for_interrupt(INT_DATA_DONE))
+            PANIC();
         goto wrap_up;
     }
 
+
     if (flags & B_DIRTY) {
         /* Writing has finished. */
+        if (sd_wait_for_interrupt(INT_DATA_DONE))
+            PANIC();
         if (sd_wait_for_interrupt(INT_DATA_DONE))
             PANIC();
         goto wrap_up;
@@ -127,12 +133,18 @@ wrap_up:
 }
 
 void disk_rw(struct buf *b) {
+    // Save the old flags for comparsion.
+    int old_flags = b->flags;
     init_sem(&(b->sem), 0);
     acquire_spinlock(&disk_lock);
+
+    // Push the buf into the queue. If the queue is empty, start the disk
+    // operation.
     queue_push(&bufs, &(b->bq_node));
     if (bufs.size == 1)
         disk_start(b);
-    _lock_sem(&b->sem);
-    release_spinlock(&disk_lock);
-    ASSERT(_wait_sem(&b->sem, false));
+    // Loop until the flags has changed.
+    while (old_flags == b->flags)
+        cond_wait(&b->sem, &disk_lock);
+    _release_spinlock(&disk_lock);
 }
