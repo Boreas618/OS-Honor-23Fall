@@ -50,7 +50,7 @@ typedef struct {
     ListNode slnode;
 } WaitData;
 
-typedef struct {
+typedef struct semaphore{
     SpinLock lock;
     int val;
     ListNode sleeplist;

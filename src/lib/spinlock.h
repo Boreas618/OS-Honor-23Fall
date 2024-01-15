@@ -13,7 +13,7 @@
 // Release a spinlock
 #define release_spinlock(checker, lock) checker_end_ctx_after_call(checker, _release_spinlock, lock)
 
-typedef struct {
+typedef struct spinlock {
     volatile bool locked;
 } SpinLock;
 
