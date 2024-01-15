@@ -2,15 +2,15 @@
 
 #include <aarch64/intrinsic.h>
 #include <driver/clock.h>
+#include <driver/disk.h>
 #include <driver/gpio.h>
 #include <driver/interrupt.h>
 #include <driver/mbox.h>
-#include <driver/disk.h>
 #include <driver/uart.h>
 #include <kernel/init.h>
-#include <lib/printk.h>
 #include <lib/buf.h>
 #include <lib/defines.h>
+#include <lib/printk.h>
 #include <lib/sem.h>
 #include <lib/spinlock.h>
 #include <lib/string.h>
