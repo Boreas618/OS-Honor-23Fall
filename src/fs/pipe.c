@@ -3,18 +3,21 @@
 #include <fs/pipe.h>
 #include <lib/string.h>
 
-int pipeAlloc(File** f0, File** f1) {
+int pipe_alloc(struct file** f0, struct file** f1) {
+    struct pipe *pi;
+
+    pi = NULL;
+    *f0 = *f1 = NULL;
+}
+
+void pipe_close(struct pipe* pi, int writable) {
     // TODO
 }
 
-void pipeClose(Pipe* pi, int writable) {
+int pipe_write(struct pipe* pi, u64 addr, int n) {
     // TODO
 }
 
-int pipeWrite(Pipe* pi, u64 addr, int n) {
-    // TODO
-}
-
-int pipeRead(Pipe* pi, u64 addr, int n) {
+int pipe_rRead(struct pipe* pi, u64 addr, int n) {
     // TODO
 }
