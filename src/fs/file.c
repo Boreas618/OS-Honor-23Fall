@@ -6,7 +6,7 @@
 #include <lib/list.h>
 #include <kernel/mem.h>
 
-// the global file table.
+// The global file table.
 static struct ftable ftable;
 
 void init_ftable() {
