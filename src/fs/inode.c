@@ -445,10 +445,6 @@ InodeTree inodes = {
     .remove = inode_remove,
 };
 
-
-
-/* LabFinal */
-
 /**
     @brief read the next path element from `path` into `name`.
     

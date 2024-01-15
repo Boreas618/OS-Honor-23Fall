@@ -8,9 +8,6 @@
 #include <sys/stat.h>
 #include <lib/list.h>
 
-// maximum number of open files in the whole system.
-#define NFILE 65536  
-
 typedef struct file {
     // type of the file.
     // Note that a device file will be FD_INODE too.
