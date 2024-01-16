@@ -19,10 +19,8 @@ void init_oftable(struct oftable *oftable) {
 
 /* Allocate a file structure. */
 struct file *file_alloc() {
-    struct file *f;
-
     acquire_spinlock(&ftable.lock);
-    for (f = ftable.file; f < ftable.file + NFILE; f++) {
+    for (struct file *f = ftable.file; f < ftable.file + NFILE; f++) {
         if (f->ref == 0) {
             f->ref = 1;
             release(&ftable.lock);
@@ -100,7 +98,7 @@ isize file_read(struct file *f, char *addr, isize n) {
 
     // Handle the read of a pipe.
     if (f->type == FD_PIPE) {
-        r = pipe_read(f->pipe, addr, n);
+        r = pipe_read(f->pipe, (u64)addr, n);
     }
     // Handle the read of an inode.
     else if (f->type == FD_INODE) {
@@ -124,8 +122,7 @@ isize file_read(struct file *f, char *addr, isize n) {
 
 /* Write to file f. */
 isize file_write(struct file *f, char *addr, isize n) {
-    int r = 0;
-    int ret = 0;
+    isize r = 0;
 
     // Check if the file is writable.
     if (!f->writable)
@@ -133,7 +130,7 @@ isize file_write(struct file *f, char *addr, isize n) {
 
     // Handle the write to a pipe.
     if (f->type == FD_PIPE) {
-        r = pipe_read(f->pipe, (u64)addr, n);
+        r = (isize)pipe_read(f->pipe, (u64)addr, n);
     }
     // Handle the write to an inode.
     else {

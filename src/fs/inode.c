@@ -1,7 +1,7 @@
-#include <lib/string.h>
 #include <fs/inode.h>
 #include <kernel/mem.h>
 #include <lib/printk.h>
+#include <lib/string.h>
 #include <sys/stat.h>
 
 static const struct super_block *sblock;
@@ -30,7 +30,8 @@ static inline u32 *get_addrs(struct block *block) {
 }
 
 /* Initialize inode tree. */
-void init_inodes(const struct super_block *_sblock, const struct block_cache *_cache) {
+void init_inodes(const struct super_block *_sblock,
+                 const struct block_cache *_cache) {
     init_spinlock(&lock);
     list_init(&cached_inodes);
     sblock = _sblock;
@@ -227,7 +228,7 @@ static usize inode_map(OpContext *ctx, struct inode *inode, usize offset,
     struct dinode *entry = &inode->entry;
     ASSERT(offset < INODE_MAX_BYTES);
     usize block_no = 0;
-    u32* new_block_slot = NULL;
+    u32 *new_block_slot = NULL;
 
     // The block can be directly accessed.
     if (offset / BLOCK_SIZE < INODE_NUM_DIRECT) {
@@ -239,7 +240,8 @@ static usize inode_map(OpContext *ctx, struct inode *inode, usize offset,
     if (offset / BLOCK_SIZE >= INODE_NUM_DIRECT) {
         // The indirect block is absent.
         if (!entry->indirect) {
-            if (!ctx) return 0;
+            if (!ctx)
+                return 0;
             entry->indirect = cache->alloc(ctx);
             *modified = true;
         }
@@ -263,7 +265,8 @@ static usize inode_map(OpContext *ctx, struct inode *inode, usize offset,
     return block_no;
 }
 
-static usize inode_read(struct inode *inode, u8 *dest, usize offset, usize count) {
+static usize inode_read(struct inode *inode, u8 *dest, usize offset,
+                        usize count) {
     struct dinode *entry = &inode->entry;
     if (count + offset > entry->num_bytes)
         count = entry->num_bytes - offset;
@@ -282,8 +285,8 @@ static usize inode_read(struct inode *inode, u8 *dest, usize offset, usize count
             return 0;
 
         // Read the block.
-        struct block* b = cache->acquire(block_no);
-        u8* data = b->data;
+        struct block *b = cache->acquire(block_no);
+        u8 *data = b->data;
 
         // Find the start and the length of the data to be read.
         usize start = (cnt == 0 ? offset % BLOCK_SIZE : 0);
@@ -292,7 +295,7 @@ static usize inode_read(struct inode *inode, u8 *dest, usize offset, usize count
             length = MIN((usize)BLOCK_SIZE - start, count);
         else
             length = MIN((usize)BLOCK_SIZE, count - cnt);
-        
+
         // Copy the bytes to the destination.
         memcpy(dest + cnt, data + start, length);
         cache->release(b);
@@ -301,8 +304,8 @@ static usize inode_read(struct inode *inode, u8 *dest, usize offset, usize count
     return count;
 }
 
-static usize inode_write(OpContext *ctx, struct inode *inode, u8 *src, usize offset,
-                         usize count) {
+static usize inode_write(OpContext *ctx, struct inode *inode, u8 *src,
+                         usize offset, usize count) {
     struct dinode *entry = &inode->entry;
     usize end = offset + count;
     ASSERT(offset <= entry->num_bytes);
@@ -316,8 +319,8 @@ static usize inode_write(OpContext *ctx, struct inode *inode, u8 *src, usize off
         usize block_no = inode_map(ctx, inode, offset + cnt, &modified);
 
         // Get the block.
-        struct block* b = cache->acquire(block_no);
-        u8* data = b->data;
+        struct block *b = cache->acquire(block_no);
+        u8 *data = b->data;
 
         // Find the start and the length of the data to be read.
         usize start = (cnt == 0 ? offset % BLOCK_SIZE : 0);
@@ -326,14 +329,14 @@ static usize inode_write(OpContext *ctx, struct inode *inode, u8 *src, usize off
             length = MIN((usize)BLOCK_SIZE - start, count);
         else
             length = MIN((usize)BLOCK_SIZE, count - cnt);
-        
+
         // Copy the bytes to the destination.
         memcpy(data + start, src + cnt, length);
 
         // Record the change.
         inode->entry.num_bytes += length;
         inode_sync(ctx, inode, true);
-        
+
         cache->sync(ctx, b);
         cache->release(b);
         cnt += length;
@@ -348,7 +351,7 @@ static usize inode_lookup(struct inode *inode, const char *name, usize *index) {
     usize idx = 0;
     DirEntry de;
     while (offset < entry->num_bytes) {
-        inode_read(inode, (u8*)&de, offset, sizeof(DirEntry));
+        inode_read(inode, (u8 *)&de, offset, sizeof(DirEntry));
         if (de.inode_no && !strncmp(de.name, name, FILE_NAME_MAX_LENGTH)) {
             if (index)
                 *index = idx;
@@ -371,8 +374,8 @@ static usize inode_insert(OpContext *ctx, struct inode *inode, const char *name,
 
     DirEntry de;
     for (index = 0; index < entry->num_bytes; index += sizeof(DirEntry)) {
-        usize block_no = inode_read(inode, (u8*)&de, index, sizeof(DirEntry));
-            
+        usize block_no = inode_read(inode, (u8 *)&de, index, sizeof(DirEntry));
+
         // The block is not present.
         // Grow the size of directory inode.
         if (!block_no) {
@@ -381,16 +384,17 @@ static usize inode_insert(OpContext *ctx, struct inode *inode, const char *name,
             bool modified;
             block_no = inode_map(&ctx, inode, index, &modified);
             cache->end_op(&ctx);
-            inode_read(inode, (u8*)&de, index, sizeof(DirEntry));
+            inode_read(inode, (u8 *)&de, index, sizeof(DirEntry));
         }
 
-        if (de.inode_no == 0) break;
+        if (de.inode_no == 0)
+            break;
     }
 
     // Write the directory entry.
     memcpy(de.name, name, FILE_NAME_MAX_LENGTH);
     de.inode_no = inode_no;
-    inode_write(ctx, inode, (u8*)&de, index, sizeof(DirEntry));
+    inode_write(ctx, inode, (u8 *)&de, index, sizeof(DirEntry));
 
     return 0;
 }
@@ -398,20 +402,20 @@ static usize inode_insert(OpContext *ctx, struct inode *inode, const char *name,
 static void inode_remove(OpContext *ctx, struct inode *inode, usize index) {
     u8 zeros[sizeof(DirEntry)];
     memset(zeros, 0, sizeof(DirEntry));
-    inode_write(ctx, inode, (u8*)zeros, index, sizeof(DirEntry));
+    inode_write(ctx, inode, (u8 *)zeros, index, sizeof(DirEntry));
     inode->entry.num_bytes -= sizeof(DirEntry);
 
     // If the last entry is removed, shrink the size of directory inode.
     usize block_no = inode_map(NULL, inode, index, NULL);
     usize block_idx = 0;
-    u32* addr_entry;
+    u32 *addr_entry;
     for (int i = 0; i < INODE_NUM_DIRECT; i++)
         if (inode->entry.addrs[i] == block_no) {
             block_idx = i;
             addr_entry = &inode->entry.addrs[i];
         }
-    
-    struct block* ib = cache->acquire(block_no);
+
+    struct block *ib = cache->acquire(block_no);
     u32 *addrs = get_addrs(ib);
 
     for (usize i = 0; i < INODE_NUM_INDIRECT; i++)
@@ -419,13 +423,15 @@ static void inode_remove(OpContext *ctx, struct inode *inode, usize index) {
             block_idx = INODE_NUM_DIRECT + i;
             addr_entry = &inode->entry.addrs[i];
         }
-    
+
     cache->release(ib);
 
     for (int i = 0; i < BLOCK_SIZE; i += sizeof(DirEntry)) {
         DirEntry de;
-        inode_read(inode, (u8*)&de, block_idx * BLOCK_SIZE + i, sizeof(DirEntry));
-        if (de.inode_no != 0 || de.name[0] != 0) return;
+        inode_read(inode, (u8 *)&de, block_idx * BLOCK_SIZE + i,
+                   sizeof(DirEntry));
+        if (de.inode_no != 0 || de.name[0] != 0)
+            return;
     }
 
     *addr_entry = 0;
@@ -449,21 +455,20 @@ struct inode_tree inodes = {
 };
 
 /**
-    @brief read the next path element from `path` into `name`.
-    
-    @param[out] name next path element.
-
-    @return const char* a pointer offseted in `path`, without leading `/`. If no
-    name to remove, return NULL.
-
-    @example 
-    skipelem("a/bb/c", name) = "bb/c", setting name = "a",
-    skipelem("///a//bb", name) = "bb", setting name = "a",
-    skipelem("a", name) = "", setting name = "a",
-    skipelem("", name) = skipelem("////", name) = NULL, not setting name.
+ * Read the next path element from `path` into `name`.
+ *
+ * @name: next path element.
+ * @return const char* a pointer offseted in `path`, without leading `/`. If no
+ * name to remove, return NULL.
+ *
+ * @example
+ * skipelem("a/bb/c", name) = "bb/c", setting name = "a",
+ * skipelem("///a//bb", name) = "bb", setting name = "a",
+ * skipelem("a", name) = "", setting name = "a",
+ * skipelem("", name) = skipelem("////", name) = NULL, not setting name.
  */
-static const char* skipelem(const char* path, char* name) {
-    const char* s;
+static const char *skipelem(const char *path, char *name) {
+    const char *s;
     int len;
 
     while (*path == '/')
@@ -486,62 +491,91 @@ static const char* skipelem(const char* path, char* name) {
 }
 
 /**
-    @brief look up and return the inode for `path`.
-
-    If `nameiparent`, return the inode for the parent and copy the final
-    path element into `name`.
-    
-    @param path a relative or absolute path. If `path` is relative, it is
-    relative to the current working directory of the process.
-
-    @param[out] name the final path element if `nameiparent` is true.
-
-    @return Inode* the inode for `path` (or its parent if `nameiparent` is true), 
-    or NULL if such inode does not exist.
-
-    @example
-    namex("/a/b", false, name) = inode of b,
-    namex("/a/b", true, name) = inode of a, setting name = "b",
-    namex("/", true, name) = NULL (because "/" has no parent!)
+ * Look up and return the inode for `path`.
+ *
+ * If `nameiparent`, return the inode for the parent and copy the final
+ * path element into `name`.
+ *
+ * @param path a relative or absolute path. If `path` is relative, it is
+ * relative to the current working directory of the process.
+ * @param[out] name the final path element if `nameiparent` is true.
+ * @return Inode* the inode for `path` (or its parent if `nameiparent` is true),
+ * or NULL if such inode does not exist.
+ *
+ * @example
+ * namex("/a/b", false, name) = inode of b,
+ * namex("/a/b", true, name) = inode of a, setting name = "b",
+ * namex("/", true, name) = NULL (because "/" has no parent!)
  */
-static struct inode* namex(const char* path,
-                    bool nameiparent,
-                    char* name,
-                    OpContext* ctx) {
-    /* TODO: LabFinal */
-    return 0;
+static struct inode *namex(const char *path, bool nameiparent, char *name,
+                           OpContext *ctx) {
+    struct inode *ip;
+    struct inode *next;
+
+    if (*path == '/')
+        ip = inodes.share(inodes.root);
+    else
+        ip = inodes.share(thisproc()->cwd);
+    
+    while (path = skipelem(path, name)) {
+        inodes.lock(ip);
+        if (ip->type != INODE_DIRECTORY) {
+            inodes.unlock(ip);
+            inodes.put(ctx, ip);
+            return ip;
+        }
+        if (nameiparent && *path == '\0') {
+            inodes.unlock(ip);
+            return ip;
+        }
+        if (!(next = inodes.get(inodes.lookup(ip, name, 0)))) {
+            inodes.unlock(ip);
+            inodes.put(ip);
+            return NULL;
+        }
+        inodes.unlock(ip);
+        inodes.put(ip);
+        ip = next;
+    }
+
+    if (nameiparent) {
+        inodes.put(ip);
+        return NULL;
+    }
+    
+    return ip;
 }
 
-struct inode* namei(const char* path, OpContext* ctx) {
+struct inode *namei(const char *path, OpContext *ctx) {
     char name[FILE_NAME_MAX_LENGTH];
     return namex(path, false, name, ctx);
 }
 
-struct inode* nameiparent(const char* path, char* name, OpContext* ctx) {
+struct inode *nameiparent(const char *path, char *name, OpContext *ctx) {
     return namex(path, true, name, ctx);
 }
 
 /**
-    @brief get the stat information of `ip` into `st`.
-    
-    @note the caller must hold the lock of `ip`.
+ * Get the stat information of `ip` into `st`.
+ * 
+ * The caller must hold the lock of `ip`.
  */
-void stati(struct inode* ip, struct stat* st) {
+void stati(struct inode *ip, struct stat *st) {
     st->st_dev = 1;
     st->st_ino = ip->inode_no;
     st->st_nlink = ip->entry.num_links;
     st->st_size = ip->entry.num_bytes;
     switch (ip->entry.type) {
-        case INODE_REGULAR:
-            st->st_mode = S_IFREG;
-            break;
-        case INODE_DIRECTORY:
-            st->st_mode = S_IFDIR;
-            break;
-        case INODE_DEVICE:
-            st->st_mode = 0;
-            break;
-        default:
-            PANIC();
+    case INODE_REGULAR:
+        st->st_mode = S_IFREG;
+        break;
+    case INODE_DIRECTORY:
+        st->st_mode = S_IFDIR;
+        break;
+    case INODE_DEVICE:
+        st->st_mode = 0;
+        break;
+    default:
+        PANIC();
     }
 }
