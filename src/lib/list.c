@@ -88,7 +88,7 @@ queue_init(Queue* x)
 void 
 queue_lock(Queue* x) 
 {
-    _acquire_spinlock(&x->lock);
+    acquire_spinlock(&x->lock);
 }
 
 void 
@@ -150,7 +150,7 @@ list_init(List* l)
 void 
 list_lock(List* l) 
 {
-    _acquire_spinlock(&l->lock);
+    acquire_spinlock(&l->lock);
 }
 
 void 

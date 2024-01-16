@@ -35,10 +35,10 @@
 #define INODE_REGULAR 2 // Regular file
 #define INODE_DEVICE 3
 #define ROOT_INODE_NO 1
-#define FILE_NAME_MAX_LENGTH                                                   \
-    14 // The maximum length of file names, including trailing '\0'.
+#define FILE_NAME_MAX_LENGTH 14
 #define FSSIZE 1000 // Size of file system in blocks
 #define NFILE 65536 // Maximum number of open files in the whole system.
+#define NOFILE 1024 // Maximum number of open files of a process.
 
 struct super_block {
     u32 num_blocks; // total number of blocks in filesystem.
@@ -48,26 +48,6 @@ struct super_block {
     u32 log_start;      // the first block of logging area.
     u32 inode_start;    // the first block of inode area.
     u32 bitmap_start;   // the first block of bitmap area.
-};
-
-struct dinode {
-    InodeType type; // `type == INODE_INVALID` implies this inode is free.
-    u16 major;      // major device id, for INODE_DEVICE only.
-    u16 minor;      // minor device id, for INODE_DEVICE only.
-    u16 num_links;  // number of hard links to this inode in the filesystem.
-    u32 num_bytes;  // number of bytes in the file, i.e. the size of file.
-    u32 addrs[INODE_NUM_DIRECT]; // direct addresses/block numbers.
-    u32 indirect;                // the indirect address block.
-};
-
-struct indirect_block {
-    u32 addrs[INODE_NUM_INDIRECT];
-};
-
-/* Directory entry. `inode_no == 0` implies this entry is free. */
-struct dirent {
-    u16 inode_no;
-    char name[FILE_NAME_MAX_LENGTH];
 };
 
 struct log_header {

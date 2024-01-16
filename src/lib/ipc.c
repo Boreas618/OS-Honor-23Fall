@@ -76,7 +76,7 @@ int
 sys_msgget(int key, int msgflg) 
 {
     int ret;
-    _acquire_spinlock(&msg_ids.lock);
+    acquire_spinlock(&msg_ids.lock);
     if (key == IPC_PRIVATE)
         ret = newque(key);
     else {
@@ -193,7 +193,7 @@ sys_msgsnd(int msgid, msgbuf *msgp, int msgsz, int msgflg)
     msg->mtype = msgp->mtype;
     msg->size = msgsz;
 retry:
-    _acquire_spinlock(&msg_ids.lock);
+    acquire_spinlock(&msg_ids.lock);
     msg_queue *msgq = get_msgq(msgid);
     if (msgq == NULL) {
         err = EIDRM;
@@ -256,7 +256,7 @@ sys_msgrcv(int msgid, msgbuf *msgp, int msgsz, int mtype, int msgflg)
     int err = EINVAL;
     if (msgsz < 0 || msgp == NULL)
         return EINVAL;
-    _acquire_spinlock(&msg_ids.lock);
+    acquire_spinlock(&msg_ids.lock);
     msg_queue *msgq = get_msgq(msgid);
     if (msgq == NULL) {
         err = EIDRM;
@@ -323,7 +323,7 @@ expunge_all(msg_queue *que)
 static void 
 freeque(int id) 
 {
-    _acquire_spinlock(&msg_ids.lock);
+    acquire_spinlock(&msg_ids.lock);
     msg_queue *msgq = get_msgq(id);
     if (msgq != NULL) {
         msg_ids.entries[id % SEQ_MULTIPLIER] = NULL;

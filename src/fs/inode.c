@@ -4,33 +4,33 @@
 #include <lib/printk.h>
 #include <sys/stat.h>
 
-static const SuperBlock *sblock;
+static const struct super_block *sblock;
 
-static const BlockCache *cache;
+static const struct block_cache *cache;
 
 /* Global lock for inode layer. */
-static SpinLock lock;
+static struct spinLock lock;
 
 /* The list of all allocated in-memory inodes. */
-static List cached_inodes;
+static struct list cached_inodes;
 
 /* Return which block `inode_no` lives on. */
-static INLINE usize to_block_no(usize inode_no) {
+static inline usize to_block_no(usize inode_no) {
     return sblock->inode_start + (inode_no / (INODE_PER_BLOCK));
 }
 
 /* Return the pointer to on-disk inode. */
-static INLINE InodeEntry *get_entry(Block *block, usize inode_no) {
-    return ((InodeEntry *)block->data) + (inode_no % INODE_PER_BLOCK);
+static inline struct dinode *get_entry(struct block *block, usize inode_no) {
+    return ((struct dinode *)block->data) + (inode_no % INODE_PER_BLOCK);
 }
 
 /* Return address array in indirect block. */
-static INLINE u32 *get_addrs(Block *block) {
-    return ((IndirectBlock *)block->data)->addrs;
+static inline u32 *get_addrs(struct block *block) {
+    return ((struct indirect_block *)block->data)->addrs;
 }
 
 /* Initialize inode tree. */
-void init_inodes(const SuperBlock *_sblock, const BlockCache *_cache) {
+void init_inodes(const struct super_block *_sblock, const struct block_cache *_cache) {
     init_spinlock(&lock);
     list_init(&cached_inodes);
     sblock = _sblock;
@@ -42,8 +42,7 @@ void init_inodes(const SuperBlock *_sblock, const BlockCache *_cache) {
         printk("(warn) init_inodes: no root inode.\n");
 }
 
-/* Initialize in-memory inode. */
-static void init_inode(Inode *inode) {
+static void init_inode(struct inode *inode) {
     init_sleeplock(&inode->lock);
     init_rc(&inode->rc);
     init_list_node(&inode->node);
@@ -53,13 +52,14 @@ static void init_inode(Inode *inode) {
 
 static usize inode_alloc(OpContext *ctx, InodeType type) {
     ASSERT(type != INODE_INVALID);
+
     usize inode_no = 1;
     while (inode_no < sblock->num_inodes) {
         usize block_no = to_block_no(inode_no);
-        Block *b = cache->acquire(block_no);
-        InodeEntry *ie = get_entry(b, inode_no);
+        struct block *b = cache->acquire(block_no);
+        struct dinode *ie = get_entry(b, inode_no);
         if (ie->type == INODE_INVALID) {
-            memset(ie, 0, sizeof(InodeEntry));
+            memset(ie, 0, sizeof(struct dinode));
             ie->type = type;
             cache->sync(ctx, b);
             cache->release(b);
@@ -72,35 +72,38 @@ static usize inode_alloc(OpContext *ctx, InodeType type) {
     return 0;
 }
 
-static void inode_lock(Inode *inode) {
+static void inode_lock(struct inode *inode) {
     ASSERT(inode->rc.count > 0);
     unalertable_wait_sem(&inode->lock);
 }
 
-static void inode_unlock(Inode *inode) {
+static void inode_unlock(struct inode *inode) {
     ASSERT(inode->rc.count > 0);
     post_sem(&inode->lock);
 }
 
-static void inode_sync(OpContext *ctx, Inode *inode, bool do_write) {
+static void inode_sync(OpContext *ctx, struct inode *inode, bool do_write) {
     usize block_no = to_block_no(inode->inode_no);
-    Block *b = cache->acquire(block_no);
+    struct block *b = cache->acquire(block_no);
+
     // Writing operations are performed directly on the in-memory inodes.
     // To ensure data consistency with the external storage device, the process
     // involves two steps: first, copying the modified inode data to the cache,
     // and then synchronizing this cache with the storage device.
     if (do_write && inode->valid) {
-        InodeEntry *ie = get_entry(b, inode->inode_no);
-        memcpy(ie, &inode->entry, sizeof(InodeEntry));
+        struct dinode *ie = get_entry(b, inode->inode_no);
+        memcpy(ie, &inode->entry, sizeof(struct dinode));
         cache->sync(ctx, b);
     }
+
     if (!do_write && !inode->valid) {
-        InodeEntry *ie = get_entry(b, inode->inode_no);
+        struct dinode *ie = get_entry(b, inode->inode_no);
         // We don't need to grab the lock for inode here.
         // The lock has been grabbed by the caller of this function.
-        memcpy(&(inode->entry), ie, sizeof(InodeEntry));
+        memcpy(&(inode->entry), ie, sizeof(struct dinode));
         inode->valid = true;
     }
+
     if (do_write && !inode->valid) {
         cache->release(b);
         PANIC();
@@ -108,12 +111,12 @@ static void inode_sync(OpContext *ctx, Inode *inode, bool do_write) {
     cache->release(b);
 }
 
-static Inode *inode_get(usize inode_no) {
+static struct inode *inode_get(usize inode_no) {
     ASSERT(inode_no > 0);
     ASSERT(inode_no < sblock->num_inodes);
     list_lock(&cached_inodes);
     list_forall(p, cached_inodes) {
-        Inode *i = container_of(p, Inode, node);
+        struct inode *i = container_of(p, struct inode, node);
         if (i->inode_no == inode_no) {
             increment_rc(&i->rc);
             list_unlock(&cached_inodes);
@@ -125,7 +128,7 @@ static Inode *inode_get(usize inode_no) {
     // has been allocated, we can load the inode from the disk.
 
     // Allocate a inode instance in the memory and initialize it.
-    Inode *new_inode = (Inode *)kalloc(sizeof(Inode));
+    struct inode *new_inode = (struct inode *)kalloc(sizeof(struct inode));
     init_inode(new_inode);
     new_inode->inode_no = inode_no;
 
@@ -144,17 +147,19 @@ static Inode *inode_get(usize inode_no) {
     return new_inode;
 }
 
-static void inode_clear(OpContext *ctx, Inode *inode) {
-    InodeEntry *ie = &inode->entry;
+static void inode_clear(OpContext *ctx, struct inode *inode) {
+    struct dinode *ie = &inode->entry;
+
     // Free the direct blocks.
     for (int i = 0; i < INODE_NUM_DIRECT; i++) {
         u32 block_no = ie->addrs[i];
         if (block_no)
             cache->free(ctx, block_no);
     }
+
     // Free the indirect blocks.
     if (ie->indirect) {
-        Block *indirect = cache->acquire(ie->indirect);
+        struct block *indirect = cache->acquire(ie->indirect);
         u32 *indir_addrs = get_addrs(indirect);
         for (usize i = 0; i < INODE_NUM_INDIRECT; i++) {
             u32 block_no = indir_addrs[i];
@@ -164,6 +169,7 @@ static void inode_clear(OpContext *ctx, Inode *inode) {
         cache->release(indirect);
         cache->free(ctx, ie->indirect);
     }
+
     // Reset the metadata.
     inode->entry.indirect = NULL;
     memset((void *)inode->entry.addrs, 0, sizeof(u32) * INODE_NUM_DIRECT);
@@ -171,13 +177,14 @@ static void inode_clear(OpContext *ctx, Inode *inode) {
     inode_sync(ctx, inode, true);
 }
 
-static Inode *inode_share(Inode *inode) {
+static struct inode *inode_share(struct inode *inode) {
     increment_rc(&inode->rc);
     return inode;
 }
 
-static void inode_put(OpContext *ctx, Inode *inode) {
+static void inode_put(OpContext *ctx, struct inode *inode) {
     list_lock(&cached_inodes);
+
     // Free the inode if no one needs it
     if (inode->rc.count == 1 && inode->entry.num_links == 0) {
         inode_lock(inode);
@@ -215,9 +222,9 @@ static void inode_put(OpContext *ctx, Inode *inode) {
  *
  * Note that the caller must hold the lock of `inode`.
  */
-static usize inode_map(OpContext *ctx, Inode *inode, usize offset,
+static usize inode_map(OpContext *ctx, struct inode *inode, usize offset,
                        bool *modified) {
-    InodeEntry *entry = &inode->entry;
+    struct dinode *entry = &inode->entry;
     ASSERT(offset < INODE_MAX_BYTES);
     usize block_no = 0;
     u32* new_block_slot = NULL;
@@ -241,7 +248,7 @@ static usize inode_map(OpContext *ctx, Inode *inode, usize offset,
         usize idx = offset / BLOCK_SIZE - INODE_NUM_DIRECT;
 
         // Get the block number from the indirect block.
-        Block *indirect_b = cache->acquire(entry->indirect);
+        struct block *indirect_b = cache->acquire(entry->indirect);
         block_no = get_addrs(indirect_b)[idx];
         new_block_slot = get_addrs(indirect_b) + idx;
         cache->release(indirect_b);
@@ -256,8 +263,8 @@ static usize inode_map(OpContext *ctx, Inode *inode, usize offset,
     return block_no;
 }
 
-static usize inode_read(Inode *inode, u8 *dest, usize offset, usize count) {
-    InodeEntry *entry = &inode->entry;
+static usize inode_read(struct inode *inode, u8 *dest, usize offset, usize count) {
+    struct dinode *entry = &inode->entry;
     if (count + offset > entry->num_bytes)
         count = entry->num_bytes - offset;
     usize end = offset + count;
@@ -275,13 +282,11 @@ static usize inode_read(Inode *inode, u8 *dest, usize offset, usize count) {
             return 0;
 
         // Read the block.
-        Block* b = cache->acquire(block_no);
+        struct block* b = cache->acquire(block_no);
         u8* data = b->data;
 
-        // Find the start of the data.
+        // Find the start and the length of the data to be read.
         usize start = (cnt == 0 ? offset % BLOCK_SIZE : 0);
-
-        // Find the length of the data to be read.
         usize length = 0;
         if (cnt == 0)
             length = MIN((usize)BLOCK_SIZE - start, count);
@@ -296,9 +301,9 @@ static usize inode_read(Inode *inode, u8 *dest, usize offset, usize count) {
     return count;
 }
 
-static usize inode_write(OpContext *ctx, Inode *inode, u8 *src, usize offset,
+static usize inode_write(OpContext *ctx, struct inode *inode, u8 *src, usize offset,
                          usize count) {
-    InodeEntry *entry = &inode->entry;
+    struct dinode *entry = &inode->entry;
     usize end = offset + count;
     ASSERT(offset <= entry->num_bytes);
     ASSERT(end <= INODE_MAX_BYTES);
@@ -311,13 +316,11 @@ static usize inode_write(OpContext *ctx, Inode *inode, u8 *src, usize offset,
         usize block_no = inode_map(ctx, inode, offset + cnt, &modified);
 
         // Get the block.
-        Block* b = cache->acquire(block_no);
+        struct block* b = cache->acquire(block_no);
         u8* data = b->data;
 
-        // Find the start of the data.
+        // Find the start and the length of the data to be read.
         usize start = (cnt == 0 ? offset % BLOCK_SIZE : 0);
-
-        // Find the length of the data to be read.
         usize length = 0;
         if (cnt == 0)
             length = MIN((usize)BLOCK_SIZE - start, count);
@@ -338,8 +341,8 @@ static usize inode_write(OpContext *ctx, Inode *inode, u8 *src, usize offset,
     return count;
 }
 
-static usize inode_lookup(Inode *inode, const char *name, usize *index) {
-    InodeEntry *entry = &inode->entry;
+static usize inode_lookup(struct inode *inode, const char *name, usize *index) {
+    struct dinode *entry = &inode->entry;
     ASSERT(entry->type == INODE_DIRECTORY);
     usize offset = 0;
     usize idx = 0;
@@ -357,9 +360,9 @@ static usize inode_lookup(Inode *inode, const char *name, usize *index) {
     return 0;
 }
 
-static usize inode_insert(OpContext *ctx, Inode *inode, const char *name,
+static usize inode_insert(OpContext *ctx, struct inode *inode, const char *name,
                           usize inode_no) {
-    InodeEntry *entry = &inode->entry;
+    struct dinode *entry = &inode->entry;
     ASSERT(entry->type == INODE_DIRECTORY);
 
     usize index = 0;
@@ -392,7 +395,7 @@ static usize inode_insert(OpContext *ctx, Inode *inode, const char *name,
     return 0;
 }
 
-static void inode_remove(OpContext *ctx, Inode *inode, usize index) {
+static void inode_remove(OpContext *ctx, struct inode *inode, usize index) {
     u8 zeros[sizeof(DirEntry)];
     memset(zeros, 0, sizeof(DirEntry));
     inode_write(ctx, inode, (u8*)zeros, index, sizeof(DirEntry));
@@ -408,7 +411,7 @@ static void inode_remove(OpContext *ctx, Inode *inode, usize index) {
             addr_entry = &inode->entry.addrs[i];
         }
     
-    Block* ib = cache->acquire(block_no);
+    struct block* ib = cache->acquire(block_no);
     u32 *addrs = get_addrs(ib);
 
     for (usize i = 0; i < INODE_NUM_INDIRECT; i++)
@@ -429,7 +432,7 @@ static void inode_remove(OpContext *ctx, Inode *inode, usize index) {
     cache->free(ctx, block_no);
 }
 
-InodeTree inodes = {
+struct inode_tree inodes = {
     .alloc = inode_alloc,
     .lock = inode_lock,
     .unlock = inode_unlock,
@@ -501,7 +504,7 @@ static const char* skipelem(const char* path, char* name) {
     namex("/a/b", true, name) = inode of a, setting name = "b",
     namex("/", true, name) = NULL (because "/" has no parent!)
  */
-static Inode* namex(const char* path,
+static struct inode* namex(const char* path,
                     bool nameiparent,
                     char* name,
                     OpContext* ctx) {
@@ -509,12 +512,12 @@ static Inode* namex(const char* path,
     return 0;
 }
 
-Inode* namei(const char* path, OpContext* ctx) {
+struct inode* namei(const char* path, OpContext* ctx) {
     char name[FILE_NAME_MAX_LENGTH];
     return namex(path, false, name, ctx);
 }
 
-Inode* nameiparent(const char* path, char* name, OpContext* ctx) {
+struct inode* nameiparent(const char* path, char* name, OpContext* ctx) {
     return namex(path, true, name, ctx);
 }
 
@@ -523,7 +526,7 @@ Inode* nameiparent(const char* path, char* name, OpContext* ctx) {
     
     @note the caller must hold the lock of `ip`.
  */
-void stati(Inode* ip, struct stat* st) {
+void stati(struct inode* ip, struct stat* st) {
     st->st_dev = 1;
     st->st_ino = ip->inode_no;
     st->st_nlink = ip->entry.num_links;

@@ -77,7 +77,7 @@ static usize get_num_cached_blocks() {
 
 static Block *cache_acquire(usize block_no) {
     Block *b = NULL;
-    _acquire_spinlock(&lock);
+    acquire_spinlock(&lock);
 
     // The requested block is right in the cache.
     if ((b = _fetch_cached(block_no))) {
@@ -94,27 +94,25 @@ static Block *cache_acquire(usize block_no) {
     if (blocks.size >= EVICTION_THRESHOLD)
         _evict();
     
-    // Initialize a new block cache.
+    // Initialize a new block cache and push it to the cache list.
     b = (Block*) kalloc(sizeof(Block));
     init_block(b);
     get_sem(&b->lock);
     b->acquired = true; 
     b->block_no = block_no;
-    
-    // Push to the cache list.
     list_push_back(&blocks, &b->node);
 
-    // Load from disk.
+    // Load the content of the block from disk.
     device_read(b);
     b->valid = true;
     boost_frequency(b);
-    _release_spinlock(&lock);
+    release_spinlock(&lock);
     return b;
 }
 
 static void cache_release(Block *block) {
     ASSERT(block->acquired);
-    _acquire_spinlock(&lock);
+    acquire_spinlock(&lock);
     block->acquired = false;
     cond_signal(&block->lock);
     _release_spinlock(&lock);
@@ -136,7 +134,7 @@ void init_bcache(const SuperBlock *_sblock, const BlockDevice *_device) {
 }
 
 static void cache_begin_op(OpContext *ctx) {
-    _acquire_spinlock(&log.lock);
+    acquire_spinlock(&log.lock);
     log.contributors_cnt++;
     ctx->rm = OP_MAX_NUM_BLOCKS;
     _release_spinlock(&log.lock);
@@ -150,7 +148,7 @@ static void cache_sync(OpContext *ctx, Block *block) {
 
     // Detect if this block has a place in the log section
     // If so, we are free to go.
-    _acquire_spinlock(&log.lock);
+    acquire_spinlock(&log.lock);
     for (usize i =0; i < header.num_blocks; i++) {
         if (header.block_no[i] == block->block_no) {
             _release_spinlock(&log.lock);
@@ -172,7 +170,7 @@ static void cache_sync(OpContext *ctx, Block *block) {
 
 static void cache_end_op(OpContext *ctx) {
     (void)ctx;
-    _acquire_spinlock(&log.lock);
+    acquire_spinlock(&log.lock);
     log.contributors_cnt--;
     // If there are other contributors to the log, we wait for them to complete
     if (log.contributors_cnt > 0) {

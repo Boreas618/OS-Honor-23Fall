@@ -64,7 +64,7 @@ void init_spinlock(struct SpinLock* lock, const char* name [[maybe_unused]]) {
     mtx_map.try_add(lock);
 }
 
-void _acquire_spinlock(struct SpinLock* lock) {
+void acquire_spinlock(struct SpinLock* lock) {
     if (holding++ == 0)
         blocker.p();
     mtx_map[lock].lock();
@@ -89,7 +89,7 @@ void init_sem(Semaphore* x, int val) {
     sb(x) = val;
 }
 void _lock_sem(Semaphore* x) {
-    _acquire_spinlock((SpinLock*)x);
+    acquire_spinlock((SpinLock*)x);
 }
 void _unlock_sem(Semaphore* x) {
     _release_spinlock((SpinLock*)x);

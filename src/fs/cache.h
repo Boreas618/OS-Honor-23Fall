@@ -19,7 +19,7 @@
  * 
  * You can add any member to this struct as you want.
  */
-typedef struct {
+typedef struct block {
     /*
      * The corresponding block number on disk.
      *
@@ -119,7 +119,7 @@ typedef struct {
  * bcache->end_op(&ctx);
  * ```
  */
-typedef struct {
+typedef struct block_cache {
     /*
      * Return the number of cached blocks at this moment.
      * 

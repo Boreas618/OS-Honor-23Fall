@@ -20,11 +20,11 @@
  */
 struct file {
     enum { FD_NONE, FD_PIPE, FD_INODE } type;
-    struct ref_count ref;
+    int ref;
     bool readable, writable;
     union {
         struct pipe *pipe;
-        Inode *ip;
+        struct inode *ip;
     };
     usize off;
 };
@@ -37,30 +37,13 @@ struct ftable {
 };
 
 struct oftable {
-    struct file file[NFILE];
+    struct file ofiles[NOFILE];
 };
 
-/* Initialize the global file table. */
 void init_ftable();
-
-/* Initialize the opened file table for a process. */
 void init_oftable(struct oftable *);
-
-/* Find an unused (i.e. ref == 0) file in ftable and set ref to 1. */
 struct file *file_alloc();
-
-/* Duplicate a file object by increasing its reference count. */
 struct file *file_dup(struct file *f);
-
-/**
- * Decrease the reference count of a file object.
- *
- * If f->ref == 0, really close the file and put the inode (or close the pipe).
- *
- * Since `cache.end_op` may sleep, you should not hold any lock (I mean,
- * the lock for `ftable`) when calling `end_op`! Before you put the inode,
- * release the lock first.
- */
 void file_close(struct file *f);
 
 /** 

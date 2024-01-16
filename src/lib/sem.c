@@ -57,7 +57,7 @@ post_all_sem(Semaphore* sem)
 void 
 _lock_sem(Semaphore* sem)
 {
-    _acquire_spinlock(&sem->lock);
+    acquire_spinlock(&sem->lock);
 }
 
 void 
@@ -80,7 +80,7 @@ _wait_sem(Semaphore* sem, bool alertable)
     _sched(RUNNABLE);
     _release_spinlock(&sem->lock);
     _sched(alertable ? SLEEPING : DEEPSLEEPING);
-    _acquire_spinlock(&sem->lock);
+    acquire_spinlock(&sem->lock);
     if (!wait->up) {
         ASSERT(++sem->val <= 0);
         _detach_from_list(&wait->slnode);

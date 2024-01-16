@@ -346,7 +346,7 @@ rbtree_init(RBTree *rbtree)
     rbtree->root = &rbtree->_root;
 }
 
-inline void rbtree_lock(RBTree *rbtree) { _acquire_spinlock(&rbtree->rblock); }
+inline void rbtree_lock(RBTree *rbtree) { acquire_spinlock(&rbtree->rblock); }
 
 inline void 
 rbtree_unlock(RBTree *rbtree) 
