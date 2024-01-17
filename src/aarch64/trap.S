@@ -19,21 +19,27 @@ trap_entry:
     pushp(x5, x6)
     pushp(x3, x4)
     pushp(x1, x2)
-    mrs x1, sp_el0
-    pushp(x1, x0)
-    mrs x1, spsr_el1
+    pushp(x0, x0)
     mrs x0, elr_el1
-    pushp(x1, x0)
+    mrs x1, sp_el0
+    pushp(x0, x1)
+    mrs x0, tpidr_el0
+    mrs x1, spsr_el1
+    pushp(x0, x1)
+    str q0, [sp, #-0x10]!
     mov x0, sp
     bl trap_global_handler
 
 .global trap_return
 trap_return:
-    popp(x1, x0)
-    msr elr_el1, x0
+    ldr q0, [sp], #0x10
+    popp(x0, x1)
+    msr tpidr_el0, x0
     msr spsr_el1, x1
-    popp(x1, x0)
+    popp(x0, x1)
+    msr elr_el1, x0
     msr sp_el0, x1
+    popp(x0, x0)
     popp(x1, x2)
     popp(x3, x4)
     popp(x5, x6)

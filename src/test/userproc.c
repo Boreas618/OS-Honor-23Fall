@@ -66,12 +66,13 @@ void user_proc_test() {
     int pids[NPROC];
     for (int i = 0; i < NPROC; i++) {
         auto p = create_proc();
+        init_proc(p, false, NULL);
         for (u64 q = (u64)loop_start; q < (u64)loop_end; q += PAGE_SIZE) {
             *get_pte(&p->vmspace, 0x400000 + q - (u64)loop_start, true) =
                 K2P(q) | PTE_USER_DATA;
         }
         ASSERT(p->vmspace.pgtbl);
-        p->ucontext->gregs[0] = i;
+        p->ucontext->regs[0] = i;
         p->ucontext->elr = 0x400000;
         p->ucontext->spsr = 0;
         pids[i] = start_proc(p, trap_return, 0);
