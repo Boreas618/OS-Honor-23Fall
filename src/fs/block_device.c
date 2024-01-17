@@ -43,15 +43,18 @@ void init_block_device() {
     block_device.read = sd_read;
     block_device.write = sd_write;
 
-    block_device.read(1, (u8 *)sblock_data);
-    const SuperBlock* sb = get_super_block();
-	printk("num_blocks: %d\n",sb->num_blocks);
-	printk("num_data_blocks: %d\n", sb->num_data_blocks);
-	printk("num_inodes: %d\n", sb->num_inodes);
-	printk("num_log_blocks: %d\n", sb->num_log_blocks);
-	printk("log_start: %d\n", sb->log_start);
-	printk("inode_start: %d\n", sb->inode_start);
-	printk("bitmap_start: %d\n", sb->bitmap_start);
+    block_device.read(0, (u8 *)sblock_data);
+    
+    #ifdef SB_DEBUG
+        const SuperBlock* sb = get_super_block();
+	    printk("num_blocks: %d\n",sb->num_blocks);
+	    printk("num_data_blocks: %d\n", sb->num_data_blocks);
+	    printk("num_inodes: %d\n", sb->num_inodes);
+	    printk("num_log_blocks: %d\n", sb->num_log_blocks);
+	    printk("log_start: %d\n", sb->log_start);
+	    printk("inode_start: %d\n", sb->inode_start);
+	    printk("bitmap_start: %d\n", sb->bitmap_start);
+    #endif
 }
 
 const struct super_block *get_super_block() { return (const struct super_block *)sblock_data; }
