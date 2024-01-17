@@ -86,7 +86,7 @@ static Block *cache_acquire(usize block_no) {
         } while (b->acquired);
         b->acquired = true;
         boost_frequency(b);
-        _release_spinlock(&lock);
+        release_spinlock(&lock);
         return b;
     }
 
@@ -115,7 +115,7 @@ static void cache_release(Block *block) {
     acquire_spinlock(&lock);
     block->acquired = false;
     cond_signal(&block->lock);
-    _release_spinlock(&lock);
+    release_spinlock(&lock);
 }
 
 void init_bcache(const SuperBlock *_sblock, const BlockDevice *_device) {
@@ -137,7 +137,7 @@ static void cache_begin_op(OpContext *ctx) {
     acquire_spinlock(&log.lock);
     log.contributors_cnt++;
     ctx->rm = OP_MAX_NUM_BLOCKS;
-    _release_spinlock(&log.lock);
+    release_spinlock(&log.lock);
 }
 
 static void cache_sync(OpContext *ctx, Block *block) {
@@ -151,7 +151,7 @@ static void cache_sync(OpContext *ctx, Block *block) {
     acquire_spinlock(&log.lock);
     for (usize i =0; i < header.num_blocks; i++) {
         if (header.block_no[i] == block->block_no) {
-            _release_spinlock(&log.lock);
+            release_spinlock(&log.lock);
             return;
         }
     }
@@ -165,7 +165,7 @@ static void cache_sync(OpContext *ctx, Block *block) {
     header.block_no[header.num_blocks - 1] = block->block_no;
     block->pinned = true;
     ctx->rm--;
-    _release_spinlock(&log.lock);
+    release_spinlock(&log.lock);
 }
 
 static void cache_end_op(OpContext *ctx) {
@@ -175,7 +175,7 @@ static void cache_end_op(OpContext *ctx) {
     // If there are other contributors to the log, we wait for them to complete
     if (log.contributors_cnt > 0) {
         cond_wait(&log.work_done, &log.lock);
-        _release_spinlock(&log.lock);
+        release_spinlock(&log.lock);
         return;
     }
     // After all the contributors call end_op, we write the cache back to the log,
@@ -187,7 +187,7 @@ static void cache_end_op(OpContext *ctx) {
         spawn_ckpt();
         cond_broadcast(&log.work_done);
     }
-    _release_spinlock(&log.lock);
+    release_spinlock(&log.lock);
 }
 
 static usize cache_alloc(OpContext *ctx) {

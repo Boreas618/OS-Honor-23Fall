@@ -93,7 +93,7 @@ sys_msgget(int key, int msgflg)
                 ret = ipc_buildin(id, msg_ids.entries[id]->seq);
         }
     }
-    _release_spinlock(&msg_ids.lock);
+    release_spinlock(&msg_ids.lock);
     return ret;
 }
 
@@ -207,7 +207,7 @@ retry:
         msg_sender sender;
         sender.proc = thisproc();
         _insert_into_list(msgq->q_sender.prev, &sender.node);
-        _release_spinlock(&msg_ids.lock);
+        release_spinlock(&msg_ids.lock);
         _sched(SLEEPING);
         goto retry;
     }
@@ -215,10 +215,10 @@ retry:
         _insert_into_list(msgq->q_message.prev, &msg->node);
         msgq->sum_msg++;
     }
-    _release_spinlock(&msg_ids.lock);
+    release_spinlock(&msg_ids.lock);
     return 0;
 free_obj:
-    _release_spinlock(&msg_ids.lock);
+    release_spinlock(&msg_ids.lock);
     free_msg(msg);
     return err;
 }
@@ -283,7 +283,7 @@ sys_msgrcv(int msgid, msgbuf *msgp, int msgsz, int mtype, int msgflg)
         _detach_from_list(&found_msg->node);
         msgq->sum_msg--;
         ss_wakeup(&msgq->q_sender);
-        _release_spinlock(&msg_ids.lock);
+        release_spinlock(&msg_ids.lock);
     } else {
         if (msgflg & IPC_NOWAIT) {
             err = ENOMSG;
@@ -294,7 +294,7 @@ sys_msgrcv(int msgid, msgbuf *msgp, int msgsz, int mtype, int msgflg)
         receiver.mtype = mtype;
         receiver.proc = thisproc();
         receiver.size = msgsz;
-        _release_spinlock(&msg_ids.lock);
+        release_spinlock(&msg_ids.lock);
         _sched(SLEEPING);
         found_msg = receiver.r_msg;
         if (found_msg == NULL)
@@ -305,7 +305,7 @@ sys_msgrcv(int msgid, msgbuf *msgp, int msgsz, int mtype, int msgflg)
     free_msg(found_msg);
     return msgsz;
 out_lock:
-    _release_spinlock(&msg_ids.lock);
+    release_spinlock(&msg_ids.lock);
     return err;
 }
 
@@ -337,7 +337,7 @@ freeque(int id)
         msg_ids.in_use--;
         kfree((void *)msgq);
     }
-    _release_spinlock(&msg_ids.lock);
+    release_spinlock(&msg_ids.lock);
 }
 
 int 

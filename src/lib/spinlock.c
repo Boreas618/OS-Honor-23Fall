@@ -17,6 +17,6 @@ void acquire_spinlock(SpinLock *lock) {
         arch_yield();
 }
 
-void _release_spinlock(SpinLock *lock) {
+void release_spinlock(SpinLock *lock) {
     __atomic_clear(&lock->locked, __ATOMIC_RELEASE);
 }

@@ -146,5 +146,5 @@ void disk_rw(struct buf *b) {
     // Loop until the flags has changed.
     while (old_flags == b->flags)
         cond_wait(&b->sem, &disk_lock);
-    _release_spinlock(&disk_lock);
+    release_spinlock(&disk_lock);
 }

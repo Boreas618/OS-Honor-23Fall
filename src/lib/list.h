@@ -60,7 +60,7 @@ struct list_node *_detach_from_list(ListNode *node);
     ({                                                                         \
         acquire_spinlock(lock);                                               \
         ListNode *__t = _merge_list(node1, node2);                             \
-        _release_spinlock(lock);                                               \
+        release_spinlock(lock);                                               \
         __t;                                                                   \
     })
 
@@ -68,7 +68,7 @@ struct list_node *_detach_from_list(ListNode *node);
     ({                                                                         \
         acquire_spinlock(lock);                                               \
         ListNode *__t = _insert_into_list(list, node);                         \
-        _release_spinlock(lock);                                               \
+        release_spinlock(lock);                                               \
         __t;                                                                   \
     })
 
@@ -76,7 +76,7 @@ struct list_node *_detach_from_list(ListNode *node);
     ({                                                                         \
         acquire_spinlock(lock);                                               \
         ListNode *__t = _detach_from_list(node);                               \
-        _release_spinlock(lock);                                               \
+        release_spinlock(lock);                                               \
         __t;                                                                   \
     })
 

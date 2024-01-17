@@ -63,14 +63,14 @@ _lock_sem(Semaphore* sem)
 void 
 _unlock_sem(Semaphore* sem)
 {
-    _release_spinlock(&sem->lock);
+    release_spinlock(&sem->lock);
 }
 
 bool 
 _wait_sem(Semaphore* sem, bool alertable)
 {
     if (--sem->val >= 0) {
-        _release_spinlock(&sem->lock);
+        release_spinlock(&sem->lock);
         return true;
     }
     WaitData* wait = kalloc(sizeof(WaitData));
@@ -78,14 +78,14 @@ _wait_sem(Semaphore* sem, bool alertable)
     wait->up = false;
     _insert_into_list(&sem->sleeplist, &wait->slnode);
     _sched(RUNNABLE);
-    _release_spinlock(&sem->lock);
+    release_spinlock(&sem->lock);
     _sched(alertable ? SLEEPING : DEEPSLEEPING);
     acquire_spinlock(&sem->lock);
     if (!wait->up) {
         ASSERT(++sem->val <= 0);
         _detach_from_list(&wait->slnode);
     }
-    _release_spinlock(&sem->lock);
+    release_spinlock(&sem->lock);
     bool ret = wait->up;
     kfree(wait);
     return ret;

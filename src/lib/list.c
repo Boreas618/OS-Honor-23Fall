@@ -94,7 +94,7 @@ queue_lock(Queue* x)
 void 
 queue_unlock(Queue* x) 
 {
-    _release_spinlock(&x->lock);
+    release_spinlock(&x->lock);
 }
 
 void 
@@ -156,7 +156,7 @@ list_lock(List* l)
 void 
 list_unlock(List* l) 
 {
-    _release_spinlock(&l->lock);
+    release_spinlock(&l->lock);
 }
 
 /* Insert the item before the target. */

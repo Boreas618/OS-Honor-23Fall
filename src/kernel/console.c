@@ -69,7 +69,7 @@ isize console_read(struct inode *ip, char *dst, isize n) {
         if (c == '\n')
             break;
     }
-    _release_spinlock(&cons.lock);
+    release_spinlock(&cons.lock);
     inodes.lock(ip);
     return target - n;
 }

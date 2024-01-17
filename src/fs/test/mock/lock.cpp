@@ -70,7 +70,7 @@ void acquire_spinlock(struct SpinLock* lock) {
     mtx_map[lock].lock();
 }
 
-void _release_spinlock(struct SpinLock* lock) {
+void release_spinlock(struct SpinLock* lock) {
     mtx_map[lock].unlock();
     if (--holding == 0)
         blocker.v();
@@ -92,7 +92,7 @@ void _lock_sem(Semaphore* x) {
     acquire_spinlock((SpinLock*)x);
 }
 void _unlock_sem(Semaphore* x) {
-    _release_spinlock((SpinLock*)x);
+    release_spinlock((SpinLock*)x);
 }
 bool _get_sem(Semaphore* x)
 {

@@ -351,7 +351,7 @@ inline void rbtree_lock(RBTree *rbtree) { acquire_spinlock(&rbtree->rblock); }
 inline void 
 rbtree_unlock(RBTree *rbtree) 
 {
-    _release_spinlock(&rbtree->rblock);
+    release_spinlock(&rbtree->rblock);
 }
 
 int 
