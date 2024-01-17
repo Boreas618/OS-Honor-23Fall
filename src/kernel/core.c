@@ -8,9 +8,7 @@ void disk_init();
 
 bool panic_flag;
 
-NO_RETURN void 
-idle_entry() 
-{
+NO_RETURN void idle_entry() {
     set_cpu_on();
     while (1) {
         yield();
@@ -22,9 +20,7 @@ idle_entry()
     arch_stop_cpu();
 }
 
-NO_RETURN void 
-kernel_entry() 
-{
+NO_RETURN void kernel_entry() {
     printk("Hello, world!\n");
     disk_init();
     // sd_test();
@@ -33,7 +29,7 @@ kernel_entry()
     // user_proc_test();
     // pgfault_first_test();
     // pgfault_second_test();
-    
+
     do_rest_init();
 
     // TODO: map init.S to user space and trap_return to run icode
@@ -42,7 +38,7 @@ kernel_entry()
         yield();
 }
 
-NO_INLINE NO_RETURN void _panic(const char* file, int line) {
+NO_INLINE NO_RETURN void _panic(const char *file, int line) {
     printk("[CPU %d PANIC] ", cpuid());
     panic_flag = true;
     set_cpu_off();

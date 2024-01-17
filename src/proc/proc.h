@@ -60,7 +60,7 @@ WARN_RESULT struct proc *create_proc();
 int start_proc(struct proc *, void (*entry)(u64), u64 arg);
 NO_RETURN void exit(int code);
 WARN_RESULT int wait(int *exitcode);
-bool sleep(struct semaphore* sem, struct spinlock* lock);
+bool sleep(struct semaphore *sem, struct spinlock *lock);
 WARN_RESULT int kill(int pid);
 WARN_RESULT int fork();
 void trap_return();

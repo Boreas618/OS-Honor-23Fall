@@ -4,7 +4,6 @@
 
 #define activate_proc(proc) _activate_proc(proc, false)
 #define alert_proc(proc) _activate_proc(proc, true)
-//#define sched(checker, new_state) (checker_end_ctx(checker), _sched(new_state))
 #define yield() (schedule(RUNNABLE))
 
 extern u64 proc_entry();

@@ -2,7 +2,6 @@
 #include <fs/cache.h>
 #include <fs/defines.h>
 #include <fs/file.h>
-#include <fs/fs.h>
 #include <fs/inode.h>
 #include <kernel/init.h>
 #include <lib/defines.h>

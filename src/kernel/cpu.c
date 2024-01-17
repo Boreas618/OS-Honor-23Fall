@@ -1,19 +1,18 @@
-#include <kernel/cpu.h>
-#include <lib/printk.h>
-#include <kernel/init.h>
-#include <driver/clock.h>
-#include <proc/sched.h>
-#include <proc/proc.h>
 #include <aarch64/mmu.h>
+#include <driver/clock.h>
+#include <kernel/cpu.h>
+#include <kernel/init.h>
+#include <lib/printk.h>
+#include <proc/proc.h>
+#include <proc/sched.h>
 
 struct cpu cpus[NCPU];
 
 static struct timer hello_timer[4];
 
-static bool 
-__timer_cmp(rb_node lnode, rb_node rnode) 
-{
-    i64 d = container_of(lnode, struct timer, _node)->_key - container_of(rnode, struct timer, _node)->_key;
+static bool __timer_cmp(rb_node lnode, rb_node rnode) {
+    i64 d = container_of(lnode, struct timer, _node)->_key -
+            container_of(rnode, struct timer, _node)->_key;
     if (d < 0)
         return true;
     if (d == 0)
@@ -21,9 +20,7 @@ __timer_cmp(rb_node lnode, rb_node rnode)
     return false;
 }
 
-static void 
-__timer_set_clock() 
-{
+static void __timer_set_clock() {
     auto node = _rb_first(&cpus[cpuid()].timer);
     if (!node) {
         reset_clock(1000);
@@ -37,9 +34,7 @@ __timer_set_clock()
         reset_clock(t1 - t0);
 }
 
-static void 
-timer_clock_handler() 
-{
+static void timer_clock_handler() {
     while (1) {
         auto node = _rb_first(&cpus[cpuid()].timer);
         if (!node)
@@ -53,38 +48,28 @@ timer_clock_handler()
     }
 }
 
-define_early_init(clock_handler) {
-    set_clock_handler(&timer_clock_handler);
-}
+define_early_init(clock_handler) { set_clock_handler(&timer_clock_handler); }
 
-void 
-set_cpu_timer(struct timer* timer) 
-{
+void set_cpu_timer(struct timer *timer) {
     timer->triggered = false;
     timer->_key = get_timestamp_ms() + timer->elapse;
     ASSERT(0 == _rb_insert(&timer->_node, &cpus[cpuid()].timer, __timer_cmp));
     __timer_set_clock();
 }
 
-void 
-cancel_cpu_timer(struct timer* timer)
-{
+void cancel_cpu_timer(struct timer *timer) {
     ASSERT(!timer->triggered);
     _rb_erase(&timer->_node, &cpus[cpuid()].timer);
     __timer_set_clock();
 }
 
-static void 
-hello(struct timer* t)
-{
+static void hello(struct timer *t) {
     printk("CPU %d: living\n", cpuid());
     t->data++;
     set_cpu_timer(&hello_timer[cpuid()]);
 }
 
-void 
-set_cpu_on() 
-{
+void set_cpu_on() {
     ASSERT(!_arch_disable_trap());
     /* Disable the lower-half address to prevent stupid errors. */
     extern PTEntries invalid_pt;
@@ -92,7 +77,7 @@ set_cpu_on()
 
     extern char exception_vector[];
     arch_set_vbar(exception_vector);
-    
+
     arch_reset_esr();
     init_clock();
     cpus[cpuid()].online = true;
@@ -102,9 +87,7 @@ set_cpu_on()
     set_cpu_timer(&hello_timer[cpuid()]);
 }
 
-void 
-set_cpu_off() 
-{
+void set_cpu_off() {
     bool r = _arch_disable_trap();
     (void)r;
     cpus[cpuid()].online = false;

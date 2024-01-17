@@ -1,18 +1,15 @@
 #include <kernel/init.h>
-#include <proc/pid.h>
 #include <lib/bitmap.h>
+#include <proc/pid.h>
 
 static PidPool pool;
 
-define_early_init(pid)
-{
+define_early_init(pid) {
     init_spinlock(&pool.lock);
     pool.window = 0;
 }
 
-int 
-alloc_pid() 
-{
+int alloc_pid() {
     acquire_spinlock(&pool.lock);
     u64 old_pid_window = pool.window;
 
@@ -37,9 +34,7 @@ alloc_pid()
     return -1;
 }
 
-void 
-free_pid(int pid) 
-{
+void free_pid(int pid) {
     acquire_spinlock(&pool.lock);
     u32 index = (u32)(pid / 8);
     u8 offset = (u8)(pid % 8);

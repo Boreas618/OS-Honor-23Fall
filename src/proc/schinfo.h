@@ -6,8 +6,8 @@
 struct proc;
 
 struct sched {
-    struct proc* running;
-    struct proc* idle;
+    struct proc *running;
+    struct proc *idle;
 };
 
 struct schinfo {

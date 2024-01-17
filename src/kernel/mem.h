@@ -7,9 +7,8 @@
 
 #define MAX_BUCKETS 16
 #define MAX_PAGES 1048576
-#define PAGE_COUNT ((P2K(PHYSTOP) - PAGE_BASE((u64) &end)) / PAGE_SIZE - 1)
-#define VA2ID(vaddr) \
-    ((vaddr - PAGE_BASE((u64) &end) - PAGE_SIZE) / PAGE_SIZE)
+#define PAGE_COUNT ((P2K(PHYSTOP) - PAGE_BASE((u64) & end)) / PAGE_SIZE - 1)
+#define VA2ID(vaddr) ((vaddr - PAGE_BASE((u64) & end) - PAGE_SIZE) / PAGE_SIZE)
 
 struct partitioned_node {
     ListNode pp_node;

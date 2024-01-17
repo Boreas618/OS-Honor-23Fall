@@ -9,23 +9,18 @@
 
 static InterruptHandler int_handler[NUM_IRQ_TYPES];
 
-define_early_init(interrupt) 
-{
+define_early_init(interrupt) {
     for (usize i = 0; i < NUM_IRQ_TYPES; i++)
         int_handler[i] = NULL;
     device_put_u32(GPU_INT_ROUTE, GPU_IRQ2CORE(0));
 }
 
-void 
-set_interrupt_handler(InterruptType type, InterruptHandler handler) 
-{
+void set_interrupt_handler(InterruptType type, InterruptHandler handler) {
     device_put_u32(ENABLE_IRQS_1 + 4 * (type / 32), 1u << (type % 32));
     int_handler[type] = handler;
 }
 
-void 
-interrupt_global_handler() 
-{
+void interrupt_global_handler() {
     u32 source = device_get_u32(IRQ_SRC_CORE(cpuid()));
 
     /* Handle Non-secure Physical Timer interrupts */
@@ -39,7 +34,8 @@ interrupt_global_handler()
         source ^= IRQ_SRC_GPU;
 
         /* Aggregate pending GPU interrupts from both registers */
-        u64 map = device_get_u32(IRQ_PENDING_1) | (((u64)device_get_u32(IRQ_PENDING_2)) << 32);
+        u64 map = device_get_u32(IRQ_PENDING_1) |
+                  (((u64)device_get_u32(IRQ_PENDING_2)) << 32);
 
         /* Process each interrupt type */
         for (usize i = 0; i < NUM_IRQ_TYPES; i++) {

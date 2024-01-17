@@ -1,14 +1,14 @@
 #include <aarch64/intrinsic.h>
-#include <lib/rc.h>
-#include <lib/string.h>
 #include <kernel/mem.h>
 #include <lib/printk.h>
+#include <lib/rc.h>
+#include <lib/string.h>
 #include <test/test.h>
 
 extern RefCount alloc_page_cnt;
 
 static RefCount x;
-static void* p[4][10000];
+static void *p[4][10000];
 static short sz[4][10000];
 
 #define FAIL(...)                                                              \
@@ -17,9 +17,10 @@ static short sz[4][10000];
         while (1)                                                              \
             ;                                                                  \
     }
+
 #define SYNC(i)                                                                \
     arch_dsb_sy();                                                             \
-    increment_rc(&x);                                                         \
+    increment_rc(&x);                                                          \
     while (x.count < 4 * i)                                                    \
         ;                                                                      \
     arch_dsb_sy();
@@ -28,17 +29,19 @@ void alloc_test() {
     int i = cpuid();
     int r = alloc_page_cnt.count;
     int y = 10000 - i * 500;
-    if (i == 0) printk("alloc_test\n");
+    if (i == 0)
+        printk("alloc_test\n");
     SYNC(1)
     for (int j = 0; j < y; j++) {
         p[i][j] = kalloc_page();
-        if (!p[i][j] || ((u64)p[i][j] & 4095)) FAIL("FAIL: alloc_page() = %p\n", p[i][j]);
+        if (!p[i][j] || ((u64)p[i][j] & 4095))
+            FAIL("FAIL: alloc_page() = %p\n", p[i][j]);
         memset(p[i][j], i ^ j, PAGE_SIZE);
     }
     for (int j = 0; j < y; j++) {
         u8 m = (i ^ j) & 255;
         for (int k = 0; k < PAGE_SIZE; k++)
-            if (((u8*)p[i][j])[k] != m)
+            if (((u8 *)p[i][j])[k] != m)
                 FAIL("FAIL: page[%d][%d] wrong\n", i, j);
         kfree_page(p[i][j]);
     }
@@ -80,7 +83,7 @@ void alloc_test() {
                 FAIL("FAIL: block[%d][%d] null\n", i, k);
             int m = (i ^ sz[i][k]) & 255;
             for (int t = 0; t < sz[i][k]; t++)
-                if (((u8*)p[i][k])[t] != m)
+                if (((u8 *)p[i][k])[t] != m)
                     FAIL("FAIL: block[%d][%d] wrong\n", i, k);
             kfree(p[i][k]);
             p[i][k] = p[i][--j];
@@ -90,13 +93,15 @@ void alloc_test() {
     SYNC(4)
     if (cpuid() == 0) {
         i64 z = 0;
-        for (int j = 0; j < 4; j++) for (int k = 0; k < 10000; k++)
-            z += sz[j][k];
+        for (int j = 0; j < 4; j++)
+            for (int k = 0; k < 10000; k++)
+                z += sz[j][k];
         printk("Total: %lld\nUsage: %lld\n", z, alloc_page_cnt.count - r);
     }
     SYNC(5)
     for (int j = 0; j < 10000; j++)
         kfree(p[i][j]);
     SYNC(6)
-    if (cpuid() == 0) printk("alloc_test PASS\n");
+    if (cpuid() == 0)
+        printk("alloc_test PASS\n");
 }

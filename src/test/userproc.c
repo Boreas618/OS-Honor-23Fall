@@ -1,37 +1,36 @@
-#include <test/test.h>
-#include <lib/rc.h>
-#include <vm/pt.h>
 #include <kernel/mem.h>
+#include <kernel/syscall.h>
 #include <lib/printk.h>
+#include <lib/rc.h>
 #include <lib/sem.h>
 #include <proc/proc.h>
-#include <kernel/syscall.h>
+#include <test/test.h>
+#include <vm/pt.h>
 
 #define NPROC 32
 
-PTEntry* get_pte(struct vmspace* vms, u64 va, bool alloc);
+PTEntry *get_pte(struct vmspace *vms, u64 va, bool alloc);
 
-extern struct proc* running[];
+extern struct proc *running[];
 extern ListNode runnable;
 
 void vm_test() {
     printk("vm_test\n");
-    static void* p[100000];
+    static void *p[100000];
     extern RefCount alloc_page_cnt;
     struct vmspace pg;
     int p0 = alloc_page_cnt.count;
     init_vmspace(&pg);
-    for (u64 i = 0; i < 100000; i++)
-    {
+    for (u64 i = 0; i < 100000; i++) {
         p[i] = kalloc_page();
         *get_pte(&pg, i << 12, true) = K2P(p[i]) | PTE_USER_DATA;
-        *(int*)p[i] = i;
+        *(int *)p[i] = i;
     }
     attach_vmspace(&pg);
-    for (u64 i = 0; i < 100000; i++)
-    {
-        ASSERT(*(int*)(P2K(PTE_ADDRESS(*get_pte(&pg, i << 12, false)))) == (int)i);
-        ASSERT(*(int*)(i << 12) == (int)i);
+    for (u64 i = 0; i < 100000; i++) {
+        ASSERT(*(int *)(P2K(PTE_ADDRESS(*get_pte(&pg, i << 12, false)))) ==
+               (int)i);
+        ASSERT(*(int *)(i << 12) == (int)i);
     }
     free_vmspace(&pg);
     attach_vmspace(&pg);
@@ -46,34 +45,30 @@ void trap_return();
 static u64 proc_cnt[NPROC], cpu_cnt[4];
 static Semaphore myrepot_done;
 
-define_syscall(myreport, u64 id)
-{
+define_syscall(myreport, u64 id) {
     static bool stop;
     ASSERT(id < NPROC);
     if (stop)
         return 0;
     proc_cnt[id]++;
     cpu_cnt[cpuid()]++;
-    if (proc_cnt[id] > 12345)
-    {
+    if (proc_cnt[id] > 12345) {
         stop = true;
         post_sem(&myrepot_done);
     }
     return 0;
 }
 
-void user_proc_test()
-{
+void user_proc_test() {
     printk("user_proc_test\n");
     init_sem(&myrepot_done, 0);
     extern char loop_start[], loop_end[];
     int pids[NPROC];
-    for (int i = 0; i < NPROC; i++)
-    {
+    for (int i = 0; i < NPROC; i++) {
         auto p = create_proc();
-        for (u64 q = (u64)loop_start; q < (u64)loop_end; q += PAGE_SIZE)
-        {
-            *get_pte(&p->vmspace, 0x400000 + q - (u64)loop_start, true) = K2P(q) | PTE_USER_DATA;
+        for (u64 q = (u64)loop_start; q < (u64)loop_end; q += PAGE_SIZE) {
+            *get_pte(&p->vmspace, 0x400000 + q - (u64)loop_start, true) =
+                K2P(q) | PTE_USER_DATA;
         }
         ASSERT(p->vmspace.pgtbl);
         p->ucontext->gregs[0] = i;
@@ -86,8 +81,7 @@ void user_proc_test()
     printk("done\n");
     for (int i = 0; i < NPROC; i++)
         ASSERT(kill(pids[i]) == 0);
-    for (int i = 0; i < NPROC; i++)
-    {
+    for (int i = 0; i < NPROC; i++) {
         int code;
         int pid = wait(&code);
         printk("pid %d killed\n", pid);
@@ -99,4 +93,3 @@ void user_proc_test()
     for (int i = 0; i < NPROC; i++)
         printk("Proc %d: %llu\n", i, proc_cnt[i]);
 }
-

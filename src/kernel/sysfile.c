@@ -6,36 +6,34 @@
 
 #include <fcntl.h>
 
+#include "syscall.h"
 #include <aarch64/mmu.h>
+#include <fs/file.h>
+#include <fs/inode.h>
+#include <fs/pipe.h>
+#include <kernel/mem.h>
 #include <lib/defines.h>
-#include <lib/spinlock.h>
 #include <lib/printk.h>
+#include <lib/spinlock.h>
+#include <lib/string.h>
 #include <proc/proc.h>
 #include <proc/sched.h>
-#include <kernel/mem.h>
-#include <vm/paging.h>
-#include <fs/file.h>
-#include <fs/fs.h>
 #include <sys/syscall.h>
-#include "syscall.h"
-#include <fs/pipe.h>
-#include <lib/string.h>
-#include <fs/inode.h>
+#include <vm/paging.h>
 
 extern InodeTree inodes;
 extern BlockCache bcache;
 
 struct iovec {
-    void* iov_base; /* Starting address. */
-    usize iov_len; /* Number of bytes to transfer. */
+    void *iov_base; /* Starting address. */
+    usize iov_len;  /* Number of bytes to transfer. */
 };
-
 
 // get the file object by fd
 // return null if the fd is invalid
-static struct file* fd2file(int fd) {
+static struct file *fd2file(int fd) {
     struct file *f = NULL;
-    struct proc* p = thisproc();
+    struct proc *p = thisproc();
     if (fd >= 0 && fd < NOFILE) {
         f = p->oftable.ofiles[fd];
     }
@@ -46,9 +44,9 @@ static struct file* fd2file(int fd) {
  * Allocate a file descriptor for the given file.
  * Takes over file reference from caller on success.
  */
-int fdalloc(struct file* f) {
+int fdalloc(struct file *f) {
     int fd;
-    struct proc* p = thisproc();
+    struct proc *p = thisproc();
     for (fd = 0; fd < NOFILE; fd++) {
         if (p->oftable.ofiles[fd]) {
             p->oftable.ofiles[fd] = f;
@@ -67,7 +65,8 @@ define_syscall(ioctl, int fd, u64 request) {
 /*
  *	map addr to a file
  */
-// define_syscall(mmap, void* addr, int length, int prot, int flags, int fd, int offset) {
+// define_syscall(mmap, void* addr, int length, int prot, int flags, int fd, int
+// offset) {
 //     // TODO
 // }
 
@@ -79,7 +78,7 @@ define_syscall(ioctl, int fd, u64 request) {
  * Get the parameters and call filedup.
  */
 define_syscall(dup, int fd) {
-    struct file* f = fd2file(fd);
+    struct file *f = fd2file(fd);
     if (!f)
         return -1;
     fd = fdalloc(f);
@@ -92,8 +91,8 @@ define_syscall(dup, int fd) {
 /*
  * Get the parameters and call fileread.
  */
-define_syscall(read, int fd, char* buffer, int size) {
-    struct file* f = fd2file(fd);
+define_syscall(read, int fd, char *buffer, int size) {
+    struct file *f = fd2file(fd);
     if (!f || size <= 0 || !user_writeable(buffer, size))
         return -1;
     return file_read(f, buffer, size);
@@ -102,15 +101,15 @@ define_syscall(read, int fd, char* buffer, int size) {
 /*
  * Get the parameters and call filewrite.
  */
-define_syscall(write, int fd, char* buffer, int size) {
-    struct file* f = fd2file(fd);
+define_syscall(write, int fd, char *buffer, int size) {
+    struct file *f = fd2file(fd);
     if (!f || size <= 0 || !user_readable(buffer, size))
         return -1;
     return file_write(f, buffer, size);
 }
 
 define_syscall(writev, int fd, struct iovec *iov, int iovcnt) {
-    struct file* f = fd2file(fd);
+    struct file *f = fd2file(fd);
     struct iovec *p;
     if (!f || iovcnt <= 0 || !user_readable(iov, sizeof(struct iovec) * iovcnt))
         return -1;
@@ -128,7 +127,7 @@ define_syscall(writev, int fd, struct iovec *iov, int iovcnt) {
  * Clear this fd of this process.
  */
 define_syscall(close, int fd) {
-    struct file* f = thisproc()->oftable.ofiles[fd];
+    struct file *f = thisproc()->oftable.ofiles[fd];
     thisproc()->oftable.ofiles[fd] = 0;
     file_close(f);
     return 0;
@@ -137,14 +136,15 @@ define_syscall(close, int fd) {
 /*
  * Get the parameters and call filestat.
  */
-define_syscall(fstat, int fd, struct stat* st) {
-    struct file* f = fd2file(fd);
+define_syscall(fstat, int fd, struct stat *st) {
+    struct file *f = fd2file(fd);
     if (!f || !user_writeable(st, sizeof(*st)))
         return -1;
     return file_stat(f, st);
 }
 
-define_syscall(newfstatat, int dirfd, const char* path, struct stat* st, int flags) {
+define_syscall(newfstatat, int dirfd, const char *path, struct stat *st,
+               int flags) {
     if (!user_strlen(path, 256) || !user_writeable(st, sizeof(*st)))
         return -1;
     if (dirfd != AT_FDCWD) {
@@ -156,7 +156,7 @@ define_syscall(newfstatat, int dirfd, const char* path, struct stat* st, int fla
         return -1;
     }
 
-    Inode* ip;
+    Inode *ip;
     OpContext ctx;
     bcache.begin_op(&ctx);
     if ((ip = namei(path, &ctx)) == 0) {
@@ -173,12 +173,12 @@ define_syscall(newfstatat, int dirfd, const char* path, struct stat* st, int fla
 }
 
 // Is the directory dp empty except for "." and ".." ?
-static int isdirempty(Inode* dp) {
+static int isdirempty(Inode *dp) {
     usize off;
     DirEntry de;
 
     for (off = 2 * sizeof(de); off < dp->entry.num_bytes; off += sizeof(de)) {
-        if (inodes.read(dp, (u8*)&de, off, sizeof(de)) != sizeof(de))
+        if (inodes.read(dp, (u8 *)&de, off, sizeof(de)) != sizeof(de))
             PANIC();
         if (de.inode_no != 0)
             return 0;
@@ -186,7 +186,7 @@ static int isdirempty(Inode* dp) {
     return 1;
 }
 
-define_syscall(unlinkat, int fd, const char* path, int flag) {
+define_syscall(unlinkat, int fd, const char *path, int flag) {
     // printk("at unlinkat\n");
     ASSERT(fd == AT_FDCWD && flag == 0);
     Inode *ip, *dp;
@@ -205,8 +205,8 @@ define_syscall(unlinkat, int fd, const char* path, int flag) {
     inodes.lock(dp);
 
     // Cannot unlink "." or "..".
-    if (strncmp(name, ".", FILE_NAME_MAX_LENGTH) == 0
-        || strncmp(name, "..", FILE_NAME_MAX_LENGTH) == 0)
+    if (strncmp(name, ".", FILE_NAME_MAX_LENGTH) == 0 ||
+        strncmp(name, "..", FILE_NAME_MAX_LENGTH) == 0)
         goto bad;
 
     usize inumber = inodes.lookup(dp, name, &off);
@@ -224,7 +224,7 @@ define_syscall(unlinkat, int fd, const char* path, int flag) {
     }
 
     memset(&de, 0, sizeof(de));
-    if (inodes.write(&ctx, dp, (u8*)&de, off, sizeof(de)) != sizeof(de))
+    if (inodes.write(&ctx, dp, (u8 *)&de, off, sizeof(de)) != sizeof(de))
         PANIC();
     if (ip->entry.type == INODE_DIRECTORY) {
         dp->entry.num_links--;
@@ -255,7 +255,8 @@ bad:
  *
  * If type is directory, you should additionally handle "." and "..".
  */
-Inode* create(const char* path, short type, short major, short minor, OpContext* ctx) {
+Inode *create(const char *path, short type, short major, short minor,
+              OpContext *ctx) {
     // printk("at create\n");
     Inode *ip, *dp;
     usize ino;
@@ -273,7 +274,8 @@ Inode* create(const char* path, short type, short major, short minor, OpContext*
         inodes.put(ctx, dp);
 
         inodes.lock(ip);
-        if (type == INODE_REGULAR && (ip->entry.type == INODE_REGULAR || ip->entry.type == INODE_DEVICE)) {
+        if (type == INODE_REGULAR && (ip->entry.type == INODE_REGULAR ||
+                                      ip->entry.type == INODE_DEVICE)) {
             inodes.unlock(ip);
             return ip;
         }
@@ -282,7 +284,7 @@ Inode* create(const char* path, short type, short major, short minor, OpContext*
         inodes.put(ctx, ip);
         return 0;
     }
-    
+
     ip = inodes.get(inodes.alloc(ctx, type));
     inodes.lock(ip);
     ip->entry.major = major;
@@ -305,10 +307,10 @@ Inode* create(const char* path, short type, short major, short minor, OpContext*
     return ip;
 }
 
-define_syscall(openat, int dirfd, const char* path, int omode) {
+define_syscall(openat, int dirfd, const char *path, int omode) {
     int fd;
-    struct file* f;
-    Inode* ip;
+    struct file *f;
+    Inode *ip;
     // printk("at openat \n");
 
     if (!user_strlen(path, 256))
@@ -355,9 +357,9 @@ define_syscall(openat, int dirfd, const char* path, int omode) {
     return fd;
 }
 
-define_syscall(mkdirat, int dirfd, const char* path, int mode) {
+define_syscall(mkdirat, int dirfd, const char *path, int mode) {
     // printk("at mkdirat \n");
-    Inode* ip;
+    Inode *ip;
     if (!user_strlen(path, 256))
         return -1;
     if (dirfd != AT_FDCWD) {
@@ -380,9 +382,9 @@ define_syscall(mkdirat, int dirfd, const char* path, int mode) {
     return 0;
 }
 
-define_syscall(mknodat, int dirfd, const char* path, int major, int minor) {
+define_syscall(mknodat, int dirfd, const char *path, int major, int minor) {
     // printk("at mknodat \n");
-    Inode* ip;
+    Inode *ip;
     if (!user_strlen(path, 256))
         return -1;
     if (dirfd != AT_FDCWD) {
@@ -402,14 +404,14 @@ define_syscall(mknodat, int dirfd, const char* path, int major, int minor) {
     return 0;
 }
 
-define_syscall(chdir, const char* path) {
+define_syscall(chdir, const char *path) {
     // change the cwd (current working dictionary) of current process to 'path'
     // you may need to do some validations
     // printk("at chdir \n");
-    Inode* ip;
+    Inode *ip;
     OpContext ctx_, *ctx;
     ctx = &ctx_;
-    struct proc* proc = thisproc();
+    struct proc *proc = thisproc();
 
     bcache.begin_op(ctx);
     ip = namei(path, ctx);

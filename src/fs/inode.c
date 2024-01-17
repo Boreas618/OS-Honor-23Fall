@@ -1,10 +1,10 @@
 #include <fs/inode.h>
 #include <kernel/mem.h>
 #include <lib/printk.h>
-#include <lib/string.h>
-#include <sys/stat.h>
-#include <proc/sched.h>
 #include <lib/spinlock.h>
+#include <lib/string.h>
+#include <proc/sched.h>
+#include <sys/stat.h>
 
 static const struct super_block *sblock;
 
@@ -518,7 +518,7 @@ static struct inode *namex(const char *path, bool nameiparent, char *name,
         ip = inodes.share(inodes.root);
     else
         ip = inodes.share(thisproc()->cwd);
-    
+
     while ((path = skipelem(path, name))) {
         inodes.lock(ip);
         if (ip->entry.type != INODE_DIRECTORY) {
@@ -544,7 +544,7 @@ static struct inode *namex(const char *path, bool nameiparent, char *name,
         inodes.put(ctx, ip);
         return NULL;
     }
-    
+
     return ip;
 }
 
@@ -559,7 +559,7 @@ struct inode *nameiparent(const char *path, char *name, OpContext *ctx) {
 
 /**
  * Get the stat information of `ip` into `st`.
- * 
+ *
  * The caller must hold the lock of `ip`.
  */
 void stati(struct inode *ip, struct stat *st) {

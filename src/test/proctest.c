@@ -1,10 +1,10 @@
-#include <lib/sem.h>
 #include <kernel/mem.h>
 #include <lib/printk.h>
+#include <lib/sem.h>
 #include <proc/sched.h>
 #include <test/test.h>
 
-void set_parent_to_this(struct proc* proc);
+void set_parent_to_this(struct proc *proc);
 
 static Semaphore s1, s2, s3, s4, s5, s6;
 
@@ -18,34 +18,34 @@ static Semaphore s1, s2, s3, s4, s5, s6;
 
 static void proc_test_1b(u64 a) {
     switch (a / 10 - 1) {
-        case 0:
-            break;
-        case 1:
-            yield();
-            yield();
-            yield();
-            break;
-        case 2:
-            post_sem(&s1);
-            break;
-        case 3:
-        case 4:
-        case 5:
-        case 6:
-        case 7:
-            if (a & 1)
-                post_sem(&s2);
-            else
-                unalertable_wait_sem(&s2);
-            break;
-        case 8:
-            unalertable_wait_sem(&s3);
-            post_sem(&s4);
-            break;
-        case 9:
-            post_sem(&s5);
-            unalertable_wait_sem(&s6);
-            break;
+    case 0:
+        break;
+    case 1:
+        yield();
+        yield();
+        yield();
+        break;
+    case 2:
+        post_sem(&s1);
+        break;
+    case 3:
+    case 4:
+    case 5:
+    case 6:
+    case 7:
+        if (a & 1)
+            post_sem(&s2);
+        else
+            unalertable_wait_sem(&s2);
+        break;
+    case 8:
+        unalertable_wait_sem(&s3);
+        post_sem(&s4);
+        break;
+    case 9:
+        post_sem(&s5);
+        unalertable_wait_sem(&s6);
+        break;
     }
     exit(a);
 }
@@ -57,54 +57,54 @@ static void proc_test_1a(u64 a) {
         start_proc(p, proc_test_1b, a * 10 + i + 10);
     }
     switch (a) {
-        case 0: {
-            int t = 0, x;
-            for (int i = 0; i < 10; i++) {
-                ASSERT(wait(&x) != -1);
-                t |= 1 << (x - 10);
-            }
-            ASSERT(t == 1023);
-            ASSERT(wait(&x) == -1);
-        } break;
-        case 1:
-            break;
-        case 2: {
-            for (int i = 0; i < 10; i++)
-                unalertable_wait_sem(&s1);
-            ASSERT(!get_sem(&s1));
-        } break;
-        case 3:
-        case 4:
-        case 5:
-        case 6:
-        case 7: {
-            int x;
-            for (int i = 0; i < 10; i++)
-                ASSERT(wait(&x) != -1);
-            ASSERT(wait(&x) == -1);
-        } break;
-        case 8: {
-            int x;
-            for (int i = 0; i < 10; i++)
-                post_sem(&s3);
-            for (int i = 0; i < 10; i++)
-                ASSERT(wait(&x) != -1);
-            ASSERT(wait(&x) == -1);
-            ASSERT(s3.val == 0);
-            ASSERT(get_all_sem(&s4) == 10);
-        } break;
-        case 9: {
-            int x;
-            for (int i = 0; i < 10; i++)
-                unalertable_wait_sem(&s5);
-            for (int i = 0; i < 10; i++)
-                post_sem(&s6);
-            for (int i = 0; i < 10; i++)
-                ASSERT(wait(&x) != -1);
-            ASSERT(wait(&x) == -1);
-            ASSERT(s5.val == 0);
-            ASSERT(s6.val == 0);
-        } break;
+    case 0: {
+        int t = 0, x;
+        for (int i = 0; i < 10; i++) {
+            ASSERT(wait(&x) != -1);
+            t |= 1 << (x - 10);
+        }
+        ASSERT(t == 1023);
+        ASSERT(wait(&x) == -1);
+    } break;
+    case 1:
+        break;
+    case 2: {
+        for (int i = 0; i < 10; i++)
+            unalertable_wait_sem(&s1);
+        ASSERT(!get_sem(&s1));
+    } break;
+    case 3:
+    case 4:
+    case 5:
+    case 6:
+    case 7: {
+        int x;
+        for (int i = 0; i < 10; i++)
+            ASSERT(wait(&x) != -1);
+        ASSERT(wait(&x) == -1);
+    } break;
+    case 8: {
+        int x;
+        for (int i = 0; i < 10; i++)
+            post_sem(&s3);
+        for (int i = 0; i < 10; i++)
+            ASSERT(wait(&x) != -1);
+        ASSERT(wait(&x) == -1);
+        ASSERT(s3.val == 0);
+        ASSERT(get_all_sem(&s4) == 10);
+    } break;
+    case 9: {
+        int x;
+        for (int i = 0; i < 10; i++)
+            unalertable_wait_sem(&s5);
+        for (int i = 0; i < 10; i++)
+            post_sem(&s6);
+        for (int i = 0; i < 10; i++)
+            ASSERT(wait(&x) != -1);
+        ASSERT(wait(&x) == -1);
+        ASSERT(s5.val == 0);
+        ASSERT(s6.val == 0);
+    } break;
     }
     exit(a);
 }

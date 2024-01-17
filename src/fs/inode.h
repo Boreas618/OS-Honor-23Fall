@@ -23,10 +23,10 @@ typedef u16 inode_type_t;
 /* On-disk inode structure. */
 struct dinode {
     inode_type_t type; // `type == INODE_INVALID` implies this inode is free.
-    u16 major;      // major device id, for INODE_DEVICE only.
-    u16 minor;      // minor device id, for INODE_DEVICE only.
-    u16 num_links;  // number of hard links to this inode in the filesystem.
-    u32 num_bytes;  // number of bytes in the file, i.e. the size of file.
+    u16 major;         // major device id, for INODE_DEVICE only.
+    u16 minor;         // minor device id, for INODE_DEVICE only.
+    u16 num_links;     // number of hard links to this inode in the filesystem.
+    u32 num_bytes;     // number of bytes in the file, i.e. the size of file.
     u32 addrs[INODE_NUM_DIRECT]; // direct addresses/block numbers.
     u32 indirect;                // the indirect address block.
 };
@@ -47,7 +47,7 @@ struct inode {
     struct ref_count rc;   // The reference count of this inode.s
     struct list_node node; // Link this inode into a linked list.
     usize inode_no;
-    bool valid;       // Whether the `entry` been loaded from disk.
+    bool valid;          // Whether the `entry` been loaded from disk.
     struct dinode entry; // The real in-memory copy of the inode on disk.
 };
 

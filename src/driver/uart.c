@@ -4,8 +4,7 @@
 #include <driver/uart.h>
 #include <kernel/init.h>
 
-define_early_init(uart) 
-{
+define_early_init(uart) {
     device_put_u32(GPPUD, 0);
     delay_us(5);
     device_put_u32(GPPUDCLK0, (1 << 14) | (1 << 15));
@@ -30,9 +29,7 @@ define_early_init(uart)
     device_put_u32(AUX_MU_CNTL_REG, 3);
 }
 
-char 
-uart_get_char() 
-{
+char uart_get_char() {
     u32 state = device_get_u32(AUX_MU_IIR_REG);
     if ((state & 1) || (state & 6) != 4)
         return (char)-1;
@@ -40,10 +37,9 @@ uart_get_char()
     return device_get_u32(AUX_MU_IO_REG) & 0xff;
 }
 
-void 
-uart_put_char(char c) 
-{
-    while (!(device_get_u32(AUX_MU_LSR_REG) & 0x20)) {}
+void uart_put_char(char c) {
+    while (!(device_get_u32(AUX_MU_LSR_REG) & 0x20)) {
+    }
 
     device_put_u32(AUX_MU_IO_REG, c);
 

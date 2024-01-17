@@ -44,7 +44,7 @@ void pipe_close(struct pipe *pi, int writable) {
 
     if (pi->readopen == 0 && pi->writeopen == 0) {
         release_spinlock(&pi->lock);
-        kfree((void*)pi);
+        kfree((void *)pi);
     } else {
         release_spinlock(&pi->lock);
     }
@@ -65,7 +65,7 @@ int pipe_write(struct pipe *pi, u64 addr, int n) {
             cond_broadcast(&pi->rlock);
             cond_wait(&pi->wlock, &pi->lock);
         } else {
-            pi->data[pi->nwrite++ % PIPE_SIZE] = *(char*)(addr + i);
+            pi->data[pi->nwrite++ % PIPE_SIZE] = *(char *)(addr + i);
             i++;
         }
     }
@@ -91,7 +91,7 @@ int pipe_read(struct pipe *pi, u64 addr, int n) {
     for (i = 0; i < n; i++) {
         if (pi->nread == pi->nwrite)
             break;
-        *(char*)(addr + i) = pi->data[pi->nread++ % PIPE_SIZE];
+        *(char *)(addr + i) = pi->data[pi->nread++ % PIPE_SIZE];
     }
     cond_broadcast(&pi->wlock);
     release_spinlock(&pi->lock);

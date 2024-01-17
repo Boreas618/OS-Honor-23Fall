@@ -1,17 +1,17 @@
-#include <lib/bitmap.h>
-#include <lib/string.h>
 #include <fs/cache.h>
-#include <kernel/mem.h>
-#include <lib/printk.h>
-#include <proc/proc.h>
 #include <kernel/init.h>
+#include <kernel/mem.h>
+#include <lib/bitmap.h>
 #include <lib/cond.h>
+#include <lib/printk.h>
+#include <lib/string.h>
+#include <proc/proc.h>
 
 /* The private reference to the super block. */
 static const struct super_block *sblock;
 
 /* The reference to the underlying block device. */
-static const BlockDevice *device; 
+static const BlockDevice *device;
 
 /* Global lock for block cache. */
 static SpinLock lock;
@@ -29,9 +29,9 @@ struct {
     Semaphore work_done;
 } log;
 
-INLINE static void boost_frequency(Block* b);
+INLINE static void boost_frequency(Block *b);
 
-Block* _fetch_cached(usize block_no);
+Block *_fetch_cached(usize block_no);
 
 bool _evict();
 
@@ -51,12 +51,12 @@ static INLINE void device_write(Block *block) {
 
 /* Read log header from disk. */
 static INLINE void read_header() {
-    device->read(sblock->log_start, (u8*)&header);
+    device->read(sblock->log_start, (u8 *)&header);
 }
 
 /* Write log header back to disk. */
 static INLINE void write_header() {
-    device->write(sblock->log_start, (u8*)&header);
+    device->write(sblock->log_start, (u8 *)&header);
 }
 
 /* Initialize a block struct. */
@@ -71,9 +71,7 @@ static void init_block(Block *block) {
     memset(block->data, 0, sizeof(block->data));
 }
 
-static usize get_num_cached_blocks() {
-    return (usize) blocks.size;
-}
+static usize get_num_cached_blocks() { return (usize)blocks.size; }
 
 static Block *cache_acquire(usize block_no) {
     Block *b = NULL;
@@ -93,12 +91,12 @@ static Block *cache_acquire(usize block_no) {
     // Best-effort eviction.
     if (blocks.size >= EVICTION_THRESHOLD)
         _evict();
-    
+
     // Initialize a new block cache and push it to the cache list.
-    b = (Block*) kalloc(sizeof(Block));
+    b = (Block *)kalloc(sizeof(Block));
     init_block(b);
     get_sem(&b->lock);
-    b->acquired = true; 
+    b->acquired = true;
     b->block_no = block_no;
     list_push_back(&blocks, &b->node);
 
@@ -118,7 +116,8 @@ static void cache_release(Block *block) {
     release_spinlock(&lock);
 }
 
-void init_bcache(const struct super_block *_sblock, const BlockDevice *_device) {
+void init_bcache(const struct super_block *_sblock,
+                 const BlockDevice *_device) {
     sblock = _sblock;
     device = _device;
 
@@ -149,7 +148,7 @@ static void cache_sync(OpContext *ctx, Block *block) {
     // Detect if this block has a place in the log section
     // If so, we are free to go.
     acquire_spinlock(&log.lock);
-    for (usize i =0; i < header.num_blocks; i++) {
+    for (usize i = 0; i < header.num_blocks; i++) {
         if (header.block_no[i] == block->block_no) {
             release_spinlock(&log.lock);
             return;
@@ -178,9 +177,9 @@ static void cache_end_op(OpContext *ctx) {
         release_spinlock(&log.lock);
         return;
     }
-    // After all the contributors call end_op, we write the cache back to the log,
-    // sync the header in memory with the header in disk and finally write the checkpoint
-    // to the disk.
+    // After all the contributors call end_op, we write the cache back to the
+    // log, sync the header in memory with the header in disk and finally write
+    // the checkpoint to the disk.
     if (log.contributors_cnt == 0) {
         write_log();
         write_header();
@@ -193,8 +192,9 @@ static void cache_end_op(OpContext *ctx) {
 static usize cache_alloc(OpContext *ctx) {
     if (ctx->rm <= 0)
         PANIC();
-    
-    usize num_bitmap_blocks = (sblock->num_data_blocks + BIT_PER_BLOCK - 1) / BIT_PER_BLOCK;
+
+    usize num_bitmap_blocks =
+        (sblock->num_data_blocks + BIT_PER_BLOCK - 1) / BIT_PER_BLOCK;
 
     for (usize i = 0; i < num_bitmap_blocks; i++) {
         // Acquire the bitmap block.
@@ -206,13 +206,13 @@ static usize cache_alloc(OpContext *ctx) {
                 goto not_found;
             }
             // The block is free.
-            if (!bitmap_get((BitmapCell*)bm_block->data, j)) {
+            if (!bitmap_get((BitmapCell *)bm_block->data, j)) {
                 Block *b = cache_acquire(i * BLOCK_SIZE * 8 + j);
                 // Zero the block and sync the change
                 memset(b->data, 0, BLOCK_SIZE);
                 cache_sync(ctx, b);
                 // Set the bit map and sync the change
-                bitmap_set((BitmapCell*)bm_block->data, j);
+                bitmap_set((BitmapCell *)bm_block->data, j);
                 cache_sync(ctx, bm_block);
                 // The work is done. Release the blocks.
                 cache_release(b);
@@ -222,13 +222,14 @@ static usize cache_alloc(OpContext *ctx) {
         }
         cache_release(bm_block);
     }
-    not_found:
+not_found:
     PANIC();
 }
 
 static void cache_free(OpContext *ctx, usize block_no) {
-    Block* bm_block = cache_acquire(block_no / (BLOCK_SIZE * 8) + sblock->bitmap_start);
-    bitmap_clear((BitmapCell*)bm_block->data, block_no % (BLOCK_SIZE * 8));
+    Block *bm_block =
+        cache_acquire(block_no / (BLOCK_SIZE * 8) + sblock->bitmap_start);
+    bitmap_clear((BitmapCell *)bm_block->data, block_no % (BLOCK_SIZE * 8));
     cache_sync(ctx, bm_block);
     cache_release(bm_block);
 }
@@ -244,10 +245,11 @@ BlockCache bcache = {
     .free = cache_free,
 };
 
-INLINE Block* _fetch_cached(usize block_no) {
+INLINE Block *_fetch_cached(usize block_no) {
     list_forall(p, blocks) {
         Block *b = container_of(p, Block, node);
-        if (b->block_no == block_no) return b;
+        if (b->block_no == block_no)
+            return b;
     }
     return NULL;
 }
@@ -256,26 +258,25 @@ INLINE Block* _fetch_cached(usize block_no) {
 INLINE bool _evict() {
     bool flag = false;
     list_forall(p, blocks) {
-        Block *b = container_of(p ,Block, node);
+        Block *b = container_of(p, Block, node);
         if (!b->pinned) {
             list_remove(&blocks, p);
-            if(flag) return true;
+            if (flag)
+                return true;
             flag = true;
         }
     }
     return flag;
 }
 
-/* 
+/*
  * Move the block to the end of the list.
- * 
+ *
  * To implement LRU replacement policy, we move the most recently used
  * block to the end of the list and evict pages from the front of the list
  * whenever we need to remove some pages.
  */
-INLINE static void boost_frequency(Block* b) {
-    blocks.head = b->node.next;
-}
+INLINE static void boost_frequency(Block *b) { blocks.head = b->node.next; }
 
 void write_log() {
     // Walk through every block in the log and write the changes back
@@ -283,7 +284,7 @@ void write_log() {
     // back because the sequence of the logged blocks is specified in
     // `block_no` of the log header.
     for (usize i = 0; i < header.num_blocks; i++) {
-        Block* b = cache_acquire(header.block_no[i]);
+        Block *b = cache_acquire(header.block_no[i]);
         device->write(sblock->log_start + i + 1, b->data);
         b->pinned = false;
         cache_release(b);
@@ -299,18 +300,19 @@ void spawn_ckpt() {
     init_block(&transfer_b);
 
     // Read the log into the transfer block.
-    // 
+    //
     // Note that the block number of the block for logging and
     // the exact block number of the data are different.
     // In order to read the log, we need to figure out the block
     // number based on the number of log_start.
     // The exact block number of the logged blocks are stored
     // in the header of the log area.
-    for(usize i = 0; i < header.num_blocks; i++) {
+    for (usize i = 0; i < header.num_blocks; i++) {
         transfer_b.block_no = sblock->log_start + 1 + i;
         device_read(&transfer_b);
         transfer_b.block_no = header.block_no[i];
-        // printk("%lld %lld %lld\n", transfer_b.block_no, i, header.num_blocks);
+        // printk("%lld %lld %lld\n", transfer_b.block_no, i,
+        // header.num_blocks);
         device_write(&transfer_b);
     }
 

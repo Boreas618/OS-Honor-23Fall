@@ -7,9 +7,7 @@
 #include <proc/sched.h>
 #include <vm/paging.h>
 
-void 
-trap_global_handler(UserContext *context) 
-{
+void trap_global_handler(UserContext *context) {
     thisproc()->ucontext = context;
 
     u64 esr = arch_get_esr();

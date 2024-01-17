@@ -1,8 +1,8 @@
 #pragma once
 
-#include <lib/defines.h>
-#include <fs/inode.h>
 #include <fs/cache.h>
+#include <fs/inode.h>
+#include <lib/defines.h>
 
 /**
  * Layers of File System
@@ -37,7 +37,7 @@
 #define FILE_NAME_MAX_LENGTH 14
 #define FSSIZE 1000 // Size of file system in blocks
 #define NFILE 65536 // Maximum number of open files in the whole system.
-#define NOFILE 128 // Maximum number of open files of a process.
+#define NOFILE 128  // Maximum number of open files of a process.
 
 typedef struct dinode InodeEntry;
 typedef struct super_block SuperBlock;

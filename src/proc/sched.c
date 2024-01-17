@@ -104,10 +104,11 @@ static void update_this_proc(struct proc *p) {
 }
 
 void schedule(enum procstate new_state) {
-    struct proc* this = thisproc();
+    struct proc *this = thisproc();
     ASSERT(this->state == RUNNING);
 
-    // If the current process is marked as killed, it shouldn't be scheduled as usual.
+    // If the current process is marked as killed, it shouldn't be scheduled as
+    // usual.
     if (this->killed && new_state != ZOMBIE)
         return;
 
@@ -115,22 +116,24 @@ void schedule(enum procstate new_state) {
     update_this_state(new_state);
 
     // Pick the new process.
-    struct proc* next = pick_next();
+    struct proc *next = pick_next();
 
     // Update the state of the process.
     update_this_proc(next);
 
-   /**
+    /**
      * If the picked process is another process,
-     * we should perform context switching and attach its virtual memory space before switching.
+     * we should perform context switching and attach its virtual memory space
+     * before switching.
      */
-   if (next != this) {
+    if (next != this) {
         attach_vmspace(&next->vmspace);
         swtch(next->kcontext, &(this->kcontext));
-   }
+    }
 }
 
-// __attribute__((weak, alias("schedule"))) void _sched(enum procstate new_state);
+// __attribute__((weak, alias("schedule"))) void _sched(enum procstate
+// new_state);
 
 u64 proc_entry(void (*entry)(u64), u64 arg) {
     set_return_addr(entry);

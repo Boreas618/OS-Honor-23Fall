@@ -98,7 +98,7 @@ void disk_intr() {
             arch_dsb_sy();
             intbuf[i] = *EMMC_DATA;
         }
-        
+
         /* Reading has finished. */
         if (sd_wait_for_interrupt(INT_DATA_DONE))
             PANIC();

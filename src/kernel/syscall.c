@@ -1,10 +1,9 @@
-#include <vm/paging.h>
-#include <lib/printk.h>
-#include <vm/pt.h>
-#include <proc/sched.h>
 #include <kernel/syscall.h>
+#include <lib/printk.h>
 #include <lib/sem.h>
 #include <proc/sched.h>
+#include <vm/paging.h>
+#include <vm/pt.h>
 
 void *syscall_table[NR_SYSCALL];
 
@@ -28,8 +27,8 @@ void syscall_entry(UserContext *context) {
 // user process
 bool user_readable(const void *start, usize size) {
     // TODO
-    (void) start;
-    (void) size;
+    (void)start;
+    (void)size;
     return 0;
 }
 
@@ -37,8 +36,8 @@ bool user_readable(const void *start, usize size) {
 // the current user process
 bool user_writeable(const void *start, usize size) {
     // TODO
-    (void) start;
-    (void) size;
+    (void)start;
+    (void)size;
     return 0;
 }
 

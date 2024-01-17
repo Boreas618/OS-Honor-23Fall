@@ -1,7 +1,6 @@
 #pragma once
 
 #include <fs/defines.h>
-#include <fs/fs.h>
 #include <fs/inode.h>
 #include <lib/defines.h>
 #include <lib/list.h>

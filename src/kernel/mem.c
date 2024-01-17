@@ -47,8 +47,7 @@ extern char end[];
 void *zero;
 
 /* Initialization routine of the memory management module. */
-define_early_init(pages) 
-{
+define_early_init(pages) {
     /* Initialize the page counter. */
     init_rc(&alloc_page_cnt);
     /* Initialize the list for free pages. */
@@ -78,15 +77,12 @@ define_early_init(pages)
         list_init(&partitioned_pages[i]);
 }
 
-define_init(zero_page) 
-{
+define_init(zero_page) {
     zero = (void *)kalloc_page();
     memset(zero, 0, PAGE_SIZE);
 }
 
-void 
-*kalloc_page() 
-{
+void *kalloc_page() {
     increment_rc(&alloc_page_cnt);
     list_lock(&pages_free);
     void *page_to_allocate = (void *)pages_free.head;
@@ -95,18 +91,14 @@ void
     return page_to_allocate;
 }
 
-void 
-kfree_page(void *p) 
-{
+void kfree_page(void *p) {
     decrement_rc(&alloc_page_cnt);
     list_lock(&pages_free);
     list_push_back(&pages_free, (ListNode *)p);
     list_unlock(&pages_free);
 }
 
-void *
-kalloc(isize s) 
-{
+void *kalloc(isize s) {
     ASSERT(s > 0 && s <= PAGE_SIZE);
     if (s == 0 && s > PAGE_SIZE)
         return NULL;
@@ -152,9 +144,7 @@ kalloc(isize s)
     return allocated;
 }
 
-void 
-kfree(void *p) 
-{
+void kfree(void *p) {
     u64 id = (u64)((((u64)p) - PAGE_BASE((u64)&end) - PAGE_SIZE) / PAGE_SIZE);
 
     list_lock(&partitioned_pages[page_info[id].partitioned_node.bucket_index]);
@@ -180,9 +170,7 @@ kfree(void *p)
     return;
 }
 
-u16 
-__round_up(isize s, u32 *rounded_size, u8 *bucket_index) 
-{
+u16 __round_up(isize s, u32 *rounded_size, u8 *bucket_index) {
     if (s == 0)
         return 0;
     u16 result = 1;
@@ -196,9 +184,7 @@ __round_up(isize s, u32 *rounded_size, u8 *bucket_index)
     return result;
 }
 
-PartitionedNode *
-__partition_page(u32 rounded_size, u8 bucket_index) 
-{
+PartitionedNode *__partition_page(u32 rounded_size, u8 bucket_index) {
     /* Fetch a new page which will be partitioned later. */
     u64 page_to_partition = (u64)kalloc_page();
     if (page_to_partition == NULL)
@@ -219,9 +205,7 @@ __partition_page(u32 rounded_size, u8 bucket_index)
     return &(page_info[id].partitioned_node);
 }
 
-u64 
-__alloc_partition(Page *p) 
-{
+u64 __alloc_partition(Page *p) {
     u64 addr_frag = p->free_head;
     p->free_head = *(u64 *)p->free_head;
     p->alloc_partitions_cnt++;
@@ -230,9 +214,7 @@ __alloc_partition(Page *p)
 
 u64 left_page_cnt() { return PAGE_COUNT - alloc_page_cnt.count; }
 
-WARN_RESULT void *
-get_zero_page() 
-{
+WARN_RESULT void *get_zero_page() {
     if (!zero) {
         printk("[Error] Zero page not initialized!");
         return NULL;
