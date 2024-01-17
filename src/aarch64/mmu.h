@@ -55,8 +55,8 @@
 /* Conver any address into physical address space. */
 #define PSPACE(addr) ((u64)(addr) & (~KSPACE_MASK))
 
-typedef u64 PTEntry;
-typedef PTEntry PTEntries[N_PTE_PER_TABLE];
+typedef u64 pgtbl_entry_t;
+typedef pgtbl_entry_t PTEntries[N_PTE_PER_TABLE];
 
 #define VA_OFFSET(va) ((u64)(va) & 0xFFF)
 #define PTE_ADDRESS(pte) ((pte) & ~0xFFFF000000000FFF)

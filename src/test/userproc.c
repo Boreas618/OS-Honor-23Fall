@@ -9,7 +9,7 @@
 
 #define NPROC 32
 
-PTEntry *get_pte(struct vmspace *vms, u64 va, bool alloc);
+pgtbl_entry_t *get_pte(struct vmspace *vms, u64 va, bool alloc);
 
 extern struct proc *running[];
 extern ListNode runnable;

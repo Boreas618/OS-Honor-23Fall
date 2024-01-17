@@ -413,7 +413,7 @@ define_syscall(chdir, const char *path) {
     inodes.lock(ip);
     if (ip->entry.type != INODE_DIRECTORY) {
         inodes.unlock(ip);
-        inodes.put(ip);
+        inodes.put(&ctx, ip);
         bcache.end_op(&ctx);
         return -1;
     }
@@ -439,7 +439,7 @@ define_syscall(pipe2, int *fd, int flags) {
 
     if (fd[0] < 0 || fd[1] < 0) {
         if (fd[0] >= 0)
-            thisproc()->oftable[fd[0]] = NULL;
+            thisproc()->oftable.ofiles[fd[0]] = NULL;
         file_close(f0);
         file_close(f1);
         return -1;
