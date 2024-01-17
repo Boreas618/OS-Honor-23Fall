@@ -1,9 +1,3 @@
-//
-// File-system system calls.
-// Mostly argument checking, since we don't trust
-// user code, and calls into file.c and fs.c.
-//
-
 #include <fcntl.h>
 
 #include "syscall.h"
@@ -43,10 +37,10 @@ static struct file *fd2file(int fd) {
  */
 int fdalloc(struct file *f) {
     struct proc *p = thisproc();
-    for (int fd = 0; fd < NOFILE; fd++) {
-        if (p->oftable.ofiles[fd]) {
-            p->oftable.ofiles[fd] = f;
-            return fd;
+    for (int i = 0; i < NOFILE; i++) {
+        if (p->oftable.ofiles[i]) {
+            p->oftable.ofiles[i] = f;
+            return i;
         }
     }
     return -1;
@@ -59,7 +53,8 @@ define_syscall(ioctl, int fd, u64 request) {
 }
 
 /*
-define_syscall(mmap, void* addr, int length, int prot, int flags, int fd, int offset) {
+define_syscall(mmap, void* addr, int length, int prot, int flags, int fd, int
+offset) {
      // TODO
 }
 
@@ -71,14 +66,16 @@ define_syscall(munmap, void *addr, usize length) {
 /* Get the parameters and call filedup. */
 define_syscall(dup, int fd) {
     struct file *f = fd2file(fd);
-    if (!f) return -1;
+    if (!f)
+        return -1;
     fd = fdalloc(f);
-    if (fd < 0) return -1;
+    if (fd < 0)
+        return -1;
     file_dup(f);
     return fd;
 }
 
-/* Get the parameters and call fileread. */
+/* Get the parameters and call file_read. */
 define_syscall(read, int fd, char *buffer, int size) {
     struct file *f = fd2file(fd);
     if (!f || size <= 0 || !user_writeable(buffer, size))
@@ -86,9 +83,7 @@ define_syscall(read, int fd, char *buffer, int size) {
     return file_read(f, buffer, size);
 }
 
-/*
- * Get the parameters and call filewrite.
- */
+/* Get the parameters and call file_write. */
 define_syscall(write, int fd, char *buffer, int size) {
     struct file *f = fd2file(fd);
     if (!f || size <= 0 || !user_readable(buffer, size))
@@ -110,20 +105,17 @@ define_syscall(writev, int fd, struct iovec *iov, int iovcnt) {
     return tot;
 }
 
-/*
- * Get the parameters and call fileclose.
- * Clear this fd of this process.
- */
+/* Get the parameters and call file_close. */
 define_syscall(close, int fd) {
     struct file *f = thisproc()->oftable.ofiles[fd];
+    if (!f)
+        return -1;
     thisproc()->oftable.ofiles[fd] = NULL;
     file_close(f);
     return 0;
 }
 
-/*
- * Get the parameters and call filestat.
- */
+/* Get the parameters and call filestat. */
 define_syscall(fstat, int fd, struct stat *st) {
     struct file *f = fd2file(fd);
     if (!f || !user_writeable(st, sizeof(*st)))
@@ -144,8 +136,8 @@ define_syscall(newfstatat, int dirfd, const char *path, struct stat *st,
         return -1;
     }
 
-    Inode *ip;
-    OpContext ctx;
+    struct inode *ip;
+    struct op_ctx ctx;
     bcache.begin_op(&ctx);
     if ((ip = namei(path, &ctx)) == 0) {
         bcache.end_op(&ctx);
@@ -160,8 +152,8 @@ define_syscall(newfstatat, int dirfd, const char *path, struct stat *st,
     return 0;
 }
 
-// Is the directory dp empty except for "." and ".." ?
-static int isdirempty(Inode *dp) {
+/* If the directory dp is empty except for "." and ".." */
+static int isdirempty(struct inode *dp) {
     usize off;
     struct dirent de;
 
@@ -175,15 +167,14 @@ static int isdirempty(Inode *dp) {
 }
 
 define_syscall(unlinkat, int fd, const char *path, int flag) {
-    // printk("at unlinkat\n");
     ASSERT(fd == AT_FDCWD && flag == 0);
-    Inode *ip, *dp;
+    struct inode *ip, *dp;
     struct dirent de;
     char name[FILE_NAME_MAX_LENGTH];
     usize off;
     if (!user_strlen(path, 256))
         return -1;
-    OpContext ctx;
+    struct op_ctx ctx;
     bcache.begin_op(&ctx);
     if ((dp = nameiparent(path, name, &ctx)) == 0) {
         bcache.end_op(&ctx);
@@ -205,6 +196,7 @@ define_syscall(unlinkat, int fd, const char *path, int flag) {
 
     if (ip->entry.num_links < 1)
         PANIC();
+
     if (ip->entry.type == INODE_DIRECTORY && !isdirempty(ip)) {
         inodes.unlock(ip);
         inodes.put(&ctx, ip);
@@ -212,12 +204,15 @@ define_syscall(unlinkat, int fd, const char *path, int flag) {
     }
 
     memset(&de, 0, sizeof(de));
+
     if (inodes.write(&ctx, dp, (u8 *)&de, off, sizeof(de)) != sizeof(de))
         PANIC();
+
     if (ip->entry.type == INODE_DIRECTORY) {
         dp->entry.num_links--;
         inodes.sync(&ctx, dp, true);
     }
+
     inodes.unlock(dp);
     inodes.put(&ctx, dp);
     ip->entry.num_links--;
@@ -234,7 +229,7 @@ bad:
     return -1;
 }
 
-/** 
+/**
  * Create an inode.
  *
  * Example:
@@ -245,19 +240,18 @@ bad:
  * If type is directory, you should additionally handle "." and "..".
  */
 struct inode *create(const char *path, short type, short major, short minor,
-              OpContext *ctx) {
+                     struct op_ctx *ctx) {
     struct inode *ip, *dp;
-    usize ino;
     char name[FILE_NAME_MAX_LENGTH];
 
-    dp = nameiparent(path, name, ctx);
+    if ((dp = nameiparent(path, name, ctx)) == 0)
+        return 0;
+
     ASSERT(dp->entry.type == INODE_DIRECTORY);
 
     inodes.lock(dp);
 
-    ino = inodes.lookup(dp, name, NULL);
-    if (ino != 0) {
-        ip = inodes.get(ino);
+    if ((ip = inodes.get(inodes.lookup(dp, name, NULL)))) {
         inodes.unlock(dp);
         inodes.put(ctx, dp);
 
@@ -267,13 +261,17 @@ struct inode *create(const char *path, short type, short major, short minor,
             inodes.unlock(ip);
             return ip;
         }
-        printk("mkdir: cannot create directory, File exists\n");
+
         inodes.unlock(ip);
         inodes.put(ctx, ip);
         return 0;
     }
 
-    ip = inodes.get(inodes.alloc(ctx, type));
+    if (!(ip = inodes.get(inodes.alloc(ctx, type)))) {
+        inodes.unlock(dp);
+        inodes.put(ctx, dp);
+    }
+
     inodes.lock(ip);
     ip->entry.major = major;
     ip->entry.minor = minor;
@@ -287,9 +285,11 @@ struct inode *create(const char *path, short type, short major, short minor,
         inodes.insert(ctx, ip, ".", ip->inode_no);
         inodes.insert(ctx, ip, "..", dp->inode_no);
     }
+
     inodes.insert(ctx, dp, name, ip->inode_no);
 
     inodes.unlock(ip);
+
     inodes.unlock(dp);
     inodes.put(ctx, dp);
     return ip;
@@ -298,7 +298,7 @@ struct inode *create(const char *path, short type, short major, short minor,
 define_syscall(openat, int dirfd, const char *path, int omode) {
     int fd;
     struct file *f;
-    Inode *ip;
+    struct inode *ip;
 
     if (!user_strlen(path, 256))
         return -1;
@@ -308,7 +308,7 @@ define_syscall(openat, int dirfd, const char *path, int omode) {
         return -1;
     }
 
-    OpContext ctx;
+    struct op_ctx ctx;
     bcache.begin_op(&ctx);
     if (omode & O_CREAT) {
         // FIXME: Support acl mode.
@@ -345,24 +345,28 @@ define_syscall(openat, int dirfd, const char *path, int omode) {
 }
 
 define_syscall(mkdirat, int dirfd, const char *path, int mode) {
-    // printk("at mkdirat \n");
-    Inode *ip;
+    struct inode *ip;
     if (!user_strlen(path, 256))
         return -1;
+
     if (dirfd != AT_FDCWD) {
         printk("sys_mkdirat: dirfd unimplemented\n");
         return -1;
     }
+
     if (mode != 0) {
         printk("sys_mkdirat: mode unimplemented\n");
         return -1;
     }
-    OpContext ctx;
+
+    struct op_ctx ctx;
     bcache.begin_op(&ctx);
+
     if ((ip = create(path, INODE_DIRECTORY, 0, 0, &ctx)) == 0) {
         bcache.end_op(&ctx);
         return 0;
     }
+
     inodes.unlock(ip);
     inodes.put(&ctx, ip);
     bcache.end_op(&ctx);
@@ -370,16 +374,18 @@ define_syscall(mkdirat, int dirfd, const char *path, int mode) {
 }
 
 define_syscall(mknodat, int dirfd, const char *path, int major, int minor) {
-    // printk("at mknodat \n");
-    Inode *ip;
+    struct inode *ip;
     if (!user_strlen(path, 256))
         return -1;
+
     if (dirfd != AT_FDCWD) {
         printk("sys_mknodat: dirfd unimplemented\n");
         return -1;
     }
+
     printk("mknodat: path '%s', major:minor %d:%d\n", path, major, minor);
-    OpContext ctx;
+
+    struct op_ctx ctx;
     bcache.begin_op(&ctx);
     if ((ip = create(path, INODE_DEVICE, major, minor, &ctx)) == 0) {
         bcache.end_op(&ctx);
@@ -392,50 +398,49 @@ define_syscall(mknodat, int dirfd, const char *path, int major, int minor) {
 }
 
 define_syscall(chdir, const char *path) {
-    // change the cwd (current working dictionary) of current process to 'path'
-    // you may need to do some validations
-    // printk("at chdir \n");
-    Inode *ip;
-    OpContext ctx_, *ctx;
-    ctx = &ctx_;
-    struct proc *proc = thisproc();
+    struct inode *ip;
+    struct op_ctx ctx;
+    struct proc *p = thisproc();
 
-    bcache.begin_op(ctx);
-    ip = namei(path, ctx);
+    bcache.begin_op(&ctx);
+    ip = namei(path, &ctx);
 
-    if (ip == 0) {
-        bcache.end_op(ctx);
+    if (!ip) {
+        bcache.end_op(&ctx);
         return -1;
     }
 
     inodes.lock(ip);
     if (ip->entry.type != INODE_DIRECTORY) {
         inodes.unlock(ip);
-        bcache.end_op(ctx);
+        bcache.end_op(&ctx);
         return -1;
     }
 
     inodes.unlock(ip);
-    inodes.put(ctx, proc->cwd);
-    bcache.end_op(ctx);
+    inodes.put(&ctx, p->cwd);
+    bcache.end_op(&ctx);
 
-    proc->cwd = ip;
+    p->cwd = ip;
     return 0;
 }
 
 define_syscall(pipe2, int *fd, int flags) {
-    struct file *f0, *f1;
-    int fd0, fd1;
-    if (pipe_alloc(&f0, &f1) < 0) {
+    (void)flags;
+    struct file *f0;
+    struct file *f1;
+
+    if (pipe_alloc(&f0, &f1) < 0)
+        return -1;
+
+    fd[0] = fdalloc(f0);
+    fd[1] = fdalloc(f1);
+
+    if (fd[0] < 0 || fd[1] < 0) {
+        file_close(f0);
+        file_close(f1);
         return -1;
     }
-    fd0 = fdalloc(f0);
-    fd1 = fdalloc(f1);
-
-    fd[0] = fd0;
-    fd[1] = fd1;
-
-    ASSERT(flags || true);
 
     return 0;
 }
