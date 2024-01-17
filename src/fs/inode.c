@@ -1,4 +1,5 @@
 #include <fs/inode.h>
+#include <kernel/console.h>
 #include <kernel/mem.h>
 #include <lib/printk.h>
 #include <lib/spinlock.h>
@@ -270,6 +271,12 @@ static usize inode_map(OpContext *ctx, struct inode *inode, usize offset,
 static usize inode_read(struct inode *inode, u8 *dest, usize offset,
                         usize count) {
     struct dinode *entry = &inode->entry;
+
+    if (entry->type == INODE_DEVICE) {
+        ASSERT(inode->entry.major == 1);
+        return console_read(inode, (char *)dest, count);
+    }
+
     if (count + offset > entry->num_bytes)
         count = entry->num_bytes - offset;
     usize end = offset + count;
@@ -309,6 +316,12 @@ static usize inode_read(struct inode *inode, u8 *dest, usize offset,
 static usize inode_write(OpContext *ctx, struct inode *inode, u8 *src,
                          usize offset, usize count) {
     struct dinode *entry = &inode->entry;
+
+    if (entry->type == INODE_DEVICE) {
+        ASSERT(inode->entry.major == 1);
+        return console_write(inode, (char *)src, count);
+    }
+
     usize end = offset + count;
     ASSERT(offset <= entry->num_bytes);
     ASSERT(end <= INODE_MAX_BYTES);
@@ -376,7 +389,8 @@ static usize inode_insert(OpContext *ctx, struct inode *inode, const char *name,
 
     struct dirent de;
     for (index = 0; index < entry->num_bytes; index += sizeof(struct dirent)) {
-        usize block_no = inode_read(inode, (u8 *)&de, index, sizeof(struct dirent));
+        usize block_no =
+            inode_read(inode, (u8 *)&de, index, sizeof(struct dirent));
 
         // The block is not present.
         // Grow the size of directory inode.

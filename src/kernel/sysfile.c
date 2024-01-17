@@ -1,11 +1,11 @@
 #include <fcntl.h>
 
-#include "syscall.h"
 #include <aarch64/mmu.h>
 #include <fs/file.h>
 #include <fs/inode.h>
 #include <fs/pipe.h>
 #include <kernel/mem.h>
+#include <kernel/syscall.h>
 #include <lib/defines.h>
 #include <lib/printk.h>
 #include <lib/spinlock.h>
@@ -413,6 +413,7 @@ define_syscall(chdir, const char *path) {
     inodes.lock(ip);
     if (ip->entry.type != INODE_DIRECTORY) {
         inodes.unlock(ip);
+        inodes.put(ip);
         bcache.end_op(&ctx);
         return -1;
     }
@@ -437,6 +438,8 @@ define_syscall(pipe2, int *fd, int flags) {
     fd[1] = fdalloc(f1);
 
     if (fd[0] < 0 || fd[1] < 0) {
+        if (fd[0] >= 0)
+            thisproc()->oftable[fd[0]] = NULL;
         file_close(f0);
         file_close(f1);
         return -1;
