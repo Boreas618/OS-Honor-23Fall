@@ -1,7 +1,6 @@
 #pragma once
 
 #include <lib/defines.h>
-// #include <fs/defines.h>
 
 #define BIT_PER_BLOCK (BLOCK_SIZE * 8)
 #define BLOCK_SIZE 512

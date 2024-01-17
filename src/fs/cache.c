@@ -20,7 +20,7 @@ static SpinLock lock;
 static List blocks;
 
 /* In-memory copy of log header block. */
-static LogHeader header;
+static struct log_header header;
 
 /* Maintain other logging states. */
 struct {
@@ -116,6 +116,18 @@ static void cache_release(Block *block) {
     release_spinlock(&lock);
 }
 
+/* Initialize the block cache.
+ *
+ * This method is also responsible for restoring logs after system crash,
+ *
+ * i.e. it should read the uncommitted blocks from log section and
+ * write them back to their original positions.
+ *
+ * `sblock` the loaded super block.
+ * `device` the initialized block device.
+ *
+ * You may want to put it into `*_init` method groups.
+ */
 void init_bcache(const struct super_block *_sblock,
                  const BlockDevice *_device) {
     sblock = _sblock;

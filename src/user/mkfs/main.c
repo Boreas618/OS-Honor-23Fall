@@ -15,7 +15,6 @@ typedef uint32_t uint;
 #define stat  xv6_stat  // avoid clash with host struct stat
 #define sleep xv6_sleep
 #include "../../fs/defines.h"
-// #include "../../fs/inode.h"
 
 #ifndef static_assert
 #define static_assert(a, b)                                                                        \

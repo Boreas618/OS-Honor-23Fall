@@ -21,23 +21,20 @@
 #include <sys/syscall.h>
 #include <vm/paging.h>
 
-extern InodeTree inodes;
-extern BlockCache bcache;
+extern struct inode_tree inodes;
+extern struct block_cache bcache;
 
 struct iovec {
     void *iov_base; /* Starting address. */
     usize iov_len;  /* Number of bytes to transfer. */
 };
 
-// get the file object by fd
-// return null if the fd is invalid
+/* Get the file object by fd */
 static struct file *fd2file(int fd) {
-    struct file *f = NULL;
-    struct proc *p = thisproc();
-    if (fd >= 0 && fd < NOFILE) {
-        f = p->oftable.ofiles[fd];
-    }
-    return f;
+    if (fd >= 0 && fd < NOFILE)
+        return thisproc()->oftable.ofiles[fd];
+    else
+        return NULL;
 }
 
 /*
@@ -45,9 +42,8 @@ static struct file *fd2file(int fd) {
  * Takes over file reference from caller on success.
  */
 int fdalloc(struct file *f) {
-    int fd;
     struct proc *p = thisproc();
-    for (fd = 0; fd < NOFILE; fd++) {
+    for (int fd = 0; fd < NOFILE; fd++) {
         if (p->oftable.ofiles[fd]) {
             p->oftable.ofiles[fd] = f;
             return fd;
@@ -63,34 +59,26 @@ define_syscall(ioctl, int fd, u64 request) {
 }
 
 /*
- *	map addr to a file
- */
-// define_syscall(mmap, void* addr, int length, int prot, int flags, int fd, int
-// offset) {
-//     // TODO
-// }
+define_syscall(mmap, void* addr, int length, int prot, int flags, int fd, int offset) {
+     // TODO
+}
 
-// define_syscall(munmap, void *addr, usize length) {
-//     // TODO
-// }
+define_syscall(munmap, void *addr, usize length) {
+     // TODO
+}
+*/
 
-/*
- * Get the parameters and call filedup.
- */
+/* Get the parameters and call filedup. */
 define_syscall(dup, int fd) {
     struct file *f = fd2file(fd);
-    if (!f)
-        return -1;
+    if (!f) return -1;
     fd = fdalloc(f);
-    if (fd < 0)
-        return -1;
+    if (fd < 0) return -1;
     file_dup(f);
     return fd;
 }
 
-/*
- * Get the parameters and call fileread.
- */
+/* Get the parameters and call fileread. */
 define_syscall(read, int fd, char *buffer, int size) {
     struct file *f = fd2file(fd);
     if (!f || size <= 0 || !user_writeable(buffer, size))
@@ -128,7 +116,7 @@ define_syscall(writev, int fd, struct iovec *iov, int iovcnt) {
  */
 define_syscall(close, int fd) {
     struct file *f = thisproc()->oftable.ofiles[fd];
-    thisproc()->oftable.ofiles[fd] = 0;
+    thisproc()->oftable.ofiles[fd] = NULL;
     file_close(f);
     return 0;
 }
@@ -175,7 +163,7 @@ define_syscall(newfstatat, int dirfd, const char *path, struct stat *st,
 // Is the directory dp empty except for "." and ".." ?
 static int isdirempty(Inode *dp) {
     usize off;
-    DirEntry de;
+    struct dirent de;
 
     for (off = 2 * sizeof(de); off < dp->entry.num_bytes; off += sizeof(de)) {
         if (inodes.read(dp, (u8 *)&de, off, sizeof(de)) != sizeof(de))
@@ -190,7 +178,7 @@ define_syscall(unlinkat, int fd, const char *path, int flag) {
     // printk("at unlinkat\n");
     ASSERT(fd == AT_FDCWD && flag == 0);
     Inode *ip, *dp;
-    DirEntry de;
+    struct dirent de;
     char name[FILE_NAME_MAX_LENGTH];
     usize off;
     if (!user_strlen(path, 256))
@@ -245,7 +233,8 @@ bad:
     bcache.end_op(&ctx);
     return -1;
 }
-/*
+
+/** 
  * Create an inode.
  *
  * Example:
@@ -255,10 +244,9 @@ bad:
  *
  * If type is directory, you should additionally handle "." and "..".
  */
-Inode *create(const char *path, short type, short major, short minor,
+struct inode *create(const char *path, short type, short major, short minor,
               OpContext *ctx) {
-    // printk("at create\n");
-    Inode *ip, *dp;
+    struct inode *ip, *dp;
     usize ino;
     char name[FILE_NAME_MAX_LENGTH];
 
@@ -311,7 +299,6 @@ define_syscall(openat, int dirfd, const char *path, int omode) {
     int fd;
     struct file *f;
     Inode *ip;
-    // printk("at openat \n");
 
     if (!user_strlen(path, 256))
         return -1;

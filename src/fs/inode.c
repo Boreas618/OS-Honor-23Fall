@@ -53,7 +53,7 @@ static void init_inode(struct inode *inode) {
     inode->valid = false;
 }
 
-static usize inode_alloc(OpContext *ctx, InodeType type) {
+static usize inode_alloc(OpContext *ctx, inode_type_t type) {
     ASSERT(type != INODE_INVALID);
 
     usize inode_no = 1;
@@ -351,15 +351,15 @@ static usize inode_lookup(struct inode *inode, const char *name, usize *index) {
     ASSERT(entry->type == INODE_DIRECTORY);
     usize offset = 0;
     usize idx = 0;
-    DirEntry de;
+    struct dirent de;
     while (offset < entry->num_bytes) {
-        inode_read(inode, (u8 *)&de, offset, sizeof(DirEntry));
+        inode_read(inode, (u8 *)&de, offset, sizeof(struct dirent));
         if (de.inode_no && !strncmp(de.name, name, FILE_NAME_MAX_LENGTH)) {
             if (index)
                 *index = idx;
             return de.inode_no;
         }
-        offset += sizeof(DirEntry);
+        offset += sizeof(struct dirent);
         idx += 1;
     }
     return 0;
@@ -374,9 +374,9 @@ static usize inode_insert(OpContext *ctx, struct inode *inode, const char *name,
     if (inode_lookup(inode, name, &index))
         return -1;
 
-    DirEntry de;
-    for (index = 0; index < entry->num_bytes; index += sizeof(DirEntry)) {
-        usize block_no = inode_read(inode, (u8 *)&de, index, sizeof(DirEntry));
+    struct dirent de;
+    for (index = 0; index < entry->num_bytes; index += sizeof(struct dirent)) {
+        usize block_no = inode_read(inode, (u8 *)&de, index, sizeof(struct dirent));
 
         // The block is not present.
         // Grow the size of directory inode.
@@ -386,7 +386,7 @@ static usize inode_insert(OpContext *ctx, struct inode *inode, const char *name,
             bool modified;
             block_no = inode_map(&ctx, inode, index, &modified);
             cache->end_op(&ctx);
-            inode_read(inode, (u8 *)&de, index, sizeof(DirEntry));
+            inode_read(inode, (u8 *)&de, index, sizeof(struct dirent));
         }
 
         if (de.inode_no == 0)
@@ -396,16 +396,16 @@ static usize inode_insert(OpContext *ctx, struct inode *inode, const char *name,
     // Write the directory entry.
     memcpy(de.name, name, FILE_NAME_MAX_LENGTH);
     de.inode_no = inode_no;
-    inode_write(ctx, inode, (u8 *)&de, index, sizeof(DirEntry));
+    inode_write(ctx, inode, (u8 *)&de, index, sizeof(struct dirent));
 
     return 0;
 }
 
 static void inode_remove(OpContext *ctx, struct inode *inode, usize index) {
-    u8 zeros[sizeof(DirEntry)];
-    memset(zeros, 0, sizeof(DirEntry));
-    inode_write(ctx, inode, (u8 *)zeros, index, sizeof(DirEntry));
-    inode->entry.num_bytes -= sizeof(DirEntry);
+    u8 zeros[sizeof(struct dirent)];
+    memset(zeros, 0, sizeof(struct dirent));
+    inode_write(ctx, inode, (u8 *)zeros, index, sizeof(struct dirent));
+    inode->entry.num_bytes -= sizeof(struct dirent);
 
     // If the last entry is removed, shrink the size of directory inode.
     usize block_no = inode_map(NULL, inode, index, NULL);
@@ -428,10 +428,10 @@ static void inode_remove(OpContext *ctx, struct inode *inode, usize index) {
 
     cache->release(ib);
 
-    for (int i = 0; i < BLOCK_SIZE; i += sizeof(DirEntry)) {
-        DirEntry de;
+    for (int i = 0; i < BLOCK_SIZE; i += sizeof(struct dirent)) {
+        struct dirent de;
         inode_read(inode, (u8 *)&de, block_idx * BLOCK_SIZE + i,
-                   sizeof(DirEntry));
+                   sizeof(struct dirent));
         if (de.inode_no != 0 || de.name[0] != 0)
             return;
     }

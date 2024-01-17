@@ -78,7 +78,15 @@ void file_close(struct file *f) {
     }
 }
 
-/* Get metadata about file f. */
+/** 
+ * Read the metadata of a file.
+ * 
+ * You do not need to completely implement this method by yourself. Just call
+ * `stati`. `stati` will fill `st` for an inode.
+ * 
+ * @st: the stat struct to be filled.
+ * @return int 0 on success, or -1 on error.
+ */
 int file_stat(struct file *f, struct stat *st) {
     if (f->type == FD_INODE) {
         inodes.lock(f->ip);
@@ -89,7 +97,12 @@ int file_stat(struct file *f, struct stat *st) {
     return -1;
 }
 
-/* Read from file f. */
+/**
+ * Read the content of `f` with range [f->off, f->off + n).
+ * 
+ * @addr: the buffer to be filled.
+ * @n: the number of bytes to read.
+ */
 isize file_read(struct file *f, char *addr, isize n) {
     isize r = 0;
 
@@ -121,7 +134,12 @@ isize file_read(struct file *f, char *addr, isize n) {
     return r;
 }
 
-/* Write to file f. */
+/**
+ * Write the content of `f` with range [f->off, f->off + n).
+ * 
+ * @addr: the buffer to be written.
+ * @n: the number of bytes to write.
+ */
 isize file_write(struct file *f, char *addr, isize n) {
     isize r = 0;
 

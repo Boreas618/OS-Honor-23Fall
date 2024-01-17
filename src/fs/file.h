@@ -1,12 +1,15 @@
 #pragma once
 
-#include <fs/defines.h>
 #include <fs/inode.h>
 #include <lib/defines.h>
 #include <lib/list.h>
-#include <lib/rc.h>
 #include <lib/sem.h>
 #include <sys/stat.h>
+
+#define FILE_NAME_MAX_LENGTH 14
+#define FSSIZE 1000 // Size of file system in blocks
+#define NFILE 65536 // Maximum number of open files in the whole system.
+#define NOFILE 128  // Maximum number of open files of a process.
 
 /**
  * file - the file descriptor
@@ -28,8 +31,6 @@ struct file {
     usize off;
 };
 
-typedef struct file File;
-
 struct ftable {
     struct spinlock lock;
     struct file file[NFILE];
@@ -44,30 +45,6 @@ void init_oftable(struct oftable *);
 struct file *file_alloc();
 struct file *file_dup(struct file *f);
 void file_close(struct file *f);
-
-/** 
- * Read the metadata of a file.
- * 
- * You do not need to completely implement this method by yourself. Just call
- * `stati`. `stati` will fill `st` for an inode.
- * 
- * @st: the stat struct to be filled.
- * @return int 0 on success, or -1 on error.
- */
 int file_stat(struct file *f, struct stat *st);
-
-/**
- * Read the content of `f` with range [f->off, f->off + n).
- * 
- * @addr: the buffer to be filled.
- * @n: the number of bytes to read.
- */
 isize file_read(struct file *f, char *addr, isize n);
-
-/**
- * Write the content of `f` with range [f->off, f->off + n).
- * 
- * @addr: the buffer to be written.
- * @n: the number of bytes to write.
- */
 isize file_write(struct file *f, char *addr, isize n);

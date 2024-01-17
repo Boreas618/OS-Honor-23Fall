@@ -27,7 +27,7 @@ char *fmtname(char *path) {
 void ls(char *path) {
     char buf[512], *p;
     int fd;
-    DirEntry de;
+    struct dirent de;
     struct stat st;
 
     if ((fd = open(path, O_RDONLY)) < 0) {

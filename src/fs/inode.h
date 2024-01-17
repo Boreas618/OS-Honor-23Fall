@@ -1,6 +1,5 @@
 #pragma once
 #include <fs/cache.h>
-#include <fs/defines.h>
 #include <lib/list.h>
 #include <lib/rc.h>
 #include <lib/spinlock.h>
