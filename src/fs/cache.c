@@ -295,7 +295,7 @@ void spawn_ckpt() {
     read_header();
 
     // The transfer block which holds the block read from log.
-    Block transfer_b;
+    struct block transfer_b;
     init_block(&transfer_b);
 
     // Read the log into the transfer block.
@@ -310,6 +310,7 @@ void spawn_ckpt() {
         transfer_b.block_no = sblock->log_start + 1 + i;
         device_read(&transfer_b);
         transfer_b.block_no = header.block_no[i];
+        // printk("%lld %lld %lld\n", transfer_b.block_no, i, header.num_blocks);
         device_write(&transfer_b);
     }
 

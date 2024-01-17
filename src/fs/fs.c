@@ -10,8 +10,9 @@
 
 void init_filesystem() {
     init_block_device();
-
     const struct super_block* sblock = get_super_block();
+
+    printk("%d\n", sblock->log_start);
     init_bcache(sblock, &block_device);
     init_inodes(sblock, &bcache);
     init_ftable();

@@ -101,16 +101,12 @@ void disk_intr() {
         /* Reading has finished. */
         if (sd_wait_for_interrupt(INT_DATA_DONE))
             PANIC();
-        if (sd_wait_for_interrupt(INT_DATA_DONE))
-            PANIC();
         goto wrap_up;
     }
 
 
     if (flags & B_DIRTY) {
         /* Writing has finished. */
-        if (sd_wait_for_interrupt(INT_DATA_DONE))
-            PANIC();
         if (sd_wait_for_interrupt(INT_DATA_DONE))
             PANIC();
         goto wrap_up;

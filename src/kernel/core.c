@@ -27,12 +27,12 @@ kernel_entry()
 {
     printk("Hello, world!\n");
     disk_init();
-    sd_test();
-    proc_test();
-    vm_test();
-    user_proc_test();
-    pgfault_first_test();
-    pgfault_second_test();
+    // sd_test();
+    // proc_test();
+    // vm_test();
+    // user_proc_test();
+    // pgfault_first_test();
+    // pgfault_second_test();
     
     do_rest_init();
 

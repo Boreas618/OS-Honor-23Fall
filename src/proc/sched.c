@@ -96,7 +96,8 @@ static void update_this_proc(struct proc *p) {
     sched_timer[cpuid()].data = 1;
 
     // Fetch p from rq and mark it as RUNNING
-    ASSERT(p->state == RUNNABLE);
+    if (p->state != RUNNABLE)
+        printk("\n%d\n", p->state);
     p->state = RUNNING;
     if (!p->idle)
         rbtree_erase(&rq[cpuid()], &(p->schinfo.rq_node));
