@@ -1,17 +1,17 @@
 #include <kernel/syscall.h>
-#include <kernel/sched.h>
-#include <kernel/printk.h>
-#include <kernel/proc.h>
+#include <proc/sched.h>
+#include <lib/printk.h>
+#include <proc/proc.h>
 #include <kernel/mem.h>
-#include <kernel/paging.h>
+#include <vm/paging.h>
 
 define_syscall(gettid) {
-    return thisproc()->localpid;
+    return thisproc()->pid;
 }
 
 define_syscall(set_tid_address, int* tidptr) {
     (void)tidptr;
-    return thisproc()->localpid;
+    return thisproc()->pid;
 }
 
 define_syscall(sigprocmask) {
@@ -27,10 +27,10 @@ define_syscall(myyield) {
     return 0;
 }
 
-define_syscall(yield) {
+/*define_syscall(yield) {
     yield();
     return 0;
-}
+}*/
 
 define_syscall(pstat) {
     return (u64)left_page_cnt();
@@ -41,6 +41,7 @@ define_syscall(sbrk, i64 size) {
 }
 
 define_syscall(clone, int flag, void* childstk) {
+    (void)childstk;
     if (flag != 17) {
         printk("sys_clone: flags other than SIGCHLD are not supported.\n");
         return -1;
@@ -77,6 +78,6 @@ define_syscall(wait4, int pid, int options, int* wstatus, void* rusage) {
         while (1) {}
         return -1;
     }
-    int code, id;
-    return wait(&code, &id);
+    int code/*,id*/;
+    return wait(&code/*, &id*/);
 }

@@ -17,10 +17,9 @@ _put_char(void *_ctx, char c)
 static void 
 _vprintf(const char *fmt, va_list arg) 
 {
-    setup_checker(0);
-    acquire_spinlock(0, &printk_lock);
+    acquire_spinlock(&printk_lock);
     vformat(_put_char, NULL, fmt, arg);
-    release_spinlock(0, &printk_lock);
+    release_spinlock(&printk_lock);
 }
 
 void 

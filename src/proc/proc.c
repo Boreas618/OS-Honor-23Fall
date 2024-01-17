@@ -79,7 +79,7 @@ NO_RETURN void exit(int code) {
     // Notify the parent.
     post_sem(&(p->parent->childexit));
     release_spinlock(&proc_lock);
-    _sched(ZOMBIE);
+    schedule(ZOMBIE);
     PANIC();
 }
 
@@ -130,16 +130,6 @@ int kill(int pid) {
     return -1;
 }
 
-bool sleep(struct semaphore* sem, struct spinlock* lock) {
-    _lock_sem(sem);
-    release_spinlock(lock);
-    return _wait_sem(sem, false);
-}
-
-inline void wakeup(struct semaphore* sem) {
-    post_all_sem(sem);
-}
-
 int start_proc(struct proc *p, void (*entry)(u64), u64 arg) {
     acquire_spinlock(&proc_lock);
     if (p->parent == NULL) {
@@ -178,7 +168,6 @@ void init_proc(struct proc *p) {
     p->kcontext =
         p->kstack + PAGE_SIZE - sizeof(KernelContext) - sizeof(UserContext);
     p->ucontext = p->kstack + PAGE_SIZE - sizeof(UserContext);
-    p->chan = NULL;
     release_spinlock(&proc_lock);
 }
 
@@ -203,4 +192,6 @@ struct proc *create_idle_proc() {
  * Sets up stack to return as if from system call.
  */
 int fork() { /* TODO: Your code here. */
+    printk("Not implemented!");
+    return -1;
 }

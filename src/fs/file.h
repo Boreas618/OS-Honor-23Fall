@@ -37,7 +37,7 @@ struct ftable {
 };
 
 struct oftable {
-    struct file ofiles[NOFILE];
+    struct file* ofiles[NOFILE];
 };
 
 void init_ftable();

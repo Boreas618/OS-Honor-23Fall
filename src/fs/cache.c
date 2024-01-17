@@ -8,7 +8,7 @@
 #include <lib/cond.h>
 
 /* The private reference to the super block. */
-static const SuperBlock *sblock;
+static const struct super_block *sblock;
 
 /* The reference to the underlying block device. */
 static const BlockDevice *device; 
@@ -118,7 +118,7 @@ static void cache_release(Block *block) {
     release_spinlock(&lock);
 }
 
-void init_bcache(const SuperBlock *_sblock, const BlockDevice *_device) {
+void init_bcache(const struct super_block *_sblock, const BlockDevice *_device) {
     sblock = _sblock;
     device = _device;
 

@@ -7,6 +7,7 @@
 #include <lib/list.h>
 #include <lib/sem.h>
 #include <lib/spinlock.h>
+#include <lib/string.h>
 
 /* The global file table. */
 static struct ftable ftable;
@@ -23,11 +24,11 @@ struct file *file_alloc() {
     for (struct file *f = ftable.file; f < ftable.file + NFILE; f++) {
         if (f->ref == 0) {
             f->ref = 1;
-            release(&ftable.lock);
+            release_spinlock(&ftable.lock);
             return f;
         }
     }
-    release(&ftable.lock);
+    release_spinlock(&ftable.lock);
     return 0;
 }
 
@@ -133,7 +134,7 @@ isize file_write(struct file *f, char *addr, isize n) {
         r = (isize)pipe_read(f->pipe, (u64)addr, n);
     }
     // Handle the write to an inode.
-    else {
+    else if (f->type == FD_INODE) {
         OpContext ctx;
         bcache.begin_op(&ctx);
         inodes.lock(f->ip);

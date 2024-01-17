@@ -32,7 +32,7 @@ struct MockBlockDevice {
         }
     };
 
-    const SuperBlock *sblock;
+    const struct super_block *sblock;
 
     std::atomic<bool> offline;
     std::atomic<usize> read_count;
@@ -44,7 +44,7 @@ struct MockBlockDevice {
     Hook on_read;
     Hook on_write;
 
-    void initialize(const SuperBlock &_sblock) {
+    void initialize(const struct super_block &_sblock) {
         sblock = &_sblock;
 
         offline = false;

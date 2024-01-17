@@ -17,7 +17,6 @@
 #include <fs/file.h>
 #include <fs/fs.h>
 #include <sys/syscall.h>
-#include <kernel/mem.h>
 #include "syscall.h"
 #include <fs/pipe.h>
 #include <lib/string.h>
@@ -36,9 +35,9 @@ struct iovec {
 // return null if the fd is invalid
 static struct file* fd2file(int fd) {
     struct file *f = NULL;
-    struct proc* proc = thisproc();
+    struct proc* p = thisproc();
     if (fd >= 0 && fd < NOFILE) {
-        f = proc->oftable.ofile[fd];
+        f = p->oftable.ofiles[fd];
     }
     return f;
 }
@@ -49,10 +48,10 @@ static struct file* fd2file(int fd) {
  */
 int fdalloc(struct file* f) {
     int fd;
-    struct proc* proc = thisproc();
+    struct proc* p = thisproc();
     for (fd = 0; fd < NOFILE; fd++) {
-        if (proc->oftable.ofile[fd] == 0) {
-            proc->oftable.ofile[fd] = f;
+        if (p->oftable.ofiles[fd]) {
+            p->oftable.ofiles[fd] = f;
             return fd;
         }
     }
@@ -86,7 +85,7 @@ define_syscall(dup, int fd) {
     fd = fdalloc(f);
     if (fd < 0)
         return -1;
-    filedup(f);
+    file_dup(f);
     return fd;
 }
 
@@ -94,23 +93,20 @@ define_syscall(dup, int fd) {
  * Get the parameters and call fileread.
  */
 define_syscall(read, int fd, char* buffer, int size) {
-    // printk("in read\n");
     struct file* f = fd2file(fd);
     if (!f || size <= 0 || !user_writeable(buffer, size))
         return -1;
-    // printk("to fileread\n");
-    return fileread(f, buffer, size);
+    return file_read(f, buffer, size);
 }
 
 /*
  * Get the parameters and call filewrite.
  */
 define_syscall(write, int fd, char* buffer, int size) {
-    // printk("in write\n");
     struct file* f = fd2file(fd);
     if (!f || size <= 0 || !user_readable(buffer, size))
         return -1;
-    return filewrite(f, buffer, size);
+    return file_write(f, buffer, size);
 }
 
 define_syscall(writev, int fd, struct iovec *iov, int iovcnt) {
@@ -122,7 +118,7 @@ define_syscall(writev, int fd, struct iovec *iov, int iovcnt) {
     for (p = iov; p < iov + iovcnt; p++) {
         if (!user_readable(p->iov_base, p->iov_len))
             return -1;
-        tot += filewrite(f, p->iov_base, p->iov_len);
+        tot += file_write(f, p->iov_base, p->iov_len);
     }
     return tot;
 }
@@ -132,9 +128,9 @@ define_syscall(writev, int fd, struct iovec *iov, int iovcnt) {
  * Clear this fd of this process.
  */
 define_syscall(close, int fd) {
-    struct file* f = thisproc()->oftable.ofile[fd];
-    thisproc()->oftable.ofile[fd] = 0;
-    fileclose(f);
+    struct file* f = thisproc()->oftable.ofiles[fd];
+    thisproc()->oftable.ofiles[fd] = 0;
+    file_close(f);
     return 0;
 }
 
@@ -145,7 +141,7 @@ define_syscall(fstat, int fd, struct stat* st) {
     struct file* f = fd2file(fd);
     if (!f || !user_writeable(st, sizeof(*st)))
         return -1;
-    return filestat(f, st);
+    return file_stat(f, st);
 }
 
 define_syscall(newfstatat, int dirfd, const char* path, struct stat* st, int flags) {
@@ -340,9 +336,9 @@ define_syscall(openat, int dirfd, const char* path, int omode) {
         inodes.lock(ip);
     }
 
-    if ((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0) {
+    if ((f = file_alloc()) == 0 || (fd = fdalloc(f)) < 0) {
         if (f)
-            fileclose(f);
+            file_close(f);
         inodes.unlock(ip);
         inodes.put(&ctx, ip);
         bcache.end_op(&ctx);
@@ -441,7 +437,7 @@ define_syscall(chdir, const char* path) {
 define_syscall(pipe2, int *fd, int flags) {
     struct file *f0, *f1;
     int fd0, fd1;
-    if (pipeAlloc(&f0, &f1) < 0) {
+    if (pipe_alloc(&f0, &f1) < 0) {
         return -1;
     }
     fd0 = fdalloc(f0);

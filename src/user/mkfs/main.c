@@ -46,7 +46,7 @@ int nmeta;            // Number of meta blocks (boot, sb, num_log_blocks, inode,
 int num_data_blocks;  // Number of data blocks
 
 int fsfd;
-SuperBlock sb;
+struct super_block sb;
 char zeroes[BSIZE];
 uint freeinode = 1;
 uint freeblock;

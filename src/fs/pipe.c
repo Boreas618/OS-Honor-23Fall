@@ -8,7 +8,7 @@
 int pipe_alloc(struct file **f0, struct file **f1) {
     struct pipe *pi;
 
-    if (!(*f0 = filealloc()) || !(*f1 = filealloc()))
+    if (!(*f0 = file_alloc()) || !(*f1 = file_alloc()))
         PANIC();
     if (!(pi = (struct pipe *)kalloc(sizeof(struct pipe))))
         PANIC();
@@ -44,7 +44,7 @@ void pipe_close(struct pipe *pi, int writable) {
 
     if (pi->readopen == 0 && pi->writeopen == 0) {
         release_spinlock(&pi->lock);
-        kfree(sizeof(struct pipe));
+        kfree((void*)pi);
     } else {
         release_spinlock(&pi->lock);
     }
@@ -56,7 +56,7 @@ int pipe_write(struct pipe *pi, u64 addr, int n) {
 
     acquire_spinlock(&pi->lock);
     while (i < n) {
-        if (pi->readopen == 0 || is_killed(pr)) {
+        if (pi->readopen == 0 || pr->killed) {
             release_spinlock(&pi->lock);
             return -1;
         }
@@ -65,10 +65,7 @@ int pipe_write(struct pipe *pi, u64 addr, int n) {
             cond_broadcast(&pi->rlock);
             cond_wait(&pi->wlock, &pi->lock);
         } else {
-            char ch;
-            if(copyin(&pr->vmspace, &ch, addr + i, 1) == -1)
-                 break;
-            pi->data[pi->nwrite++ % PIPE_SIZE] = ch;
+            pi->data[pi->nwrite++ % PIPE_SIZE] = *(char*)(addr + i);
             i++;
         }
     }
@@ -81,11 +78,10 @@ int pipe_write(struct pipe *pi, u64 addr, int n) {
 int pipe_read(struct pipe *pi, u64 addr, int n) {
     int i;
     struct proc *pr = thisproc();
-    char ch;
 
     acquire_spinlock(&pi->lock);
     while (pi->nread == pi->nwrite && pi->writeopen) {
-        if (is_killed(pr)) {
+        if (pr->killed) {
             release_spinlock(&pi->lock);
             return -1;
         }
@@ -95,9 +91,7 @@ int pipe_read(struct pipe *pi, u64 addr, int n) {
     for (i = 0; i < n; i++) {
         if (pi->nread == pi->nwrite)
             break;
-        ch = pi->data[pi->nread++ % PIPE_SIZE];
-        if(copyout(&pr->vmspace, addr + i, &ch, 1) == -1)
-            break;
+        *(char*)(addr + i) = pi->data[pi->nread++ % PIPE_SIZE];
     }
     cond_broadcast(&pi->wlock);
     release_spinlock(&pi->lock);

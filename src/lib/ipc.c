@@ -208,7 +208,7 @@ retry:
         sender.proc = thisproc();
         _insert_into_list(msgq->q_sender.prev, &sender.node);
         release_spinlock(&msg_ids.lock);
-        _sched(SLEEPING);
+        schedule(SLEEPING);
         goto retry;
     }
     if (!pipeline_send(msgq, msg)) {
@@ -295,7 +295,7 @@ sys_msgrcv(int msgid, msgbuf *msgp, int msgsz, int mtype, int msgflg)
         receiver.proc = thisproc();
         receiver.size = msgsz;
         release_spinlock(&msg_ids.lock);
-        _sched(SLEEPING);
+        schedule(SLEEPING);
         found_msg = receiver.r_msg;
         if (found_msg == NULL)
             return E2BIG;

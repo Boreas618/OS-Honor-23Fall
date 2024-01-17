@@ -3,7 +3,7 @@
 #include "cache.hpp"
 
 static MockBlockCache mock;
-static SuperBlock sblock;
+static struct super_block sblock;
 static BlockCache cache;
 
 static void stub_begin_op(OpContext *ctx) {

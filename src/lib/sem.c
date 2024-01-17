@@ -77,9 +77,9 @@ _wait_sem(Semaphore* sem, bool alertable)
     wait->proc = thisproc();
     wait->up = false;
     _insert_into_list(&sem->sleeplist, &wait->slnode);
-    _sched(RUNNABLE);
+    schedule(RUNNABLE);
     release_spinlock(&sem->lock);
-    _sched(alertable ? SLEEPING : DEEPSLEEPING);
+    schedule(alertable ? SLEEPING : DEEPSLEEPING);
     acquire_spinlock(&sem->lock);
     if (!wait->up) {
         ASSERT(++sem->val <= 0);

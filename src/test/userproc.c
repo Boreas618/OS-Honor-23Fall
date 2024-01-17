@@ -33,7 +33,7 @@ void vm_test() {
         ASSERT(*(int*)(P2K(PTE_ADDRESS(*get_pte(&pg, i << 12, false)))) == (int)i);
         ASSERT(*(int*)(i << 12) == (int)i);
     }
-    free_pgdir(&pg);
+    free_vmspace(&pg);
     attach_vmspace(&pg);
     for (u64 i = 0; i < 100000; i++)
         kfree_page(p[i]);

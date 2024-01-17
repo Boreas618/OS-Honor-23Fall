@@ -11,7 +11,7 @@ extern BlockDevice block_device;
 define_rest_init(fs) {
     init_block_device();
 
-    const SuperBlock* sblock = get_super_block();
+    const struct super_block* sblock = get_super_block();
     init_bcache(sblock, &block_device);
     init_inodes(sblock, &bcache);
 }

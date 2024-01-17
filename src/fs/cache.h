@@ -2,7 +2,6 @@
 #include <lib/list.h>
 #include <lib/sem.h>
 #include <fs/block_device.h>
-#include <fs/defines.h>
 
 /* Maximum number of distinct blocks that one atomic operation can hold. */
 #define OP_MAX_NUM_BLOCKS 10
@@ -255,4 +254,4 @@ extern BlockCache bcache;
  * 
  * You may want to put it into `*_init` method groups.
  */
-void init_bcache(const SuperBlock *sblock, const BlockDevice *device);
+void init_bcache(const struct super_block *sblock, const struct block_device *device);

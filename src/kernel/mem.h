@@ -1,3 +1,5 @@
+#pragma once
+
 #include <aarch64/mmu.h>
 #include <lib/defines.h>
 #include <lib/list.h>
@@ -9,12 +11,9 @@
 #define VA2ID(vaddr) \
     ((vaddr - PAGE_BASE((u64) &end) - PAGE_SIZE) / PAGE_SIZE)
 
-typedef struct page Page;
-typedef struct partitioned_node PartitionedNode;
-
 struct partitioned_node {
     ListNode pp_node;
-    Page *page;
+    struct page *page;
     u8 bucket_index;
 };
 
@@ -23,9 +22,12 @@ struct page {
     u32 base_size;
     u64 free_head;
     u32 alloc_partitions_cnt;
-    PartitionedNode partitioned_node;
+    struct partitioned_node partitioned_node;
     RefCount ref;
 };
+
+typedef struct page Page;
+typedef struct partitioned_node PartitionedNode;
 
 u64 left_page_cnt(void);
 WARN_RESULT void *get_zero_page(void);

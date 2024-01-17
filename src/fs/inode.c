@@ -3,13 +3,15 @@
 #include <lib/printk.h>
 #include <lib/string.h>
 #include <sys/stat.h>
+#include <proc/sched.h>
+#include <lib/spinlock.h>
 
 static const struct super_block *sblock;
 
 static const struct block_cache *cache;
 
 /* Global lock for inode layer. */
-static struct spinLock lock;
+static struct spinlock lock;
 
 /* The list of all allocated in-memory inodes. */
 static struct list cached_inodes;
@@ -517,9 +519,9 @@ static struct inode *namex(const char *path, bool nameiparent, char *name,
     else
         ip = inodes.share(thisproc()->cwd);
     
-    while (path = skipelem(path, name)) {
+    while ((path = skipelem(path, name))) {
         inodes.lock(ip);
-        if (ip->type != INODE_DIRECTORY) {
+        if (ip->entry.type != INODE_DIRECTORY) {
             inodes.unlock(ip);
             inodes.put(ctx, ip);
             return ip;
@@ -530,16 +532,16 @@ static struct inode *namex(const char *path, bool nameiparent, char *name,
         }
         if (!(next = inodes.get(inodes.lookup(ip, name, 0)))) {
             inodes.unlock(ip);
-            inodes.put(ip);
+            inodes.put(ctx, ip);
             return NULL;
         }
         inodes.unlock(ip);
-        inodes.put(ip);
+        inodes.put(ctx, ip);
         ip = next;
     }
 
     if (nameiparent) {
-        inodes.put(ip);
+        inodes.put(ctx, ip);
         return NULL;
     }
     

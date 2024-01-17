@@ -35,8 +35,6 @@ static bool __cmp_runtime(rb_node n1, rb_node n2) {
 
 inline struct proc *thisproc() { return cpus[cpuid()].sched.running; }
 
-inline bool is_killed(struct proc *p) { return p->killed; }
-
 bool _activate_proc(struct proc *p, bool onalert) {
     if ((onalert && p->state == DEEPSLEEPING) || p->state == RUNNING ||
         p->state == RUNNABLE || p->state == ZOMBIE) {
@@ -104,7 +102,7 @@ static void update_this_proc(struct proc *p) {
         rbtree_erase(&rq[cpuid()], &(p->schinfo.rq_node));
 }
 
-static void schedule(enum procstate new_state) {
+void schedule(enum procstate new_state) {
     struct proc* this = thisproc();
     ASSERT(this->state == RUNNING);
 
@@ -131,7 +129,7 @@ static void schedule(enum procstate new_state) {
    }
 }
 
-__attribute__((weak, alias("schedule"))) void _sched(enum procstate new_state);
+// __attribute__((weak, alias("schedule"))) void _sched(enum procstate new_state);
 
 u64 proc_entry(void (*entry)(u64), u64 arg) {
     set_return_addr(entry);

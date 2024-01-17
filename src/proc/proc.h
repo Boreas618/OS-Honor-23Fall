@@ -39,7 +39,6 @@ struct proc {
     void *kstack;
     enum procstate state;
     struct lock *lock;
-    struct semaphore *chan;
     struct semaphore childexit;
     struct list children;
     struct list zombie_children;
@@ -62,7 +61,6 @@ int start_proc(struct proc *, void (*entry)(u64), u64 arg);
 NO_RETURN void exit(int code);
 WARN_RESULT int wait(int *exitcode);
 bool sleep(struct semaphore* sem, struct spinlock* lock);
-inline void wakeup(struct semaphore* sem);
 WARN_RESULT int kill(int pid);
 WARN_RESULT int fork();
 void trap_return();

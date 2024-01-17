@@ -13,8 +13,7 @@ define_early_init(pid)
 int 
 alloc_pid() 
 {
-    setup_checker(0);
-    acquire_spinlock(0, &pool.lock);
+    acquire_spinlock(&pool.lock);
     u64 old_pid_window = pool.window;
 
     while (pool.bm[pool.window] == 0xFF) {
@@ -22,7 +21,7 @@ alloc_pid()
         if (pool.window == PID_POOL_SIZE)
             pool.window = 0;
         if (pool.window == old_pid_window) {
-            release_spinlock(0, &pool.lock);
+            release_spinlock(&pool.lock);
             return -1;
         }
     }
@@ -31,20 +30,19 @@ alloc_pid()
         if ((pool.bm[pool.window] ^ (1 << i)) & (1 << i)) {
             pool.bm[pool.window] |= (1 << i);
             int pid = (int)(pool.window * 8 + i);
-            release_spinlock(0, &pool.lock);
+            release_spinlock(&pool.lock);
             return pid;
         }
-    release_spinlock(0, &pool.lock);
+    release_spinlock(&pool.lock);
     return -1;
 }
 
 void 
 free_pid(int pid) 
 {
-    setup_checker(0);
-    acquire_spinlock(0, &pool.lock);
+    acquire_spinlock(&pool.lock);
     u32 index = (u32)(pid / 8);
     u8 offset = (u8)(pid % 8);
     pool.bm[index] &= ~(1 << (u8)offset);
-    release_spinlock(0, &pool.lock);
+    release_spinlock(&pool.lock);
 }

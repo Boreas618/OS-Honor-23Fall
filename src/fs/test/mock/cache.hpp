@@ -18,8 +18,8 @@ struct MockBlockCache {
     static constexpr usize block_start = 1000;
     static constexpr usize num_inodes = 1000;
 
-    static auto get_sblock() -> SuperBlock {
-        SuperBlock sblock;
+    static auto get_sblock() -> struct super_block {
+        struct super_block sblock;
         sblock.num_blocks = num_blocks;
         sblock.num_data_blocks = num_blocks - block_start;
         sblock.num_inodes = num_inodes;
