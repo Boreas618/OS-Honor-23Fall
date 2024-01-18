@@ -7,7 +7,7 @@
 #include <test/test.h>
 #include <vm/pt.h>
 
-#define NPROC 32
+#define NPROC 512
 
 pgtbl_entry_t *get_pte(struct vmspace *vms, u64 va, bool alloc);
 
@@ -52,7 +52,7 @@ define_syscall(myreport, u64 id) {
         return 0;
     proc_cnt[id]++;
     cpu_cnt[cpuid()]++;
-    if (proc_cnt[id] > 12345) {
+    if (proc_cnt[id] > 100) {
         stop = true;
         post_sem(&myrepot_done);
     }

@@ -9,8 +9,6 @@
 #include <proc/proc.h>
 #include <proc/sched.h>
 
-#define SLICE_LEN 2
-
 static struct timer sched_timer[NCPU];
 
 static RBTree rq[NCPU];

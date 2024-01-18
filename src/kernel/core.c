@@ -26,7 +26,7 @@ NO_RETURN void kernel_entry() {
     // sd_test();
     // proc_test();
     // vm_test();
-    // user_proc_test();
+    user_proc_test();
     pgfault_first_test();
     pgfault_second_test();
 
