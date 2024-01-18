@@ -98,11 +98,13 @@ heap_found:
 }
 
 int pgfault_handler(u64 iss) {
+    (void)iss;
+
     struct proc *p = thisproc();
     struct vmspace *vs = &p->vmspace;
+
     /* The address which caused the page fault. */
     u64 addr = arch_get_far();
-    (void)iss;
 
     list_forall(p, vs->vmregions) {
         struct vmregion *v = container_of(p, struct vmregion, stnode);
@@ -110,7 +112,7 @@ int pgfault_handler(u64 iss) {
             if (v->flags & ST_HEAP) {
                 map_in_pgtbl(vs->pgtbl, addr, kalloc_page(), PTE_VALID | PTE_USER_DATA);
             } else {
-                printk("[Error] Invalid Memory Access.");
+                printk("[Error] Unsupported page fault.");
                 if (kill(thisproc()->pid) == -1)
                     printk("[Error] Failed to kill.");
                 PANIC();

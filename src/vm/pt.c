@@ -93,7 +93,8 @@ void map_in_pgtbl(pgtbl_entry_t *pt, u64 va, void *ka, u64 flags) {
     arch_tlbi_vmalle1is();
 
 #ifdef PT_DEBUG
-    printk("[map_in_pgtbl]: va: %lld -> ka: %p | rc: %lld\n", va, ka, page_mapped->ref.count);
+    printk("[map_in_pgtbl]: va: %lld -> ka: %p | rc: %lld\n", va, ka,
+           page_mapped->ref.count);
 #endif
 }
 
@@ -103,16 +104,17 @@ void unmap_in_pgtbl(pgtbl_entry_t *pt, u64 va) {
         return;
 
     u64 page_addr_k = (u64)P2K(PTE_ADDRESS(*pte));
-    struct page *page_mapped = get_page_info_by_kaddr((void*)page_addr_k);
+    struct page *page_mapped = get_page_info_by_kaddr((void *)page_addr_k);
 
     *pte &= !PTE_VALID;
 
     decrement_rc(&page_mapped->ref);
-    
+
     if (page_mapped->ref.count == 0)
-        kfree_page((void*)page_addr_k);
+        kfree_page((void *)page_addr_k);
 #ifdef PT_DEBUG
-    printk("[unmap_in_pgtbl]: va: %lld -> ka: %p | rc: %lld\n", va, (void*)page_addr_k, page_mapped->ref.count);
+    printk("[unmap_in_pgtbl]: va: %lld -> ka: %p | rc: %lld\n", va,
+           (void *)page_addr_k, page_mapped->ref.count);
 #endif
 
     arch_tlbi_vmalle1is();
@@ -130,29 +132,62 @@ void freeze_pgtbl(pgtbl_entry_t *pt) {
     /* Recursively free the pages. */
     for (int i = 0; i < N_PTE_PER_TABLE; i++) {
         pgtbl_entry_t *p_pte_level_0 = p_pgtbl_0 + i;
+
         if (!(*p_pte_level_0 & PTE_VALID))
             continue;
 
         for (int j = 0; j < N_PTE_PER_TABLE; j++) {
             pgtbl_entry_t *p_pte_level_1 =
                 (pgtbl_entry_t *)P2K(PTE_ADDRESS(*p_pte_level_0)) + j;
+
             if (!(*p_pte_level_1 & PTE_VALID))
                 continue;
 
             for (int k = 0; k < N_PTE_PER_TABLE; k++) {
                 pgtbl_entry_t *p_pte_level_2 =
                     (pgtbl_entry_t *)P2K(PTE_ADDRESS(*p_pte_level_1)) + k;
-                if (!(*p_pte_level_2 & PTE_VALID) || *p_pte_level_2 & PTE_RO)
+
+                if (!(*p_pte_level_2 & PTE_VALID))
                     continue;
 
-                *p_pte_level_2 = *p_pte_level_2 | PTE_RO;
+                for (int l = 0; l < N_PTE_PER_TABLE; l++) {
+                    pgtbl_entry_t *p_pte_level_3 =
+                        (pgtbl_entry_t *)P2K(PTE_ADDRESS(*p_pte_level_2)) + l;
+
+                    if (!(*p_pte_level_3 & PTE_VALID))
+                        continue;
+
+                    *p_pte_level_3 = (*p_pte_level_3) | PTE_RO;
+                    arch_tlbi_vmalle1is();
+#ifdef PT_DEBUG
+                    printk("[freeze]: mark va: %p as read-only.\n",
+                           (void *)P2K(PTE_ADDRESS(*p_pte_level_3)));
+#endif
+                }
+
+                *p_pte_level_2 = (*p_pte_level_2) | PTE_RO;
+                arch_tlbi_vmalle1is();
+#ifdef PT_DEBUG
+                printk("[freeze]: mark va: %p as read-only.\n",
+                       (void *)P2K(PTE_ADDRESS(*p_pte_level_2)));
+#endif
             }
-            *p_pte_level_1 = *p_pte_level_1 | PTE_RO;
+
+            *p_pte_level_1 = (*p_pte_level_1) | PTE_RO;
+            arch_tlbi_vmalle1is();
+#ifdef PT_DEBUG
+            printk("[freeze]: mark va: %p as read-only\n",
+                   (void *)P2K(PTE_ADDRESS(*p_pte_level_1)));
+#endif
         }
-        *p_pte_level_0 = *p_pte_level_0 | PTE_RO;
+
+        *p_pte_level_0 = (*p_pte_level_0) | PTE_RO;
+        arch_tlbi_vmalle1is();
+#ifdef PT_DEBUG
+        printk("[freeze]: mark va: %p as read-only\n",
+               (void *)P2K(PTE_ADDRESS(*p_pte_level_0)));
+#endif
     }
-    *pt = *pt | PTE_RO;
-    arch_tlbi_vmalle1is();
 }
 
 /*
