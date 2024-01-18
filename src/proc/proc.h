@@ -17,6 +17,7 @@ extern struct proc root_proc;
 enum procstate { UNUSED, RUNNABLE, RUNNING, SLEEPING, DEEPSLEEPING, ZOMBIE };
 
 struct uctx {
+    u64 pad; // In order to make the ctx 16-byte aligned.
     u64 q0;
     u64 tpidr0;
     u64 spsr;
