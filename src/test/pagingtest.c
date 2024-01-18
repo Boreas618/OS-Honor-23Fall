@@ -62,7 +62,7 @@ void pgfault_first_test() {
     sbrk(limit * PAGE_SIZE);
     for (i64 i = 0; i < limit; ++i) {
         u64 va = i * PAGE_SIZE;
-        vmmap(vm, va, get_zero_page(), PTE_RO | PTE_USER_DATA);
+        map_range_in_pgtbl(vm, va, get_zero_page(), PTE_RO | PTE_USER_DATA);
         ASSERT(*(i64 *)va == 0);
     }
     ASSERT(pc == left_page_cnt());
@@ -80,7 +80,7 @@ void pgfault_second_test() {
     // init
     i64 limit = 10; // do not need too big
     struct vmspace *pd = &thisproc()->vmspace;
-    init_vmspace(pd);
+    init_vmspace(pd, NULL);
     set_page_table(pd->pgtbl);
     struct vmregion *st = NULL;
     _for_in_list(node, pd->vmregions.head) {
@@ -94,7 +94,7 @@ void pgfault_second_test() {
     sbrk(limit * PAGE_SIZE);
     for (i64 i = 0; i < limit / 2; ++i) {
         u64 va = i * PAGE_SIZE;
-        vmmap(pd, va, get_zero_page(), PTE_RO | PTE_USER_DATA);
+        map_range_in_pgtbl(pd, va, get_zero_page(), PTE_RO | PTE_USER_DATA);
     }
     arch_tlbi_vmalle1is();
     for (i64 i = 0; i < limit; ++i) {

@@ -22,6 +22,7 @@ struct vmregion {
     u64 offset;
 };
 
+void init_vmspace(struct vmspace *vms, pgtbl_entry_t* shared_pt);
 int pgfault_handler(u64 iss);
 void init_vmregions(List* vmregions);
 void free_vmregions(struct vmspace *pd);

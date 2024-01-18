@@ -15,17 +15,15 @@
 
 #define HEAP_BEGIN 0
 
-static void __free_range(u64 begin, u64 end) {
-    for (; begin < end; begin += PAGE_SIZE) {
-        // Get the PTE of the corresponding virtual address.
-        pgtbl_entry_t *pte = get_pte(&thisproc()->vmspace, begin, false);
-        if (!pte)
-            continue;
-
-        // Free the page that the pte points to and set the pte as invalid.
-        kfree_page((void *)P2K(PTE_ADDRESS(*pte)));
-        *pte &= !PTE_VALID;
+void init_vmspace(struct vmspace *vms, pgtbl_entry_t* shared_pt) {
+    if (!shared_pt) {
+        vms->pgtbl = (pgtbl_entry_t *)K2P(kalloc_page());
+        memset((void *)P2K(vms->pgtbl), 0, PAGE_SIZE);
+    } else {
+        vms->pgtbl = shared_pt;
     }
+    init_spinlock(&vms->lock);
+    init_vmregions(&vms->vmregions);
 }
 
 void init_vmregions(List *vmregions) {
@@ -47,7 +45,7 @@ void free_vmregions(struct vmspace *vms) {
     while (vmregions.size) {
         struct vmregion *vmr =
             container_of(vmregions.head, struct vmregion, stnode);
-        __free_range(vmr->begin, vmr->end);
+        free_range_in_pgtbl(vmr->begin, vmr->end);
         list_remove(&vmregions, &vmr->stnode);
         kfree(vmr);
     }
@@ -77,7 +75,7 @@ u64 sbrk(i64 size) {
                     printk("[Error] Invalid size.\n");
                     return -1;
                 }
-                __free_range(new_end, old_end);
+                free_range_in_pgtbl(new_end, old_end);
             }
 
             goto heap_found;
@@ -110,7 +108,7 @@ int pgfault_handler(u64 iss) {
         struct vmregion *v = container_of(p, struct vmregion, stnode);
         if (v->begin <= addr && addr < v->end) {
             if (v->flags & ST_HEAP) {
-                vmmap(vs, addr, kalloc_page(), PTE_VALID | PTE_USER_DATA);
+                map_range_in_pgtbl(vs, addr, kalloc_page(), PTE_VALID | PTE_USER_DATA);
             } else {
                 printk("[Error] Invalid Memory Access.");
                 if (kill(thisproc()->pid) == -1)

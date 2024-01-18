@@ -8,6 +8,7 @@
 #include <proc/proc.h>
 #include <proc/sched.h>
 #include <fs/defines.h>
+#include <vm/paging.h>
 
 struct proc root_proc;
 
@@ -163,8 +164,13 @@ void init_proc(struct proc *p, bool idle, struct proc *parent) {
     p->parent = parent;
     p->schinfo.runtime = 0;
 
-    init_vmspace(&p->vmspace);
-
+    if (!idle && parent != NULL) {
+        freeze_pgtbl(parent->vmspace.pgtbl);
+        init_vmspace(&p->vmspace, parent->vmspace.pgtbl);
+    } else {
+        init_vmspace(&p->vmspace, NULL);
+    }
+    
     // If the parent is specified and the new process is not a 
     p->kstack = kalloc_page();
     if (!idle && parent != NULL)

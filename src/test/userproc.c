@@ -6,10 +6,9 @@
 #include <proc/proc.h>
 #include <test/test.h>
 #include <vm/pt.h>
+#include <vm/paging.h>
 
 #define NPROC 512
-
-pgtbl_entry_t *get_pte(struct vmspace *vms, u64 va, bool alloc);
 
 extern struct proc *running[];
 extern ListNode runnable;
@@ -20,15 +19,15 @@ void vm_test() {
     extern RefCount alloc_page_cnt;
     struct vmspace pg;
     int p0 = alloc_page_cnt.count;
-    init_vmspace(&pg);
+    init_vmspace(&pg, NULL);
     for (u64 i = 0; i < 100000; i++) {
         p[i] = kalloc_page();
-        *get_pte(&pg, i << 12, true) = K2P(p[i]) | PTE_USER_DATA;
+        *get_pte(pg.pgtbl, i << 12, true) = K2P(p[i]) | PTE_USER_DATA;
         *(int *)p[i] = i;
     }
     set_page_table(pg.pgtbl);
     for (u64 i = 0; i < 100000; i++) {
-        ASSERT(*(int *)(P2K(PTE_ADDRESS(*get_pte(&pg, i << 12, false)))) ==
+        ASSERT(*(int *)(P2K(PTE_ADDRESS(*get_pte(pg.pgtbl, i << 12, false)))) ==
                (int)i);
         ASSERT(*(int *)(i << 12) == (int)i);
     }
@@ -68,7 +67,7 @@ void user_proc_test() {
         auto p = create_proc();
         init_proc(p, false, NULL);
         for (u64 q = (u64)loop_start; q < (u64)loop_end; q += PAGE_SIZE) {
-            *get_pte(&p->vmspace, 0x400000 + q - (u64)loop_start, true) =
+            *get_pte(p->vmspace.pgtbl, 0x400000 + q - (u64)loop_start, true) =
                 K2P(q) | PTE_USER_DATA;
         }
         ASSERT(p->vmspace.pgtbl);
