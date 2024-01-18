@@ -7,6 +7,7 @@
 #include <proc/pid.h>
 #include <proc/proc.h>
 #include <proc/sched.h>
+#include <fs/defines.h>
 
 struct proc root_proc;
 
@@ -67,7 +68,7 @@ NO_RETURN void exit(int code) {
     p->exitcode = code;
 
     // Free the page table.
-    free_vmspace(&p->vmspace);
+    free_vmspace(&(p->vmspace));
 
     // Transfer the children and zombies to the root proc.
     transfer_children(&root_proc, p);
@@ -161,6 +162,7 @@ void init_proc(struct proc *p, bool idle, struct proc *parent) {
     init_list_node(&p->ptnode);
     p->parent = parent;
     p->schinfo.runtime = 0;
+
     init_vmspace(&p->vmspace);
 
     // If the parent is specified and the new process is not a 
@@ -173,6 +175,8 @@ void init_proc(struct proc *p, bool idle, struct proc *parent) {
     p->kcontext =
         p->kstack + PAGE_SIZE - sizeof(KernelContext) - sizeof(UserContext);
     p->ucontext = p->kstack + PAGE_SIZE - sizeof(UserContext);
+
+    init_oftable(&p->oftable);
     release_spinlock(&proc_lock);
 }
 
