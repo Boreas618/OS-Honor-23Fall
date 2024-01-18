@@ -43,9 +43,12 @@ bool _activate_proc(struct proc *p, bool onalert) {
         p->state == DEEPSLEEPING) {
         // Put the process into runnable queue.
         p->state = RUNNABLE;
-        if (!p->idle)
+        if (!p->idle) {
+            rbtree_lock(&rq[(p->pid) % NCPU]);
             rbtree_insert(&rq[(p->pid) % NCPU], &(p->schinfo.rq_node),
                           __cmp_runtime);
+            rbtree_unlock(&rq[(p->pid) % NCPU]);
+        }
         return true;
     }
     return false;
@@ -54,13 +57,19 @@ bool _activate_proc(struct proc *p, bool onalert) {
 static void update_this_state(enum procstate new_state) {
     ASSERT(new_state != RUNNING);
 
-    if (new_state == RUNNABLE && !thisproc()->idle)
+    if (new_state == RUNNABLE && !thisproc()->idle) {
+        rbtree_lock(&rq[cpuid()]);
         rbtree_insert(&rq[cpuid()], &(thisproc()->schinfo.rq_node),
                       __cmp_runtime);
+        rbtree_unlock(&rq[cpuid()]);
+    }
 
     if ((new_state == SLEEPING || new_state == ZOMBIE) &&
-        (thisproc()->state == RUNNABLE))
+        (thisproc()->state == RUNNABLE)) {
+        rbtree_lock(&rq[cpuid()]);
         rbtree_erase(&rq[cpuid()], &(thisproc()->schinfo.rq_node));
+        rbtree_unlock(&rq[cpuid()]);
+    }
 
     thisproc()->state = new_state;
 }
@@ -93,12 +102,20 @@ static void update_this_proc(struct proc *p) {
     set_cpu_timer(&sched_timer[cpuid()]);
     sched_timer[cpuid()].data = 1;
 
-    // Fetch p from rq and mark it as RUNNING
-    if (p->state != RUNNABLE)
+#ifdef SCHED_DEBUG
+    if (p->state != RUNNABLE) {
         printk("\n%d\n", p->state);
+        ASSERT(false);
+    }
+#endif
+
+    // Fetch p from rq and mark it as RUNNING
     p->state = RUNNING;
-    if (!p->idle)
+    if (!p->idle) {
+        rbtree_lock(&rq[cpuid()]);
         rbtree_erase(&rq[cpuid()], &(p->schinfo.rq_node));
+        rbtree_unlock(&rq[cpuid()]);
+    }
 }
 
 void schedule(enum procstate new_state) {
@@ -107,14 +124,17 @@ void schedule(enum procstate new_state) {
 
     // If the current process is marked as killed, it shouldn't be scheduled as
     // usual.
-    if (this->killed && new_state != ZOMBIE)
+    if (this->killed && new_state != ZOMBIE) {
         return;
+    }
 
     // Set the state for the old process.
     update_this_state(new_state);
 
     // Pick the new process.
     struct proc *next = pick_next();
+
+    ASSERT(next->state == RUNNABLE);
 
     // Update the state of the process.
     update_this_proc(next);

@@ -20,11 +20,11 @@ trap_entry:
     pushp(x4, x5)
     pushp(x2, x3)
     pushp(x0, x1)
-    mrs x1, sp_el0
-    mrs x0, spsr_el1
+    mrs x0, sp_el0
+    mrs x1, spsr_el1
     pushp(x0, x1)
-    mrs x1, elr_el1
-    mrs x0, tpidr_el0
+    mrs x0, elr_el1
+    mrs x1, tpidr_el0
     pushp(x0, x1)
     str q0, [sp, #-0x10]!
     mov x0, sp
@@ -34,11 +34,11 @@ trap_entry:
 trap_return:
     ldr q0, [sp], #0x10
     popp(x0, x1)
-    msr tpidr_el0, x0
-    msr elr_el1, x1
+    msr elr_el1, x0
+    msr tpidr_el0, x1
     popp(x0, x1)
-    msr spsr_el1, x0
-    msr sp_el0, x1
+    msr sp_el0, x0
+    msr spsr_el1, x1
     popp(x0, x1)
     popp(x2, x3)
     popp(x4, x5)

@@ -19,10 +19,10 @@ enum procstate { UNUSED, RUNNABLE, RUNNING, SLEEPING, DEEPSLEEPING, ZOMBIE };
 struct uctx {
     u64 pad; // In order to make the ctx 16-byte aligned.
     u64 q0;
-    u64 tpidr0;
-    u64 spsr;
     u64 elr;
+    u64 tpidr0;
     u64 sp;
+    u64 spsr;
     u64 regs[32]; // General purpose registers.
 };
 
