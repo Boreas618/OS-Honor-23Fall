@@ -47,11 +47,11 @@ void init_vmspace(struct vmspace *vms) {
     init_vmregions(&vms->vmregions);
 }
 
-void free_vmspace(struct vmspace *vms) {
-    if (vms->pgtbl == NULL)
+void free_page_table(pgtbl_entry_t **pt) {
+    if (*pt == NULL)
         return;
 
-    pgtbl_entry_t *p_pgtbl_0 = (pgtbl_entry_t *)P2K(vms->pgtbl);
+    pgtbl_entry_t *p_pgtbl_0 = (pgtbl_entry_t *)P2K(*pt);
 
     /* Recursively free the pages. */
     for (int i = 0; i < N_PTE_PER_TABLE; i++) {
@@ -77,14 +77,14 @@ void free_vmspace(struct vmspace *vms) {
         }
         kfree_page((void *)P2K(PTE_ADDRESS(*p_pte_level_0)));
     }
-    kfree_page((void *)P2K(vms->pgtbl));
-    vms->pgtbl = NULL;
+    kfree_page((void *)P2K(*pt));
+    *pt = NULL;
 }
 
-void attach_vmspace(struct vmspace *vms) {
+void set_page_table(pgtbl_entry_t* pt) {
     extern PTEntries invalid_pt;
-    if (vms->pgtbl)
-        arch_set_ttbr0(K2P(vms->pgtbl));
+    if (pt)
+        arch_set_ttbr0(K2P(pt));
     else
         arch_set_ttbr0(K2P(&invalid_pt));
 }

@@ -68,7 +68,7 @@ NO_RETURN void exit(int code) {
     p->exitcode = code;
 
     // Free the page table.
-    free_vmspace(&(p->vmspace));
+    free_page_table(&(p->vmspace.pgtbl));
 
     // Transfer the children and zombies to the root proc.
     transfer_children(&root_proc, p);

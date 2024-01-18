@@ -25,7 +25,7 @@ void pgfault_first_test() {
     struct proc *p = thisproc();
     struct vmspace *vm = &p->vmspace;
     ASSERT(vm->pgtbl); // make sure the attached pt is valid
-    attach_vmspace(vm);
+    set_page_table(vm->pgtbl);
     struct vmregion *st = NULL;
     _for_in_list(node, vm->vmregions.head) {
         st = container_of(node, struct vmregion, stnode);
@@ -81,7 +81,7 @@ void pgfault_second_test() {
     i64 limit = 10; // do not need too big
     struct vmspace *pd = &thisproc()->vmspace;
     init_vmspace(pd);
-    attach_vmspace(pd);
+    set_page_table(pd->pgtbl);
     struct vmregion *st = NULL;
     _for_in_list(node, pd->vmregions.head) {
         st = container_of(node, struct vmregion, stnode);

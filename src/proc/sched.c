@@ -145,7 +145,7 @@ void schedule(enum procstate new_state) {
      * before switching.
      */
     if (next != this) {
-        attach_vmspace(&next->vmspace);
+        set_page_table(next->vmspace.pgtbl);
         swtch(next->kcontext, &(this->kcontext));
     }
 }
