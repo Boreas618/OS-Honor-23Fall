@@ -99,28 +99,26 @@ void map_in_pgtbl(pgtbl_entry_t *pt, u64 va, void *ka, u64 flags) {
 
 void unmap_in_pgtbl(pgtbl_entry_t *pt, u64 va) {
     pgtbl_entry_t *pte = get_pte(pt, va, false);
-    if (!pte) {
-        printk("[Warning]: failed to unmap an invlaid virtual address. %lld\n", va);
+    if (!pte || !((u64)pte & PTE_VALID))
         return;
-    }
 
     u64 page_addr_k = (u64)P2K(PTE_ADDRESS(*pte));
     struct page *page_mapped = get_page_info_by_kaddr((void*)page_addr_k);
-#ifdef PT_DEBUG
-    printk("[unmap_in_pgtbl]: va: %lld -> ka: %p | rc: %lld\n", va, (void*)page_addr_k, page_mapped->ref.count);
-#endif
+
     *pte &= !PTE_VALID;
 
     decrement_rc(&page_mapped->ref);
     
     if (page_mapped->ref.count == 0)
         kfree_page((void*)page_addr_k);
+#ifdef PT_DEBUG
+    printk("[unmap_in_pgtbl]: va: %lld -> ka: %p | rc: %lld\n", va, (void*)page_addr_k, page_mapped->ref.count);
+#endif
 
     arch_tlbi_vmalle1is();
 }
 
 void unmap_range_in_pgtbl(pgtbl_entry_t *pt, u64 begin, u64 end) {
-    printk("%lld, %lld\n", begin, end);
     ASSERT((end - begin) % PAGE_SIZE == 0);
     for (; begin < end; begin += PAGE_SIZE)
         unmap_in_pgtbl(pt, begin);
