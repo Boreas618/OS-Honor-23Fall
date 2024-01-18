@@ -62,7 +62,7 @@ void pgfault_first_test() {
     sbrk(limit * PAGE_SIZE);
     for (i64 i = 0; i < limit; ++i) {
         u64 va = i * PAGE_SIZE;
-        map_range_in_pgtbl(vm, va, get_zero_page(), PTE_RO | PTE_USER_DATA);
+        map_range_in_pgtbl(vm->pgtbl, va, get_zero_page(), PTE_RO | PTE_USER_DATA);
         ASSERT(*(i64 *)va == 0);
     }
     ASSERT(pc == left_page_cnt());
@@ -94,7 +94,7 @@ void pgfault_second_test() {
     sbrk(limit * PAGE_SIZE);
     for (i64 i = 0; i < limit / 2; ++i) {
         u64 va = i * PAGE_SIZE;
-        map_range_in_pgtbl(pd, va, get_zero_page(), PTE_RO | PTE_USER_DATA);
+        map_range_in_pgtbl(pd->pgtbl, va, get_zero_page(), PTE_RO | PTE_USER_DATA);
     }
     arch_tlbi_vmalle1is();
     for (i64 i = 0; i < limit; ++i) {

@@ -83,20 +83,18 @@ void set_page_table(pgtbl_entry_t* pt) {
         arch_set_ttbr0(K2P(&invalid_pt));
 }
 
-void map_range_in_pgtbl(struct vmspace *vs, u64 va, void *ka, u64 flags) {
-    pgtbl_entry_t *pte = get_pte(vs->pgtbl, va, true);
+void map_range_in_pgtbl(pgtbl_entry_t *pt, u64 va, void *ka, u64 flags) {
+    pgtbl_entry_t *pte = get_pte(pt, va, true);
     *pte = (pgtbl_entry_t)(K2P(ka) | flags);
     arch_tlbi_vmalle1is();
 }
 
-void free_range_in_pgtbl(u64 begin, u64 end) {
+void unmap_range_in_pgtbl(pgtbl_entry_t *pt, u64 begin, u64 end) {
     ASSERT((end - begin) % PAGE_SIZE == 0);
     for (; begin < end; begin += PAGE_SIZE) {
         // Get the PTE of the corresponding virtual address.
-        pgtbl_entry_t *pte = get_pte(thisproc()->vmspace.pgtbl, begin, false);
-        if (!pte)
-            continue;
-
+        pgtbl_entry_t *pte = get_pte(pt, begin, false);
+        if (!pte) continue;
         // Free the page that the pte points to and set the pte as invalid.
         kfree_page((void *)P2K(PTE_ADDRESS(*pte)));
         *pte &= !PTE_VALID;

@@ -45,7 +45,7 @@ void free_vmregions(struct vmspace *vms) {
     while (vmregions.size) {
         struct vmregion *vmr =
             container_of(vmregions.head, struct vmregion, stnode);
-        free_range_in_pgtbl(vmr->begin, vmr->end);
+        unmap_range_in_pgtbl(thisproc()->vmspace.pgtbl, vmr->begin, vmr->end);
         list_remove(&vmregions, &vmr->stnode);
         kfree(vmr);
     }
@@ -75,7 +75,7 @@ u64 sbrk(i64 size) {
                     printk("[Error] Invalid size.\n");
                     return -1;
                 }
-                free_range_in_pgtbl(new_end, old_end);
+                unmap_range_in_pgtbl(thisproc()->vmspace.pgtbl, new_end, old_end);
             }
 
             goto heap_found;
@@ -108,7 +108,7 @@ int pgfault_handler(u64 iss) {
         struct vmregion *v = container_of(p, struct vmregion, stnode);
         if (v->begin <= addr && addr < v->end) {
             if (v->flags & ST_HEAP) {
-                map_range_in_pgtbl(vs, addr, kalloc_page(), PTE_VALID | PTE_USER_DATA);
+                map_range_in_pgtbl(vs->pgtbl, addr, kalloc_page(), PTE_VALID | PTE_USER_DATA);
             } else {
                 printk("[Error] Invalid Memory Access.");
                 if (kill(thisproc()->pid) == -1)
