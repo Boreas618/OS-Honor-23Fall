@@ -2,9 +2,11 @@
 #include <kernel/mem.h>
 #include <lib/printk.h>
 #include <lib/string.h>
+#include <proc/sched.h>
 #include <vm/paging.h>
 #include <vm/pt.h>
-#include <proc/sched.h>
+
+#define PT_DEBUG
 
 pgtbl_entry_t *get_pte(pgtbl_entry_t *pt, u64 va, bool alloc) {
     if (!pt && !alloc)
@@ -75,7 +77,7 @@ void free_page_table(pgtbl_entry_t **pt) {
     *pt = NULL;
 }
 
-void set_page_table(pgtbl_entry_t* pt) {
+void set_page_table(pgtbl_entry_t *pt) {
     extern PTEntries invalid_pt;
     if (pt)
         arch_set_ttbr0(K2P(pt));
@@ -83,25 +85,48 @@ void set_page_table(pgtbl_entry_t* pt) {
         arch_set_ttbr0(K2P(&invalid_pt));
 }
 
-void map_range_in_pgtbl(pgtbl_entry_t *pt, u64 va, void *ka, u64 flags) {
+void map_in_pgtbl(pgtbl_entry_t *pt, u64 va, void *ka, u64 flags) {
     pgtbl_entry_t *pte = get_pte(pt, va, true);
     *pte = (pgtbl_entry_t)(K2P(ka) | flags);
+    struct page *page_mapped = get_page_info_by_kaddr(ka);
+    increment_rc(&page_mapped->ref);
+    arch_tlbi_vmalle1is();
+
+#ifdef PT_DEBUG
+    printk("[map_in_pgtbl]: va: %lld -> ka: %p | rc: %lld\n", va, ka, page_mapped->ref.count);
+#endif
+}
+
+void unmap_in_pgtbl(pgtbl_entry_t *pt, u64 va) {
+    pgtbl_entry_t *pte = get_pte(pt, va, false);
+    if (!pte) {
+        printk("[Warning]: failed to unmap an invlaid virtual address. %lld\n", va);
+        return;
+    }
+
+    u64 page_addr_k = (u64)P2K(PTE_ADDRESS(*pte));
+    struct page *page_mapped = get_page_info_by_kaddr((void*)page_addr_k);
+#ifdef PT_DEBUG
+    printk("[unmap_in_pgtbl]: va: %lld -> ka: %p | rc: %lld\n", va, (void*)page_addr_k, page_mapped->ref.count);
+#endif
+    *pte &= !PTE_VALID;
+
+    decrement_rc(&page_mapped->ref);
+    
+    if (page_mapped->ref.count == 0)
+        kfree_page((void*)page_addr_k);
+
     arch_tlbi_vmalle1is();
 }
 
 void unmap_range_in_pgtbl(pgtbl_entry_t *pt, u64 begin, u64 end) {
+    printk("%lld, %lld\n", begin, end);
     ASSERT((end - begin) % PAGE_SIZE == 0);
-    for (; begin < end; begin += PAGE_SIZE) {
-        // Get the PTE of the corresponding virtual address.
-        pgtbl_entry_t *pte = get_pte(pt, begin, false);
-        if (!pte) continue;
-        // Free the page that the pte points to and set the pte as invalid.
-        kfree_page((void *)P2K(PTE_ADDRESS(*pte)));
-        *pte &= !PTE_VALID;
-    }
+    for (; begin < end; begin += PAGE_SIZE)
+        unmap_in_pgtbl(pt, begin);
 }
 
-void freeze_pgtbl(pgtbl_entry_t* pt) {
+void freeze_pgtbl(pgtbl_entry_t *pt) {
     pgtbl_entry_t *p_pgtbl_0 = (pgtbl_entry_t *)P2K(pt);
 
     /* Recursively free the pages. */

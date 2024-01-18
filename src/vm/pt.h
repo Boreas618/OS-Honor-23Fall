@@ -10,7 +10,8 @@ struct vmspace {
 };
 
 WARN_RESULT pgtbl_entry_t *get_pte(pgtbl_entry_t *pg, u64 va, bool alloc);
-void map_range_in_pgtbl(pgtbl_entry_t *pt, u64 va, void *ka, u64 flags);
+void map_in_pgtbl(pgtbl_entry_t *pt, u64 va, void *ka, u64 flags);
+void unmap_in_pgtbl(pgtbl_entry_t *pt, u64 va);
 void free_page_table(pgtbl_entry_t **pt);
 void set_page_table(pgtbl_entry_t* pt);
 void unmap_range_in_pgtbl(pgtbl_entry_t *pt, u64 begin, u64 end);

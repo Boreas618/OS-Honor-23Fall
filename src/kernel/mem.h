@@ -37,3 +37,4 @@ WARN_RESULT void *kalloc_page(void);
 void kfree_page(void *page);
 WARN_RESULT void *kalloc(isize size);
 void kfree(void *ptr);
+struct page* get_page_info_by_kaddr(void* kaddr);

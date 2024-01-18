@@ -108,7 +108,7 @@ int pgfault_handler(u64 iss) {
         struct vmregion *v = container_of(p, struct vmregion, stnode);
         if (v->begin <= addr && addr < v->end) {
             if (v->flags & ST_HEAP) {
-                map_range_in_pgtbl(vs->pgtbl, addr, kalloc_page(), PTE_VALID | PTE_USER_DATA);
+                map_in_pgtbl(vs->pgtbl, addr, kalloc_page(), PTE_VALID | PTE_USER_DATA);
             } else {
                 printk("[Error] Invalid Memory Access.");
                 if (kill(thisproc()->pid) == -1)

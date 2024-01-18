@@ -221,3 +221,8 @@ WARN_RESULT void *get_zero_page() {
     }
     return zero;
 }
+
+struct page* get_page_info_by_kaddr(void* kaddr) {
+    usize id = VA2ID((u64)kaddr);
+    return &page_info[id];
+}
