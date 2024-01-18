@@ -10,7 +10,7 @@
 
 struct proc root_proc;
 
-SpinLock proc_lock;
+struct spinlock proc_lock;
 
 define_early_init(proc_d) { init_spinlock(&proc_lock); }
 
@@ -27,7 +27,7 @@ define_init(startup_procs) {
     }
 
     // Initialize the root process
-    init_proc(&root_proc);
+    init_proc(&root_proc, false, NULL);
     root_proc.parent = &root_proc;
     start_proc(&root_proc, kernel_entry, 0);
 }
@@ -139,7 +139,7 @@ int start_proc(struct proc *p, void (*entry)(u64), u64 arg) {
     ASSERT(p->kstack != NULL);
 
     // Initialize the kernel context
-    p->kcontext->csregs[11] = (u64)&proc_entry;
+    p->kcontext->regs[11] = (u64)&proc_entry;
     p->kcontext->x0 = (u64)entry;
     p->kcontext->x1 = (u64)arg;
     int pid = p->pid;
@@ -148,23 +148,28 @@ int start_proc(struct proc *p, void (*entry)(u64), u64 arg) {
     return pid;
 }
 
-void init_proc(struct proc *p) {
+void init_proc(struct proc *p, bool idle, struct proc *parent) {
     acquire_spinlock(&proc_lock);
     memset(p, 0, sizeof(*p));
     p->killed = false;
-    p->idle = false;
+    p->idle = idle;
     p->pid = alloc_pid();
     p->state = UNUSED;
     init_sem(&p->childexit, 0);
     list_init(&p->children);
     list_init(&p->zombie_children);
     init_list_node(&p->ptnode);
-    p->parent = NULL;
+    p->parent = parent;
     p->schinfo.runtime = 0;
     init_vmspace(&p->vmspace);
+
+    // If the parent is specified and the new process is not a 
     p->kstack = kalloc_page();
-    ASSERT(p->kstack != NULL);
-    memset((void *)p->kstack, 0, PAGE_SIZE);
+    if (!idle && parent != NULL)
+        memcpy(p->kstack, parent->kstack, PAGE_SIZE);
+    else
+        memset((void *)p->kstack, 0, PAGE_SIZE);
+
     p->kcontext =
         p->kstack + PAGE_SIZE - sizeof(KernelContext) - sizeof(UserContext);
     p->ucontext = p->kstack + PAGE_SIZE - sizeof(UserContext);
@@ -174,15 +179,12 @@ void init_proc(struct proc *p) {
 struct proc *create_proc() {
     struct proc *p = kalloc(sizeof(struct proc));
     ASSERT(p != NULL);
-    init_proc(p);
     return p;
 }
 
 struct proc *create_idle_proc() {
     struct proc *p = create_proc();
-    // Do some configurations to the idle entry.
-    p->idle = true;
-    p->parent = p;
+    init_proc(p, true, p);
     start_proc(p, &idle_entry, 0);
     return p;
 }
@@ -191,7 +193,9 @@ struct proc *create_idle_proc() {
  * Create a new process copying p as the parent.
  * Sets up stack to return as if from system call.
  */
-int fork() { /* TODO: Your code here. */
-    printk("Not implemented!");
+int fork() {
+    struct proc *np = create_proc();
+    ASSERT(np != NULL);
+    init_proc(np, false, thisproc());
     return -1;
 }
