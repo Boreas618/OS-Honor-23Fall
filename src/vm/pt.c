@@ -53,46 +53,33 @@ pgtbl_entry_t *get_pte(pgtbl_entry_t *pt, u64 va, bool alloc) {
     return (pgtbl_entry_t *)(pgtbl + idxs[3]);
 }
 
-void free_page_table(pgtbl_entry_t **pt) {
-    if (*pt == NULL)
-        return;
+void __free_page_table_level(pgtbl_entry_t *p_pte_page, u8 level) {
+    ASSERT(level <= 3);
 
-    pgtbl_entry_t *p_pgtbl_0 = (pgtbl_entry_t *)P2K(*pt);
+    // Get the pointer to the first PTE in the current PTE page.
+    pgtbl_entry_t *p_pte_base = (pgtbl_entry_t *)P2K(PTE_ADDRESS(*p_pte_page));
 
-    /* Recursively free the pages. */
+    // Iterate over each PTE in the table.
     for (int i = 0; i < N_PTE_PER_TABLE; i++) {
-        pgtbl_entry_t *p_pte_level_0 = p_pgtbl_0 + i;
-        if (!(*p_pte_level_0 & PTE_VALID))
+        pgtbl_entry_t *p_pte = p_pte_base + i;
+        if (!(*p_pte & PTE_VALID))
             continue;
 
-        for (int j = 0; j < N_PTE_PER_TABLE; j++) {
-            pgtbl_entry_t *p_pte_level_1 =
-                (pgtbl_entry_t *)P2K(PTE_ADDRESS(*p_pte_level_0)) + j;
-            if (!(*p_pte_level_1 & PTE_VALID))
-                continue;
-
-            for (int k = 0; k < N_PTE_PER_TABLE; k++) {
-                pgtbl_entry_t *p_pte_level_2 =
-                    (pgtbl_entry_t *)P2K(PTE_ADDRESS(*p_pte_level_1)) + k;
-                if (!(*p_pte_level_2 & PTE_VALID))
-                    continue;
-                for (int l = 0; l < N_PTE_PER_TABLE; l++) {
-                    pgtbl_entry_t *p_pte_level_3 =
-                        (pgtbl_entry_t *)P2K(PTE_ADDRESS(*p_pte_level_2)) + l;
-
-                    if (!(*p_pte_level_3 & PTE_VALID))
-                        continue;
-
-                    detach_mapped_page(p_pte_level_3);
-                }
-
-                kfree_page((void *)P2K(PTE_ADDRESS(*p_pte_level_2)));
-            }
-            kfree_page((void *)P2K(PTE_ADDRESS(*p_pte_level_1)));
-        }
-        kfree_page((void *)P2K(PTE_ADDRESS(*p_pte_level_0)));
+        // If at the last level, detach the mapped page.
+        // Otherwise, recursively free the next level.
+        if (level == 3)
+            detach_mapped_page(p_pte);
+        else
+            __free_page_table_level(p_pte, level + 1);
     }
-    kfree_page((void *)P2K(*pt));
+
+    // Release the memory for the PTE page.
+    kfree_page((void *)p_pte_base);
+}
+
+void free_page_table(pgtbl_entry_t **pt) {
+    ASSERT(*pt != NULL);
+    __free_page_table_level((pgtbl_entry_t *)pt, 0);
     *pt = NULL;
 }
 
@@ -141,69 +128,28 @@ void unmap_range_in_pgtbl(pgtbl_entry_t *pt, u64 begin, u64 end) {
         unmap_in_pgtbl(pt, begin);
 }
 
-void freeze_pgtbl(pgtbl_entry_t *pt) {
-    pgtbl_entry_t *p_pgtbl_0 = (pgtbl_entry_t *)P2K(pt);
+void __freeze_page_table_level(pgtbl_entry_t *pt, u8 level) {
+    ASSERT(level <= 3);
 
-    /* Recursively free the pages. */
+    // Get the pointer to the first PTE in the current PTE page.
+    pgtbl_entry_t *p_pte_base = (pgtbl_entry_t *)P2K(PTE_ADDRESS(*pt));
+
+    // Iterate over each PTE in the table.
     for (int i = 0; i < N_PTE_PER_TABLE; i++) {
-        pgtbl_entry_t *p_pte_level_0 = p_pgtbl_0 + i;
-
-        if (!(*p_pte_level_0 & PTE_VALID))
+        pgtbl_entry_t *p_pte = p_pte_base + i;
+        if (!(*p_pte & PTE_VALID))
             continue;
 
-        for (int j = 0; j < N_PTE_PER_TABLE; j++) {
-            pgtbl_entry_t *p_pte_level_1 =
-                (pgtbl_entry_t *)P2K(PTE_ADDRESS(*p_pte_level_0)) + j;
+        // If not at the last level, recursively free the next level.
+        if (level != 3)
+            __freeze_page_table_level(p_pte, level + 1);
 
-            if (!(*p_pte_level_1 & PTE_VALID))
-                continue;
-
-            for (int k = 0; k < N_PTE_PER_TABLE; k++) {
-                pgtbl_entry_t *p_pte_level_2 =
-                    (pgtbl_entry_t *)P2K(PTE_ADDRESS(*p_pte_level_1)) + k;
-
-                if (!(*p_pte_level_2 & PTE_VALID))
-                    continue;
-
-                for (int l = 0; l < N_PTE_PER_TABLE; l++) {
-                    pgtbl_entry_t *p_pte_level_3 =
-                        (pgtbl_entry_t *)P2K(PTE_ADDRESS(*p_pte_level_2)) + l;
-
-                    if (!(*p_pte_level_3 & PTE_VALID))
-                        continue;
-
-                    *p_pte_level_3 = (*p_pte_level_3) | PTE_RO;
-                    arch_tlbi_vmalle1is();
-#ifdef PT_DEBUG
-                    printk("[freeze]: mark va: %p as read-only.\n",
-                           (void *)P2K(PTE_ADDRESS(*p_pte_level_3)));
-#endif
-                }
-
-                *p_pte_level_2 = (*p_pte_level_2) | PTE_RO;
-                arch_tlbi_vmalle1is();
-#ifdef PT_DEBUG
-                printk("[freeze]: mark va: %p as read-only.\n",
-                       (void *)P2K(PTE_ADDRESS(*p_pte_level_2)));
-#endif
-            }
-
-            *p_pte_level_1 = (*p_pte_level_1) | PTE_RO;
-            arch_tlbi_vmalle1is();
-#ifdef PT_DEBUG
-            printk("[freeze]: mark va: %p as read-only\n",
-                   (void *)P2K(PTE_ADDRESS(*p_pte_level_1)));
-#endif
-        }
-
-        *p_pte_level_0 = (*p_pte_level_0) | PTE_RO;
+        *p_pte = (*p_pte) | PTE_RO;
         arch_tlbi_vmalle1is();
-#ifdef PT_DEBUG
-        printk("[freeze]: mark va: %p as read-only\n",
-               (void *)P2K(PTE_ADDRESS(*p_pte_level_0)));
-#endif
     }
 }
+
+void freeze_pgtbl(pgtbl_entry_t *pt) { __freeze_page_table_level(pt, 0); }
 
 /*
  * Copy len bytes from p to user address va in page table pgdir.
