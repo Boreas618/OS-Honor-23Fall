@@ -6,7 +6,17 @@
 #include <vm/paging.h>
 #include <vm/pt.h>
 
-#define PT_DEBUG
+// #define PT_DEBUG
+
+void detach_mapped_page(pgtbl_entry_t *pte) {
+    u64 page_addr_k = (u64)P2K(PTE_ADDRESS(*pte));
+    struct page *page_mapped = get_page_info_by_kaddr((void *)page_addr_k);
+    if (page_mapped) {
+        decrement_rc(&page_mapped->ref);
+        if (page_mapped->ref.count == 0)
+            kfree_page((void *)page_addr_k);
+    }
+}
 
 pgtbl_entry_t *get_pte(pgtbl_entry_t *pt, u64 va, bool alloc) {
     if (!pt && !alloc)
@@ -66,6 +76,15 @@ void free_page_table(pgtbl_entry_t **pt) {
                     (pgtbl_entry_t *)P2K(PTE_ADDRESS(*p_pte_level_1)) + k;
                 if (!(*p_pte_level_2 & PTE_VALID))
                     continue;
+                for (int l = 0; l < N_PTE_PER_TABLE; l++) {
+                    pgtbl_entry_t *p_pte_level_3 =
+                        (pgtbl_entry_t *)P2K(PTE_ADDRESS(*p_pte_level_2)) + l;
+
+                    if (!(*p_pte_level_3 & PTE_VALID))
+                        continue;
+
+                    detach_mapped_page(p_pte_level_3);
+                }
 
                 kfree_page((void *)P2K(PTE_ADDRESS(*p_pte_level_2)));
             }
@@ -89,7 +108,8 @@ void map_in_pgtbl(pgtbl_entry_t *pt, u64 va, void *ka, u64 flags) {
     pgtbl_entry_t *pte = get_pte(pt, va, true);
     *pte = (pgtbl_entry_t)(K2P(ka) | flags);
     struct page *page_mapped = get_page_info_by_kaddr(ka);
-    increment_rc(&page_mapped->ref);
+    if (page_mapped)
+        increment_rc(&page_mapped->ref);
     arch_tlbi_vmalle1is();
 
 #ifdef PT_DEBUG
@@ -103,15 +123,10 @@ void unmap_in_pgtbl(pgtbl_entry_t *pt, u64 va) {
     if (!pte || !((u64)pte & PTE_VALID))
         return;
 
-    u64 page_addr_k = (u64)P2K(PTE_ADDRESS(*pte));
-    struct page *page_mapped = get_page_info_by_kaddr((void *)page_addr_k);
+    detach_mapped_page(pte);
 
     *pte &= !PTE_VALID;
 
-    decrement_rc(&page_mapped->ref);
-
-    if (page_mapped->ref.count == 0)
-        kfree_page((void *)page_addr_k);
 #ifdef PT_DEBUG
     printk("[unmap_in_pgtbl]: va: %lld -> ka: %p | rc: %lld\n", va,
            (void *)page_addr_k, page_mapped->ref.count);

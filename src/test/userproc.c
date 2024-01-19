@@ -67,8 +67,7 @@ void user_proc_test() {
         auto p = create_proc();
         init_proc(p, false, NULL);
         for (u64 q = (u64)loop_start; q < (u64)loop_end; q += PAGE_SIZE) {
-            *get_pte(p->vmspace.pgtbl, 0x400000 + q - (u64)loop_start, true) =
-                K2P(q) | PTE_USER_DATA;
+            map_in_pgtbl(p->vmspace.pgtbl, 0x400000 + q - (u64)loop_start, (void*)q, PTE_USER_DATA);
         }
         ASSERT(p->vmspace.pgtbl);
         p->ucontext->regs[0] = i;

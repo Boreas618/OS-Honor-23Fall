@@ -223,6 +223,9 @@ WARN_RESULT void *get_zero_page() {
 }
 
 struct page* get_page_info_by_kaddr(void* kaddr) {
-    usize id = VA2ID((u64)kaddr);
+    isize id = VA2ID((u64)kaddr);
+    if (id < 0 || id >= MAX_PAGES) {
+        return NULL; 
+    }     
     return &page_info[id];
 }
