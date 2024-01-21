@@ -31,7 +31,7 @@ bool user_readable(const void *start, usize size) {
     struct list vmregions = thisproc()->vmspace.vmregions;
     list_forall(p, vmregions) {
         struct vmregion *v = container_of(p, struct vmregion, stnode);
-        if (v->begin <= (u64)start && ((u64)start) + size <= v->begin)
+        if (v->begin <= (u64)start && ((u64)start) + size <= v->end)
             return true;
     }
     return false;
@@ -44,7 +44,7 @@ bool user_writeable(const void *start, usize size) {
     list_forall(p, vmregions) {
         struct vmregion *v = container_of(p, struct vmregion, stnode);
         if (!(v->flags & ST_RO) && v->begin <= (u64)start &&
-            ((u64)start) + size <= v->begin)
+            ((u64)start) + size <= v->end)
             return true;
     }
     return false;

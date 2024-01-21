@@ -38,7 +38,7 @@ static struct file *fd2file(int fd) {
 int fdalloc(struct file *f) {
     struct proc *p = thisproc();
     for (int i = 0; i < NOFILE; i++) {
-        if (p->oftable.ofiles[i]) {
+        if (p->oftable.ofiles[i] == NULL) {
             p->oftable.ofiles[i] = f;
             return i;
         }
@@ -251,7 +251,10 @@ struct inode *create(const char *path, short type, short major, short minor,
 
     inodes.lock(dp);
 
-    if ((ip = inodes.get(inodes.lookup(dp, name, NULL)))) {
+    usize inode_no = inodes.lookup(dp, name, NULL);
+
+    if (inode_no > 0) {
+        ip = inodes.get(inode_no);
         inodes.unlock(dp);
         inodes.put(ctx, dp);
 

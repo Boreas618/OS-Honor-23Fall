@@ -146,7 +146,7 @@ static struct inode *inode_get(usize inode_no) {
 
     // Set the inode as valid and put it on the list of cached inodes.
     new_inode->valid = true;
-    list_push_head(&cached_inodes, &new_inode->node);
+    list_push_back(&cached_inodes, &new_inode->node);
     list_unlock(&cached_inodes);
     return new_inode;
 }
@@ -538,17 +538,19 @@ static struct inode *namex(const char *path, bool nameiparent, char *name,
         if (ip->entry.type != INODE_DIRECTORY) {
             inodes.unlock(ip);
             inodes.put(ctx, ip);
-            return ip;
+            return NULL;
         }
         if (nameiparent && *path == '\0') {
             inodes.unlock(ip);
             return ip;
         }
-        if (!(next = inodes.get(inodes.lookup(ip, name, 0)))) {
-            inodes.unlock(ip);
-            inodes.put(ctx, ip);
+        usize inode_no = inode_lookup(ip, name, NULL);
+        if (inode_no == 0) {
+            inode_unlock(ip);
+            inode_put(ctx, ip);
             return NULL;
         }
+        next = inode_get(inode_no);
         inodes.unlock(ip);
         inodes.put(ctx, ip);
         ip = next;

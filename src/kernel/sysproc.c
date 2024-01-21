@@ -5,6 +5,8 @@
 #include <proc/sched.h>
 #include <vm/paging.h>
 
+int execve(const char *path, char *const argv[], char *const envp[]);
+
 define_syscall(gettid) { return thisproc()->pid; }
 
 define_syscall(set_tid_address, int *tidptr) {
@@ -20,11 +22,6 @@ define_syscall(myyield) {
     yield();
     return 0;
 }
-
-/*define_syscall(yield) {
-    yield();
-    return 0;
-}*/
 
 define_syscall(pstat) { return (u64)left_page_cnt(); }
 
@@ -45,11 +42,11 @@ define_syscall(exit, int n) { exit(n); }
 
 define_syscall(exit_group, int n) { exit(n); }
 
-int execve(const char *path, char *const argv[], char *const envp[]);
 define_syscall(execve, const char *p, void *argv, void *envp) {
     if (!user_strlen(p, 256))
         return -1;
-    return execve(p, argv, envp);
+    int r = execve(p, argv, envp);
+    return r;
 }
 
 define_syscall(wait4, int pid, int options, int *wstatus, void *rusage) {

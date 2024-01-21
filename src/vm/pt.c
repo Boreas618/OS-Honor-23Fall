@@ -25,19 +25,19 @@ pgtbl_entry_t *get_pte(pgtbl_entry_t *pt, u64 va, bool alloc) {
     if (!pt && alloc)
         pt = (pgtbl_entry_t *)K2P(kalloc_page());
 
-    /* We store the physical address of the page table in PCB. */
+    // We store the physical address of the page table in PCB.
     pgtbl_entry_t *pgtbl = (pgtbl_entry_t *)P2K(pt);
 
-    /* The 4 parts of the virtual address. */
+    // The 4 parts of the virtual address.
     int idxs[] = {VA_PART0(va), VA_PART1(va), VA_PART2(va), VA_PART3(va)};
 
-    /* The flags with respect to the four levels in page table. */
+    // The flags with respect to the four levels in page table.
     u32 flags[] = {PTE_TABLE, PTE_TABLE, PTE_TABLE, PTE_USER_DATA};
 
     int i = 0;
 
     while (i < 3) {
-        /* The PTE is invalid. */
+        // The PTE is invalid.
         if (!(pgtbl[idxs[i]] & PTE_VALID)) {
             if (!alloc)
                 return NULL;
@@ -86,7 +86,7 @@ void free_page_table(pgtbl_entry_t **pt) {
 void set_page_table(pgtbl_entry_t *pt) {
     extern PTEntries invalid_pt;
     if (pt)
-        arch_set_ttbr0(K2P(pt));
+        arch_set_ttbr0((u64)pt);
     else
         arch_set_ttbr0(K2P(&invalid_pt));
 }
@@ -123,7 +123,8 @@ void unmap_in_pgtbl(pgtbl_entry_t *pt, u64 va) {
 }
 
 void unmap_range_in_pgtbl(pgtbl_entry_t *pt, u64 begin, u64 end) {
-    ASSERT((end - begin) % PAGE_SIZE == 0);
+    ASSERT(begin % PAGE_SIZE == 0);
+    ASSERT(end % PAGE_SIZE == 0);
     for (; begin < end; begin += PAGE_SIZE)
         unmap_in_pgtbl(pt, begin);
 }
@@ -151,16 +152,21 @@ void __freeze_page_table_level(pgtbl_entry_t *pt, u8 level) {
 
 void freeze_pgtbl(pgtbl_entry_t *pt) { __freeze_page_table_level(pt, 0); }
 
-/*
- * Copy len bytes from p to user address va in page table pgdir.
- * Allocate physical pages if required.
- * Useful when pgdir is not the current page table.
- */
-int copyout(struct vmspace *pd, void *va, void *p, usize len) {
-    // TODO
-    (void)pd;
-    (void)va;
-    (void)p;
-    (void)len;
+/* Copy len bytes from p to user address va in page table. */
+int copy_to_user(pgtbl_entry_t* pt, void *va, void *p, usize len) {
+    while (len > 0) {
+        u64 p_addr = *get_pte(pt, (u64)va, true);
+        if (p_addr == NULL)
+            return -1;
+        
+        u64 offset = (u64)va - PAGE_BASE((u64)va);
+        u64 n = PAGE_SIZE - offset;
+        if (n > len)
+            n = len;
+        memcpy((void *)(P2K(PTE_ADDRESS(p_addr)) + offset), p, n);
+        len -= n;
+        p += n;
+        va += n;
+    }
     return 0;
 }

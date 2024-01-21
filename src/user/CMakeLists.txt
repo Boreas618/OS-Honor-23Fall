@@ -11,7 +11,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../musl/arch/aarch64)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../musl/arch/generic)
 
 set(LIBC_SPEC_OUT ${CMAKE_CURRENT_BINARY_DIR}/../../musl-gcc.specs)
-set(CMAKE_C_FLAGS "-specs ${LIBC_SPEC_OUT} -std=gnu99  -MMD -MP -static -fno-plt -fno-pic -fpie -z max-page-size=4096 -s")
+set(CMAKE_C_FLAGS "-specs ${LIBC_SPEC_OUT} -std=gnu99  -MMD -MP -static -fno-plt -fno-pic -fpie -z max-page-size=4096 -s -g")
 set(CMAKE_EXE_LINKER_FLAGS "")
 
 # Add targets here if needed

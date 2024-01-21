@@ -19,7 +19,7 @@ void vm_test() {
     extern RefCount alloc_page_cnt;
     struct vmspace pg;
     int p0 = alloc_page_cnt.count;
-    init_vmspace(&pg, NULL);
+    init_vmspace(&pg);
     for (u64 i = 0; i < 100000; i++) {
         p[i] = kalloc_page();
         *get_pte(pg.pgtbl, i << 12, true) = K2P(p[i]) | PTE_USER_DATA;

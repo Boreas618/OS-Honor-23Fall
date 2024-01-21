@@ -128,7 +128,6 @@ void list_unlock(struct list *l);
 void list_insert(struct list *l, struct list_node *item,
                  struct list_node *target);
 void list_remove(struct list *l, struct list_node *item);
-void list_push_head(struct list *l, struct list_node *item);
 void list_push_back(struct list *l, struct list_node *item);
 void list_pop_head(struct list *l);
 void list_pop_back(struct list *l);

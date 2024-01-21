@@ -166,9 +166,10 @@ void init_proc(struct proc *p, bool idle, struct proc *parent) {
 
     if (!idle && parent != NULL) {
         freeze_pgtbl(parent->vmspace.pgtbl);
-        init_vmspace(&p->vmspace, parent->vmspace.pgtbl);
+        init_vmspace(&p->vmspace);
+        copy_vmspace(&parent->vmspace, &p->vmspace);
     } else {
-        init_vmspace(&p->vmspace, NULL);
+        init_vmspace(&p->vmspace);
     }
     
     // If the parent is specified and the new process is not a 
@@ -182,6 +183,10 @@ void init_proc(struct proc *p, bool idle, struct proc *parent) {
         p->kstack + PAGE_SIZE - sizeof(KernelContext) - sizeof(UserContext);
     p->ucontext = p->kstack + PAGE_SIZE - sizeof(UserContext);
 
+    if (!idle && parent != NULL)
+        p->ucontext->regs[0] = 0;
+
+    // TODO: copy oftable.
     init_oftable(&p->oftable);
     release_spinlock(&proc_lock);
 }
@@ -204,8 +209,9 @@ struct proc *create_idle_proc() {
  * Sets up stack to return as if from system call.
  */
 int fork() {
-    struct proc *np = create_proc();
-    ASSERT(np != NULL);
-    init_proc(np, false, thisproc());
+    struct proc *child = create_proc();
+    ASSERT(child != NULL);
+    init_proc(child, false, thisproc());
+    start_proc(child, trap_return, 0);
     return -1;
 }

@@ -80,7 +80,7 @@ void pgfault_second_test() {
     // init
     i64 limit = 10; // do not need too big
     struct vmspace *pd = &thisproc()->vmspace;
-    init_vmspace(pd, NULL);
+    init_vmspace(pd);
     set_page_table(pd->pgtbl);
     struct vmregion *st = NULL;
     _for_in_list(node, pd->vmregions.head) {
