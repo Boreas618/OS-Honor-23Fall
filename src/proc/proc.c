@@ -1,3 +1,4 @@
+#include <fs/defines.h>
 #include <kernel/cpu.h>
 #include <kernel/init.h>
 #include <kernel/mem.h>
@@ -7,8 +8,7 @@
 #include <proc/pid.h>
 #include <proc/proc.h>
 #include <proc/sched.h>
-#include <fs/defines.h>
-#include <vm/paging.h>
+#include <vm/vmregion.h>
 
 struct proc root_proc;
 
@@ -22,14 +22,14 @@ define_init(startup_procs) {
         // Idle processes are the first processes on each core.
         // Before the idle process is staged, no other processes are created.
         ASSERT(cpus[i].sched.running == NULL);
-        struct proc *idle = create_idle_proc();
+        struct proc *idle = create_idle();
         cpus[i].sched.idle = idle;
         cpus[i].sched.running = idle;
         idle->state = RUNNING;
     }
 
     // Initialize the root process
-    init_proc(&root_proc, false, NULL);
+    init_proc(&root_proc);
     root_proc.parent = &root_proc;
     start_proc(&root_proc, kernel_entry, 0);
 }
@@ -150,43 +150,24 @@ int start_proc(struct proc *p, void (*entry)(u64), u64 arg) {
     return pid;
 }
 
-void init_proc(struct proc *p, bool idle, struct proc *parent) {
+void init_proc(struct proc *p) {
     acquire_spinlock(&proc_lock);
     memset(p, 0, sizeof(*p));
     p->killed = false;
-    p->idle = idle;
+    p->idle = false;
     p->pid = alloc_pid();
     p->state = UNUSED;
     init_sem(&p->childexit, 0);
     list_init(&p->children);
     list_init(&p->zombie_children);
     init_list_node(&p->ptnode);
-    p->parent = parent;
     p->schinfo.runtime = 0;
-
-    if (!idle && parent != NULL) {
-        freeze_pgtbl(parent->vmspace.pgtbl);
-        init_vmspace(&p->vmspace);
-        copy_vmspace(&parent->vmspace, &p->vmspace);
-    } else {
-        init_vmspace(&p->vmspace);
-    }
-    
-    // If the parent is specified and the new process is not a 
+    init_vmspace(&p->vmspace);
     p->kstack = kalloc_page();
-    if (!idle && parent != NULL)
-        memcpy(p->kstack, parent->kstack, PAGE_SIZE);
-    else
-        memset((void *)p->kstack, 0, PAGE_SIZE);
-
+    memset((void *)p->kstack, 0, PAGE_SIZE);
     p->kcontext =
         p->kstack + PAGE_SIZE - sizeof(KernelContext) - sizeof(UserContext);
     p->ucontext = p->kstack + PAGE_SIZE - sizeof(UserContext);
-
-    if (!idle && parent != NULL)
-        p->ucontext->regs[0] = 0;
-
-    // TODO: copy oftable.
     init_oftable(&p->oftable);
     release_spinlock(&proc_lock);
 }
@@ -197,9 +178,11 @@ struct proc *create_proc() {
     return p;
 }
 
-struct proc *create_idle_proc() {
+struct proc *create_idle() {
     struct proc *p = create_proc();
-    init_proc(p, true, p);
+    init_proc(p);
+    p->parent = p;
+    p->idle = true;
     start_proc(p, &idle_entry, 0);
     return p;
 }
@@ -209,9 +192,28 @@ struct proc *create_idle_proc() {
  * Sets up stack to return as if from system call.
  */
 int fork() {
+    struct proc *this = thisproc();
     struct proc *child = create_proc();
-    ASSERT(child != NULL);
-    init_proc(child, false, thisproc());
+
+    init_proc(child);
+    set_parent_to_this(child);
+
+    copy_vmspace(&this->vmspace, &child->vmspace);
+
+    // Copy saved user registers.
+    *(child->ucontext) = *(this->ucontext);
+
+    // Cause fork to return 0 in the child.
+    child->ucontext->regs[0] = 0;
+
+    // Increment reference counts on open file descriptors.
+    for (int i = 0; i < NOFILE; i++) {
+        if (this->oftable.ofiles[i] != NULL)
+            child->oftable.ofiles[i] = file_dup(this->oftable.ofiles[i]);
+    }
+    child->cwd = inodes.share(this->cwd);
+
     start_proc(child, trap_return, 0);
-    return -1;
+    arch_tlbi_vmalle1is();
+    return child->pid;
 }

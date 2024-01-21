@@ -5,7 +5,7 @@
 #include <lib/printk.h>
 #include <proc/proc.h>
 #include <proc/sched.h>
-#include <vm/paging.h>
+#include <vm/vmregion.h>
 
 void trap_global_handler(UserContext *context) {
     thisproc()->ucontext = context;
@@ -19,7 +19,7 @@ void trap_global_handler(UserContext *context) {
     switch (ec) {
     case ESR_EC_UNKNOWN: {
         if (ir) {
-            printk("Broken pc?\n");
+            printk("[FDCore] ESR_EC_UNKNOWN\n");
             PANIC();
         } else
             interrupt_global_handler();
@@ -34,7 +34,7 @@ void trap_global_handler(UserContext *context) {
         pgfault_handler(iss);
     } break;
     default: {
-        printk("Unknwon exception %llu\n", ec);
+        printk("[FDCore] Unknwon exception %llu\n", ec);
         PANIC();
     }
     }
@@ -45,6 +45,6 @@ void trap_global_handler(UserContext *context) {
 }
 
 NO_RETURN void trap_error_handler(u64 type) {
-    printk("Unknown trap type %llu\n", type);
+    printk("[FDCore] Unknown trap type %llu\n", type);
     PANIC();
 }

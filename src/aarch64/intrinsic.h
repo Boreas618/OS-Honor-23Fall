@@ -8,7 +8,7 @@ static WARN_RESULT ALWAYS_INLINE int cpuid() {
     return id & 0xff;
 }
 
-// instruct compiler not to reorder instructions around the fence.
+/* instruct compiler not to reorder instructions around the fence. */
 static ALWAYS_INLINE void compiler_fence() { asm volatile("" ::: "memory"); }
 
 static WARN_RESULT ALWAYS_INLINE u64 get_clock_frequency() {

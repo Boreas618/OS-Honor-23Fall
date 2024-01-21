@@ -5,8 +5,8 @@
 #include <lib/sem.h>
 #include <proc/proc.h>
 #include <test/test.h>
-#include <vm/pt.h>
-#include <vm/paging.h>
+#include <vm/pgtbl.h>
+#include <vm/vmregion.h>
 
 #define NPROC 512
 
@@ -65,7 +65,7 @@ void user_proc_test() {
     int pids[NPROC];
     for (int i = 0; i < NPROC; i++) {
         auto p = create_proc();
-        init_proc(p, false, NULL);
+        init_proc(p);
         for (u64 q = (u64)loop_start; q < (u64)loop_end; q += PAGE_SIZE) {
             map_in_pgtbl(p->vmspace.pgtbl, 0x400000 + q - (u64)loop_start, (void*)q, PTE_USER_DATA);
         }

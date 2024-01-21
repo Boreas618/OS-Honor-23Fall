@@ -3,8 +3,8 @@
 #include <lib/printk.h>
 #include <proc/sched.h>
 #include <test/test.h>
-#include <vm/paging.h>
-#include <vm/pt.h>
+#include <vm/vmregion.h>
+#include <vm/pgtbl.h>
 #include <driver/disk.h>
 
 bool panic_flag;

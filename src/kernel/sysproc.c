@@ -3,7 +3,7 @@
 #include <lib/printk.h>
 #include <proc/proc.h>
 #include <proc/sched.h>
-#include <vm/paging.h>
+#include <vm/vmregion.h>
 
 int execve(const char *path, char *const argv[], char *const envp[]);
 
@@ -45,8 +45,7 @@ define_syscall(exit_group, int n) { exit(n); }
 define_syscall(execve, const char *p, void *argv, void *envp) {
     if (!user_strlen(p, 256))
         return -1;
-    int r = execve(p, argv, envp);
-    return r;
+    return execve(p, argv, envp);
 }
 
 define_syscall(wait4, int pid, int options, int *wstatus, void *rusage) {
@@ -58,6 +57,6 @@ define_syscall(wait4, int pid, int options, int *wstatus, void *rusage) {
         }
         return -1;
     }
-    int code /*,id*/;
-    return wait(&code /*, &id*/);
+    int code;
+    return wait(&code);
 }

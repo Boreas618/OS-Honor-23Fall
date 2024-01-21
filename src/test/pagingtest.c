@@ -7,8 +7,8 @@
 #include <proc/proc.h>
 #include <proc/sched.h>
 #include <test/test.h>
-#include <vm/paging.h>
-#include <vm/pt.h>
+#include <vm/vmregion.h>
+#include <vm/pgtbl.h>
 
 bool check_zero_page() {
     for (u64 i = 0; i < PAGE_SIZE; i++)

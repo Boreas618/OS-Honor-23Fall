@@ -9,8 +9,8 @@
 #include <lib/string.h>
 #include <proc/proc.h>
 #include <proc/sched.h>
-#include <vm/paging.h>
-#include <vm/pt.h>
+#include <vm/vmregion.h>
+#include <vm/pgtbl.h>
 
 #define EXEC_DEBUG
 #define STACK_SIZE 8192 * 1024
@@ -163,7 +163,7 @@ int execve(const char *path, char *const argv[], char *const envp[]) {
     u64 stack_base = 0;
     u64 sp = execve_alloc_stack(&vms, &stack_base);
 
-    char* ustack_envp[32] = {0};
+    char *ustack_envp[32] = {0};
     int envc = 0;
     if (envp != NULL) {
         for (envc = 0; envp[envc]; envc++) {
@@ -179,13 +179,13 @@ int execve(const char *path, char *const argv[], char *const envp[]) {
             if (copy_to_user(vms.pgtbl, (void *)(sp), envp[envc],
                              strlen(envp[envc]) + 1) < 0)
                 goto bad;
-            ustack_envp[envc] = (char*)sp;
+            ustack_envp[envc] = (char *)sp;
         }
         ustack_envp[envc] = 0;
     }
 
     sp -= 16;
-    char* ustack_argv[32] = {0};
+    char *ustack_argv[32] = {0};
 
     int argc = 0;
     if (argv != NULL) {
@@ -202,26 +202,42 @@ int execve(const char *path, char *const argv[], char *const envp[]) {
             if (copy_to_user(vms.pgtbl, (void *)(sp), argv[argc],
                              strlen(argv[argc]) + 1) < 0)
                 goto bad;
-            ustack_argv[argc] = (char*)sp;
+            ustack_argv[argc] = (char *)sp;
         }
         ustack_argv[argc] = 0;
     }
 
     sp -= sp % 16;
-    
-    sp -= (envc + 1) * sizeof(char*);
+
+    sp -= (envc + 1) * sizeof(char *);
     ASSERT(copy_to_user(vms.pgtbl, (void *)sp, &ustack_envp,
-                        (envc + 1) * sizeof(char*)) == 0);
-    sp -= (argc + 1) * sizeof(char*);
+                        (envc + 1) * sizeof(char *)) == 0);
+
+    sp -= (argc + 1) * sizeof(char *);
     ASSERT(copy_to_user(vms.pgtbl, (void *)sp, &ustack_argv,
-                        (argc + 1) * sizeof(char*)) == 0);
+                        (argc + 1) * sizeof(char *)) == 0);
 
+    /**
+     * See https://stackoverflow.com/questions/25589452/c-c-argv-memory-manage
+     * 
+     * On some platforms, the layout of memory is such that the number of
+     * arguments (argc) is available, followed by the argument vector, followed
+     * by the environment vector.
+     *
+     *          argv                            environ
+     *            |                                |
+     *            v                                v
+     * | argc | argv0 | argv1 | ... | argvN | 0 | env0 | env1 | ... | envN | 0 |
+     */
 
-    thisproc()->ucontext->regs[1] = sp;
+    sp -= 8;
+    ASSERT(copy_to_user(vms.pgtbl, (void *)sp, &argc, sizeof(int)) == 0);
+
     thisproc()->ucontext->sp = sp;
     thisproc()->ucontext->elr = elf.e_entry;
 
-    copy_vmspace(&vms, &thisproc()->vmspace);
+    copy_vmregions(&vms, &thisproc()->vmspace);
+    thisproc()->vmspace.pgtbl = vms.pgtbl;
 
     set_page_table(thisproc()->vmspace.pgtbl);
 

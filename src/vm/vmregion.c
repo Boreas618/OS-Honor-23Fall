@@ -10,23 +10,12 @@
 #include <lib/string.h>
 #include <proc/proc.h>
 #include <proc/sched.h>
-#include <vm/paging.h>
-#include <vm/pt.h>
+#include <vm/pgtbl.h>
+#include <vm/vmregion.h>
 
-void copy_vmspace(struct vmspace *vms_source, struct vmspace *vms_dest) {
-    // kfree_page((void*)(vms_dest->pgtbl));
-
+void copy_vmregions(struct vmspace *vms_source, struct vmspace *vms_dest) {
     // Clear the vmregions of the dest vmspace.
     free_vmregions(vms_dest);
-
-    // Copy the page table.
-    vms_dest->pgtbl = vms_source->pgtbl;
-
-    list_forall(p, vms_source->vmregions) {
-        struct vmregion *vmr = container_of(p, struct vmregion, stnode);
-        printk("Start: %llx | End: %llx %llx\n", (u64)vmr->begin, (u64)vmr->end,
-               (u64)vmr->flags);
-    }
 
     // Copy the vmregions to the dest vmspace.
     list_forall(p, vms_source->vmregions) {
@@ -41,6 +30,29 @@ void init_vmspace(struct vmspace *vms) {
     memset((void *)P2K(vms->pgtbl), 0, PAGE_SIZE);
     init_spinlock(&vms->lock);
     list_init(&vms->vmregions);
+}
+
+void copy_vmspace(struct vmspace *vms_source, struct vmspace *vms_dest) {
+    copy_vmregions(vms_source, vms_dest);
+
+    free_page_table(&(vms_dest->pgtbl));
+
+    vms_dest->pgtbl = (pgtbl_entry_t *)K2P(kalloc_page());
+
+    // Get the pte according to the vmregions.
+    list_forall(p, vms_source->vmregions) {
+        struct vmregion* vmr = container_of(p, struct vmregion, stnode);
+        for (u64 i = PAGE_BASE(vmr->begin); i < vmr->end; i += PAGE_SIZE) {
+            pgtbl_entry_t *pte_ptr = get_pte(vms_source->pgtbl, i, false);
+            if (pte_ptr == NULL || !(*pte_ptr & PTE_VALID))
+                continue;
+            
+            // Allocate a new page and map it in the new page table.
+            void *ka = kalloc_page();
+            memcpy(ka, (void *)P2K(PTE_ADDRESS(*pte_ptr)), PAGE_SIZE);
+            map_in_pgtbl(vms_dest->pgtbl, i, ka, PTE_FLAGS(*pte_ptr));
+        }
+    }
 }
 
 void destroy_vmspace(struct vmspace *vms) {
@@ -79,8 +91,6 @@ void free_vmregions(struct vmspace *vms) {
     while (vms->vmregions.size) {
         struct vmregion *vmr =
             container_of(vms->vmregions.head, struct vmregion, stnode);
-        printk("Free: Start: %llx | End: %llx\n", (u64)vmr->begin,
-               (u64)vmr->end);
         unmap_range_in_pgtbl(vms->pgtbl, vmr->begin, vmr->end);
         list_remove(&vms->vmregions, &vmr->stnode);
         kfree(vmr);
@@ -143,12 +153,9 @@ int pgfault_handler(u64 iss) {
 
     ASSERT(addr);
 
-    // printk("%p\n", (void*)PTE_ADDRESS(*get_pte(p->vmspace.pgtbl, addr,
-    // false)));
-
     (void)iss;
 
-    printk("%llx\n", (u64)addr);
+    printk("Fault address: %llx\n", (u64)addr);
 
     ASSERT(1 == 2);
 
@@ -159,20 +166,9 @@ int pgfault_handler(u64 iss) {
                 map_in_pgtbl(vs->pgtbl, addr, kalloc_page(),
                              PTE_VALID | PTE_USER_DATA);
             } else {
-                printk("%p\n",
-                       (void *)(P2K(PTE_ADDRESS(*get_pte(
-                           thisproc()->vmspace.pgtbl, 0x40014c, false)))));
-                printk("%p\n",
-                       (void *)(P2K(PTE_ADDRESS(*get_pte(
-                           thisproc()->vmspace.pgtbl, 0x402198, false)))));
-                printk("An: %p\n",
-                       (void *)(P2K(PTE_ADDRESS(*get_pte(
-                           thisproc()->vmspace.pgtbl, 0x404000, false)))));
-                // auto pte = get_pte(thisproc()->vmspace.pgtbl, addr, false);
-                // printk("???: %p\n", (void*)P2K(PTE_ADDRESS(*pte)));
-                printk("[Error] Unsupported page fault.");
+                printk("[Error] Unsupported page fault.\n");
                 if (kill(thisproc()->pid) == -1)
-                    printk("[Error] Failed to kill.");
+                    printk("[Error] Failed to kill.\n");
                 PANIC();
             }
         }

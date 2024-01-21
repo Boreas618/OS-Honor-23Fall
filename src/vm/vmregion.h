@@ -24,6 +24,7 @@ struct vmregion {
 };
 
 void init_vmspace(struct vmspace *vms);
+void copy_vmregions(struct vmspace *vms_source, struct vmspace *vms_dest);
 void copy_vmspace(struct vmspace *vms_source, struct vmspace *vms_dest);
 void destroy_vmspace(struct vmspace *vms);
 struct vmregion *create_vmregion(struct vmspace *vms, u64 flags, u64 begin, u64 length);

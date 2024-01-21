@@ -13,7 +13,7 @@
 #include <proc/proc.h>
 #include <proc/sched.h>
 #include <sys/syscall.h>
-#include <vm/paging.h>
+#include <vm/vmregion.h>
 
 extern struct inode_tree inodes;
 extern struct block_cache bcache;

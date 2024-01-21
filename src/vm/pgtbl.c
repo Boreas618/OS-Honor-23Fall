@@ -3,10 +3,8 @@
 #include <lib/printk.h>
 #include <lib/string.h>
 #include <proc/sched.h>
-#include <vm/paging.h>
-#include <vm/pt.h>
-
-// #define PT_DEBUG
+#include <vm/vmregion.h>
+#include <vm/pgtbl.h>
 
 void detach_mapped_page(pgtbl_entry_t *pte) {
     u64 page_addr_k = (u64)P2K(PTE_ADDRESS(*pte));
@@ -98,11 +96,6 @@ void map_in_pgtbl(pgtbl_entry_t *pt, u64 va, void *ka, u64 flags) {
     if (page_mapped)
         increment_rc(&page_mapped->ref);
     arch_tlbi_vmalle1is();
-
-#ifdef PT_DEBUG
-    printk("[map_in_pgtbl]: va: %lld -> ka: %p | rc: %lld\n", va, ka,
-           page_mapped->ref.count);
-#endif
 }
 
 void unmap_in_pgtbl(pgtbl_entry_t *pt, u64 va) {
@@ -110,27 +103,25 @@ void unmap_in_pgtbl(pgtbl_entry_t *pt, u64 va) {
     if (!pte || !((u64)pte & PTE_VALID))
         return;
 
+    // The page is only detached, not freed.
     detach_mapped_page(pte);
 
     *pte &= !PTE_VALID;
-
-#ifdef PT_DEBUG
-    printk("[unmap_in_pgtbl]: va: %lld -> ka: %p | rc: %lld\n", va,
-           (void *)page_addr_k, page_mapped->ref.count);
-#endif
 
     arch_tlbi_vmalle1is();
 }
 
 void unmap_range_in_pgtbl(pgtbl_entry_t *pt, u64 begin, u64 end) {
-    ASSERT(begin % PAGE_SIZE == 0);
-    ASSERT(end % PAGE_SIZE == 0);
+    begin = PAGE_BASE(begin);
     for (; begin < end; begin += PAGE_SIZE)
         unmap_in_pgtbl(pt, begin);
 }
 
 void __freeze_page_table_level(pgtbl_entry_t *pt, u8 level) {
     ASSERT(level <= 3);
+
+    if (level == 0)
+        pt = (pgtbl_entry_t *)P2K(pt);
 
     // Get the pointer to the first PTE in the current PTE page.
     pgtbl_entry_t *p_pte_base = (pgtbl_entry_t *)P2K(PTE_ADDRESS(*pt));
@@ -144,7 +135,7 @@ void __freeze_page_table_level(pgtbl_entry_t *pt, u8 level) {
         // If not at the last level, recursively free the next level.
         if (level != 3)
             __freeze_page_table_level(p_pte, level + 1);
-
+        
         *p_pte = (*p_pte) | PTE_RO;
         arch_tlbi_vmalle1is();
     }
