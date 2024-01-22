@@ -74,42 +74,41 @@ isize console_read(struct inode *ip, char *dst, isize n) {
     return target - n;
 }
 
-void console_intr(char (*getc)()) {
-    (void)getc;
-    char c;
-    while ((c = uart_get_char()) != 0xff) {
-        switch (c) {
-        case C('U'):
-            while (cons.edit_idx != cons.write_idx &&
-                   cons.buf[(cons.edit_idx - 1) % INPUT_BUF_SIZE] != '\n') {
-                cons.edit_idx--;
-                uart_put_char('\b');
-                uart_put_char(' ');
-                uart_put_char('\b');
-            }
-            break;
-        case C('H'): // Backspace
-        case '\x7f': // Delete key
-            if (cons.edit_idx != cons.write_idx) {
-                cons.edit_idx--;
-                uart_put_char('\b');
-                uart_put_char(' ');
-                uart_put_char('\b');
-            }
-            break;
-        default:
-            if (c != NULL && cons.edit_idx - cons.read_idx < INPUT_BUF_SIZE) {
-                c = (c == '\r') ? '\n' : c;
-                // Echo back to the user.
-                uart_put_char(c);
-                cons.buf[cons.edit_idx++ % INPUT_BUF_SIZE] = c;
-                if (c == '\n' || c == C('D') ||
-                    cons.edit_idx - cons.read_idx == INPUT_BUF_SIZE) {
-                    cons.write_idx = cons.edit_idx;
-                    cond_signal(&cons.sem);
-                }
-            }
-            break;
+void console_intr() {
+    acquire_spinlock(&cons.lock);
+    char c = uart_get_char();
+    switch (c) {
+    case C('U'):
+        while (cons.edit_idx != cons.write_idx &&
+               cons.buf[(cons.edit_idx - 1) % INPUT_BUF_SIZE] != '\n') {
+            cons.edit_idx--;
+            uart_put_char('\b');
+            uart_put_char(' ');
+            uart_put_char('\b');
         }
+        break;
+    case C('H'): // Backspace
+    case '\x7f': // Delete key
+        if (cons.edit_idx != cons.write_idx) {
+            cons.edit_idx--;
+            uart_put_char('\b');
+            uart_put_char(' ');
+            uart_put_char('\b');
+        }
+        break;
+    default:
+        if (c != NULL && cons.edit_idx - cons.read_idx < INPUT_BUF_SIZE) {
+            c = (c == '\r') ? '\n' : c;
+            // Echo back to the user.
+            uart_put_char(c);
+            cons.buf[cons.edit_idx++ % INPUT_BUF_SIZE] = c;
+            if (c == '\n' || c == C('D') ||
+                cons.edit_idx - cons.read_idx == INPUT_BUF_SIZE) {
+                cons.write_idx = cons.edit_idx;
+                cond_signal(&cons.sem);
+            }
+        }
+        break;
     }
+    release_spinlock(&cons.lock);
 }
