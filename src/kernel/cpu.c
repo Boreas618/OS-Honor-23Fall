@@ -64,7 +64,6 @@ void cancel_cpu_timer(struct timer *timer) {
 }
 
 static void hello(struct timer *t) {
-    printk("CPU %d: living\n", cpuid());
     t->data++;
     set_cpu_timer(&hello_timer[cpuid()]);
 }

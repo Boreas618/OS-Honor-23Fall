@@ -4,6 +4,7 @@
 #include <lib/cond.h>
 #include <lib/string.h>
 #include <proc/sched.h>
+#include <lib/printk.h>
 
 int pipe_alloc(struct file **f0, struct file **f1) {
     struct pipe *pi;
@@ -19,6 +20,12 @@ int pipe_alloc(struct file **f0, struct file **f1) {
     pi->nread = 0;
 
     init_spinlock(&pi->lock);
+    init_sem(&(pi->wlock), 0);
+    init_sem(&(pi->rlock), 0);
+    pi->nread = 0;
+    pi->nwrite = 0;
+    pi->readopen = 1;
+    pi->writeopen = 1;
 
     // Initialize the file descriptors of the pipe.
     (*f0)->type = FD_PIPE;
@@ -71,7 +78,6 @@ int pipe_write(struct pipe *pi, u64 addr, int n) {
     }
     cond_broadcast(&pi->rlock);
     release_spinlock(&pi->lock);
-
     return i;
 }
 

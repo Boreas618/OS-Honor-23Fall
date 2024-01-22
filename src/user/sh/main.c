@@ -83,7 +83,6 @@ void runcmd(struct cmd *cmd) {
 
     if (cmd == 0)
         exit(0);
-
     switch (cmd->type) {
         default: PANIC("runcmd");
 
@@ -186,8 +185,9 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "cannot cd %s\n", buf + 3);
             continue;
         }
-        if (fork1() == 0)
+        if (fork1() == 0) {
             runcmd(parsecmd(buf));
+        }
         wait(NULL);
     }
 }

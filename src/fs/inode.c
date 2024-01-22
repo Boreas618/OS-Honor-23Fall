@@ -389,19 +389,7 @@ static usize inode_insert(OpContext *ctx, struct inode *inode, const char *name,
 
     struct dirent de;
     for (index = 0; index < entry->num_bytes; index += sizeof(struct dirent)) {
-        usize block_no =
-            inode_read(inode, (u8 *)&de, index, sizeof(struct dirent));
-
-        // The block is not present.
-        // Grow the size of directory inode.
-        if (!block_no) {
-            OpContext ctx;
-            cache->begin_op(&ctx);
-            bool modified;
-            block_no = inode_map(&ctx, inode, index, &modified);
-            cache->end_op(&ctx);
-            inode_read(inode, (u8 *)&de, index, sizeof(struct dirent));
-        }
+        inode_read(inode, (u8 *)&de, index, sizeof(struct dirent));
 
         if (de.inode_no == 0)
             break;

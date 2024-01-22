@@ -149,7 +149,7 @@ isize file_write(struct file *f, char *addr, isize n) {
 
     // Handle the write to a pipe.
     if (f->type == FD_PIPE) {
-        r = (isize)pipe_read(f->pipe, (u64)addr, n);
+        r = (isize)pipe_write(f->pipe, (u64)addr, n);
     }
     // Handle the write to an inode.
     else if (f->type == FD_INODE) {

@@ -78,6 +78,18 @@ NO_RETURN void exit(int code) {
     list_remove(&(p->parent->children), &(p->ptnode));
     list_push_back(&(p->parent->zombie_children), &(p->ptnode));
 
+    for (int i = 0; i < NOFILE; ++i) {
+        if (p->oftable.ofiles[i]) {
+            file_close(p->oftable.ofiles[i]);
+            p->oftable.ofiles[i] = NULL;
+        }
+    }
+    struct op_ctx ctx;
+    bcache.begin_op(&ctx);
+    inodes.put(&ctx, p->cwd);
+    bcache.end_op(&ctx);
+    p->cwd = NULL;
+
     // Notify the parent.
     post_sem(&(p->parent->childexit));
     release_spinlock(&proc_lock);
