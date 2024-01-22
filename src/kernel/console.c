@@ -6,6 +6,7 @@
 #include <lib/sem.h>
 #include <lib/spinlock.h>
 #include <proc/sched.h>
+#include <kernel/param.h>
 
 struct console cons;
 

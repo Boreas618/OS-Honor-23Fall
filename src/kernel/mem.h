@@ -5,24 +5,22 @@
 #include <lib/list.h>
 #include <lib/rc.h>
 
-#define MAX_BUCKETS 16
-#define MAX_PAGES 1048576
 #define PAGE_COUNT ((P2K(PHYSTOP) - PAGE_BASE((u64) & end)) / PAGE_SIZE - 1)
 #define VA2ID(vaddr) ((vaddr - PAGE_BASE((u64) & end) - PAGE_SIZE) / PAGE_SIZE)
 
 struct partitioned_node {
-    ListNode pp_node;
-    struct page *page;
-    u8 bucket_index;
+	ListNode pp_node;
+	struct page *page;
+	u8 bucket_index;
 };
 
 struct page {
-    u64 addr;
-    u32 base_size;
-    u64 free_head;
-    u32 alloc_partitions_cnt;
-    struct partitioned_node partitioned_node;
-    RefCount ref;
+	u64 addr;
+	u32 base_size;
+	u64 free_head;
+	u32 alloc_partitions_cnt;
+	struct partitioned_node partitioned_node;
+	RefCount ref;
 };
 
 typedef struct page Page;
@@ -37,4 +35,4 @@ WARN_RESULT void *kalloc_page(void);
 void kfree_page(void *page);
 WARN_RESULT void *kalloc(isize size);
 void kfree(void *ptr);
-struct page* get_page_info_by_kaddr(void* kaddr);
+struct page *get_page_info_by_kaddr(void *kaddr);

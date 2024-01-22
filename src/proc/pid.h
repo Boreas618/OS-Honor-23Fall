@@ -6,9 +6,9 @@
 typedef struct pidpool PidPool;
 
 struct pidpool {
-    SpinLock lock;
-    u8 bm[PID_POOL_SIZE];
-    u64 window;
+	SpinLock lock;
+	u8 bm[PID_POOL_SIZE];
+	u64 window;
 };
 
 int alloc_pid();

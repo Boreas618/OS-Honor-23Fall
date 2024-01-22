@@ -17,23 +17,23 @@
  * a buffer to a block.
  */
 struct block_device {
-    void (*read)(usize block_no, u8 *buffer);
-    void (*write)(usize block_no, u8 *buffer);
+	void (*read)(usize block_no, u8 *buffer);
+	void (*write)(usize block_no, u8 *buffer);
 };
 
 struct super_block {
-    u32 num_blocks; // total number of blocks in filesystem.
-    u32 num_data_blocks;
-    u32 num_inodes;
-    u32 num_log_blocks; // number of blocks for logging, including log header.
-    u32 log_start;      // the first block of logging area.
-    u32 inode_start;    // the first block of inode area.
-    u32 bitmap_start;   // the first block of bitmap area.
+	u32 num_blocks; // total number of blocks in filesystem.
+	u32 num_data_blocks;
+	u32 num_inodes;
+	u32 num_log_blocks; // number of blocks for logging, including log header.
+	u32 log_start; // the first block of logging area.
+	u32 inode_start; // the first block of inode area.
+	u32 bitmap_start; // the first block of bitmap area.
 };
 
 struct log_header {
-    usize num_blocks;
-    usize block_no[LOG_MAX_SIZE];
+	usize num_blocks;
+	usize block_no[LOG_MAX_SIZE];
 };
 
 typedef struct block_device BlockDevice;

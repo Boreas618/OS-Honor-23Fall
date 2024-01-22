@@ -21,52 +21,52 @@
 #define MAX_MSGNUM 256
 
 typedef struct msg_queue {
-    int key;
-    int seq;
-    int max_msg;
-    int sum_msg;
-    ListNode q_message;
-    ListNode q_sender;
-    ListNode q_receiver;
+	int key;
+	int seq;
+	int max_msg;
+	int sum_msg;
+	ListNode q_message;
+	ListNode q_sender;
+	ListNode q_receiver;
 } msg_queue;
 
 typedef struct ipc_ids {
-    int size;
-    int in_use;
-    unsigned short seq;
-    SpinLock lock;
-    msg_queue *entries[16];
+	int size;
+	int in_use;
+	unsigned short seq;
+	SpinLock lock;
+	msg_queue *entries[16];
 } ipc_ids;
 
 typedef struct msgbuf {
-    int mtype;
-    char data[];
+	int mtype;
+	char data[];
 } msgbuf;
 
 typedef struct msg_msgseg {
-    struct msg_msgseg *nxt;
-    char data[];
+	struct msg_msgseg *nxt;
+	char data[];
 } msg_msgseg;
 
 typedef struct msg_msg {
-    ListNode node;
-    int mtype;
-    int size;
-    msg_msgseg *nxt;
-    char data[];
+	ListNode node;
+	int mtype;
+	int size;
+	msg_msgseg *nxt;
+	char data[];
 } msg_msg;
 
 typedef struct msg_sender {
-    ListNode node;
-    struct proc *proc;
+	ListNode node;
+	struct proc *proc;
 } msg_sender;
 
 typedef struct msg_receiver {
-    ListNode node;
-    struct proc *proc;
-    int mtype;
-    int size;
-    msg_msg *r_msg;
+	ListNode node;
+	struct proc *proc;
+	int mtype;
+	int size;
+	msg_msg *r_msg;
 } msg_receiver;
 
 int sys_msgget(int key, int msgflg);

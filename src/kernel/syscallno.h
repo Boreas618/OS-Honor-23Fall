@@ -19,5 +19,3 @@
 #define SYS_wait4 260
 #define SYS_exit_group 94
 #define SYS_unlinkat 35
-
-// find more in musl/arch/aarch64/bits/syscall.h

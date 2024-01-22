@@ -9,14 +9,14 @@
 #define PIPE_SIZE 512
 
 struct pipe {
-    struct spinlock lock;
-    struct semaphore wlock;
-    struct semaphore rlock;
-    char data[PIPE_SIZE];
-    u32 nread;     // number of bytes read
-    u32 nwrite;    // number of bytes written
-    int readopen;  // read fd is still open
-    int writeopen; // write fd is still open
+	struct spinlock lock;
+	struct semaphore wlock;
+	struct semaphore rlock;
+	char data[PIPE_SIZE];
+	u32 nread; // number of bytes read
+	u32 nwrite; // number of bytes written
+	int readopen; // read fd is still open
+	int writeopen; // write fd is still open
 };
 
 int pipe_alloc(struct file **f0, struct file **f1);

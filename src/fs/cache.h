@@ -26,13 +26,13 @@
  * @data: The real in-memory content of the block on disk.
  */
 typedef struct block {
-    usize block_no;
-    ListNode node;
-    bool acquired;
-    bool pinned;
-    struct semaphore lock;
-    bool valid;
-    u8 data[BLOCK_SIZE];
+	usize block_no;
+	ListNode node;
+	bool acquired;
+	bool pinned;
+	struct semaphore lock;
+	bool valid;
+	u8 data[BLOCK_SIZE];
 } Block;
 
 /**
@@ -42,23 +42,23 @@ typedef struct block {
  * @ts: A timestamp (i.e. an ID) to identify this atomic operation.
  */
 typedef struct op_ctx {
-    usize rm;
-    usize ts;
+	usize rm;
+	usize ts;
 } OpContext;
 
 typedef struct block_cache {
-    usize (*get_num_cached_blocks)();
-    Block *(*acquire)(usize block_no);
-    void (*release)(Block *block);
-    void (*begin_op)(OpContext *ctx);
-    void (*sync)(OpContext *ctx, Block *block);
-    void (*end_op)(OpContext *ctx);
-    usize (*alloc)(OpContext *ctx);
-    void (*free)(OpContext *ctx, usize block_no);
+	usize (*get_num_cached_blocks)();
+	Block *(*acquire)(usize block_no);
+	void (*release)(Block *block);
+	void (*begin_op)(OpContext *ctx);
+	void (*sync)(OpContext *ctx, Block *block);
+	void (*end_op)(OpContext *ctx);
+	usize (*alloc)(OpContext *ctx);
+	void (*free)(OpContext *ctx, usize block_no);
 } BlockCache;
 
 /* The global block cache instance. */
 extern BlockCache bcache;
 
 void init_bcache(const struct super_block *sblock,
-                 const struct block_device *device);
+		 const struct block_device *device);

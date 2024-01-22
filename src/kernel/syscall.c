@@ -7,62 +7,69 @@
 
 void *syscall_table[NR_SYSCALL];
 
-void syscall_entry(struct uctx *ctx) {
-    u64 id, arg0, arg1, arg2, arg3, arg4, arg5;
-    id = ctx->regs[8];
-    arg0 = ctx->regs[0];
-    arg1 = ctx->regs[1];
-    arg2 = ctx->regs[2];
-    arg3 = ctx->regs[3];
-    arg4 = ctx->regs[4];
-    arg5 = ctx->regs[5];
+void syscall_entry(struct uctx *ctx)
+{
+	u64 id, arg0, arg1, arg2, arg3, arg4, arg5;
+	id = ctx->regs[8];
+	arg0 = ctx->regs[0];
+	arg1 = ctx->regs[1];
+	arg2 = ctx->regs[2];
+	arg3 = ctx->regs[3];
+	arg4 = ctx->regs[4];
+	arg5 = ctx->regs[5];
 
-    if (id >= NR_SYSCALL || syscall_table[id] == NULL) {
-        printk("[FDCore] System call %lld not found.\n", id);
-        return;
-    }
+	if (id >= NR_SYSCALL || syscall_table[id] == NULL) {
+		printk("[FDCore] System call %lld not found.\n", id);
+		return;
+	}
 
-    ctx->regs[0] = ((u64(*)(u64, u64, u64, u64, u64, u64))syscall_table[id])(
-        arg0, arg1, arg2, arg3, arg4, arg5);
+	ctx->regs[0] =
+		((u64(*)(u64, u64, u64, u64, u64, u64))syscall_table[id])(
+			arg0, arg1, arg2, arg3, arg4, arg5);
 }
 
 /**
  * Check if the virtual address [start,start+size) is READABLE by the current
  * user process
  */
-bool user_readable(const void *start, usize size) {
-    struct list vmregions = thisproc()->vmspace.vmregions;
-    list_forall(p, vmregions) {
-        struct vmregion *v = container_of(p, struct vmregion, stnode);
-        if (v->begin <= (u64)start && ((u64)start) + size <= v->end)
-            return true;
-    }
-    return false;
+bool user_readable(const void *start, usize size)
+{
+	struct list vmregions = thisproc()->vmspace.vmregions;
+	list_forall(p, vmregions)
+	{
+		struct vmregion *v = container_of(p, struct vmregion, stnode);
+		if (v->begin <= (u64)start && ((u64)start) + size <= v->end)
+			return true;
+	}
+	return false;
 }
 
 /* Check if the virtual address [start,start+size) is READABLE & WRITEABLE by
  * the current user process. */
-bool user_writeable(const void *start, usize size) {
-    struct list vmregions = thisproc()->vmspace.vmregions;
-    list_forall(p, vmregions) {
-        struct vmregion *v = container_of(p, struct vmregion, stnode);
-        if (!(v->flags & ST_RO) && v->begin <= (u64)start &&
-            ((u64)start) + size <= v->end)
-            return true;
-    }
-    return false;
+bool user_writeable(const void *start, usize size)
+{
+	struct list vmregions = thisproc()->vmspace.vmregions;
+	list_forall(p, vmregions)
+	{
+		struct vmregion *v = container_of(p, struct vmregion, stnode);
+		if (!(v->flags & ST_RO) && v->begin <= (u64)start &&
+		    ((u64)start) + size <= v->end)
+			return true;
+	}
+	return false;
 }
 
 /* Get the length of a string including tailing '\0' in the memory space of
  * current user process return 0 if the length exceeds maxlen or the string is
  * not readable by the current user process */
-usize user_strlen(const char *str, usize maxlen) {
-    for (usize i = 0; i < maxlen; i++) {
-        if (user_readable(&str[i], 1)) {
-            if (str[i] == 0)
-                return i + 1;
-        } else
-            return 0;
-    }
-    return 0;
+usize user_strlen(const char *str, usize maxlen)
+{
+	for (usize i = 0; i < maxlen; i++) {
+		if (user_readable(&str[i], 1)) {
+			if (str[i] == 0)
+				return i + 1;
+		} else
+			return 0;
+	}
+	return 0;
 }

@@ -11,9 +11,9 @@
 #define B_DIRTY 0x4 /* Buffer needs to be written to disk. */
 
 struct buf {
-    int flags;
-    u32 blockno;
-    u8 data[BSIZE];  // 1B*512
-    struct list_node bq_node;
-    struct semaphore sem;
+	int flags;
+	u32 blockno;
+	u8 data[BSIZE]; // 1B*512
+	struct list_node bq_node;
+	struct semaphore sem;
 };

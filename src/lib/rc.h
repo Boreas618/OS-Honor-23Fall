@@ -6,7 +6,7 @@
 typedef struct ref_count RefCount;
 
 struct ref_count {
-    isize count;
+	isize count;
 };
 
 void increment_rc(RefCount *);

@@ -2,8 +2,9 @@
 #include <lib/sem.h>
 #include <lib/spinlock.h>
 
-void cond_init(struct semaphore *cond) {
-    init_sem(cond, 1);
+void cond_init(struct semaphore *cond)
+{
+	init_sem(cond, 1);
 }
 
 /**
@@ -28,21 +29,22 @@ void cond_init(struct semaphore *cond) {
  * interrupts disabled, but interrupts will be turned back on if
  * we need to sleep.
  */
-void cond_wait(struct semaphore *cond, struct spinlock *lock) {
-    _lock_sem(cond);
+void cond_wait(struct semaphore *cond, struct spinlock *lock)
+{
+	_lock_sem(cond);
 
-    // If the semaphore is available, simply acquire it.
-    if (_query_sem(cond) > 0) {
-        ASSERT(_get_sem(cond));
-        _unlock_sem(cond);
-        return;
-    }
+	// If the semaphore is available, simply acquire it.
+	if (_query_sem(cond) > 0) {
+		ASSERT(_get_sem(cond));
+		_unlock_sem(cond);
+		return;
+	}
 
-    // Otherwise, release the lock, go to sleep, and reacquire the lock upon
-    // waking up as a typical condition variable would do.
-    release_spinlock(lock);
-    ASSERT(_wait_sem(cond, false));
-    acquire_spinlock(lock);
+	// Otherwise, release the lock, go to sleep, and reacquire the lock upon
+	// waking up as a typical condition variable would do.
+	release_spinlock(lock);
+	ASSERT(_wait_sem(cond, false));
+	acquire_spinlock(lock);
 }
 
 /**
@@ -54,8 +56,9 @@ void cond_wait(struct semaphore *cond, struct spinlock *lock) {
  * make sense to try to signal a condition variable within an
  * interrupt handler.
  */
-void cond_signal(struct semaphore *cond) {
-    post_sem(cond);
+void cond_signal(struct semaphore *cond)
+{
+	post_sem(cond);
 }
 
 /**
@@ -66,6 +69,7 @@ void cond_signal(struct semaphore *cond) {
  * make sense to try to signal a condition variable within an
  * interrupt handler.
  */
-void cond_broadcast(struct semaphore *cond) {
-    post_all_sem(cond);
+void cond_broadcast(struct semaphore *cond)
+{
+	post_all_sem(cond);
 }

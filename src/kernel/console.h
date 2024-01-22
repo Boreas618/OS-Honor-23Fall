@@ -2,10 +2,10 @@
 
 #include <fs/inode.h>
 #include <lib/defines.h>
+#include <kernel/param.h>
 
 #define BACKSPACE 0x100
 #define C(x) ((x) - '@')
-#define INPUT_BUF_SIZE 128
 
 extern InodeTree inodes;
 

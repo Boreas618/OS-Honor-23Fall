@@ -4,10 +4,10 @@
 #define NUM_IRQ_TYPES 64
 
 typedef enum {
-    IRQ_AUX = 29,
-    IRQ_GPIO0 = 49,
-    IRQ_SDIO = 56,
-    IRQ_ARASANSDIO = 62,
+	IRQ_AUX = 29,
+	IRQ_GPIO0 = 49,
+	IRQ_SDIO = 56,
+	IRQ_ARASANSDIO = 62,
 } InterruptType;
 
 typedef void (*InterruptHandler)();

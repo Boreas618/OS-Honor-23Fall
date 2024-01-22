@@ -17,39 +17,39 @@ extern struct proc root_proc;
 enum procstate { UNUSED, RUNNABLE, RUNNING, SLEEPING, DEEPSLEEPING, ZOMBIE };
 
 struct uctx {
-    u64 q0[2];
-    u64 elr;
-    u64 tpidr0;
-    u64 sp;
-    u64 spsr;
-    u64 regs[32]; // General purpose registers.
+	u64 q0[2];
+	u64 elr;
+	u64 tpidr0;
+	u64 sp;
+	u64 spsr;
+	u64 regs[32]; // General purpose registers.
 };
 
 typedef struct kctx {
-    u64 x0;
-    u64 x1;
-    u64 regs[12]; // Callee-saved general purpose registers.
+	u64 x0;
+	u64 x1;
+	u64 regs[12]; // Callee-saved general purpose registers.
 } KernelContext;
 
 struct proc {
-    bool killed;
-    bool idle;
-    int pid;
-    int exitcode;
-    void *kstack;
-    enum procstate state;
-    struct lock *lock;
-    struct semaphore childexit;
-    struct list children;
-    struct list zombie_children;
-    struct list_node ptnode;
-    struct proc *parent;
-    struct schinfo schinfo;
-    struct vmspace vmspace;
-    struct uctx *ucontext;
-    struct kctx *kcontext;
-    struct oftable oftable;
-    struct inode *cwd;
+	bool killed;
+	bool idle;
+	int pid;
+	int exitcode;
+	void *kstack;
+	enum procstate state;
+	struct lock *lock;
+	struct semaphore childexit;
+	struct list children;
+	struct list zombie_children;
+	struct list_node ptnode;
+	struct proc *parent;
+	struct schinfo schinfo;
+	struct vmspace vmspace;
+	struct uctx *ucontext;
+	struct kctx *kcontext;
+	struct oftable oftable;
+	struct inode *cwd;
 };
 
 void kernel_entry();

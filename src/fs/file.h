@@ -9,7 +9,7 @@
 #define FILE_NAME_MAX_LENGTH 14
 #define FSSIZE 1000 // Size of file system in blocks
 #define NFILE 65536 // Maximum number of open files in the whole system.
-#define NOFILE 128  // Maximum number of open files of a process.
+#define NOFILE 128 // Maximum number of open files of a process.
 
 /**
  * file - the file descriptor
@@ -21,23 +21,23 @@
  * have been written/read.
  */
 struct file {
-    enum { FD_NONE, FD_PIPE, FD_INODE } type;
-    int ref;
-    bool readable, writable;
-    union {
-        struct pipe *pipe;
-        struct inode *ip;
-    };
-    usize off;
+	enum { FD_NONE, FD_PIPE, FD_INODE } type;
+	int ref;
+	bool readable, writable;
+	union {
+		struct pipe *pipe;
+		struct inode *ip;
+	};
+	usize off;
 };
 
 struct ftable {
-    struct spinlock lock;
-    struct file file[NFILE];
+	struct spinlock lock;
+	struct file file[NFILE];
 };
 
 struct oftable {
-    struct file* ofiles[NOFILE];
+	struct file *ofiles[NOFILE];
 };
 
 void init_ftable();

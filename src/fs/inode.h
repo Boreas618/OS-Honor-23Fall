@@ -21,33 +21,33 @@ typedef u16 inode_type_t;
 
 /* On-disk inode structure. */
 struct dinode {
-    inode_type_t type; // `type == INODE_INVALID` implies this inode is free.
-    u16 major;         // major device id, for INODE_DEVICE only.
-    u16 minor;         // minor device id, for INODE_DEVICE only.
-    u16 num_links;     // number of hard links to this inode in the filesystem.
-    u32 num_bytes;     // number of bytes in the file, i.e. the size of file.
-    u32 addrs[INODE_NUM_DIRECT]; // direct addresses/block numbers.
-    u32 indirect;                // the indirect address block.
+	inode_type_t type; // `type == INODE_INVALID` implies this inode is free.
+	u16 major; // major device id, for INODE_DEVICE only.
+	u16 minor; // minor device id, for INODE_DEVICE only.
+	u16 num_links; // number of hard links to this inode in the filesystem.
+	u32 num_bytes; // number of bytes in the file, i.e. the size of file.
+	u32 addrs[INODE_NUM_DIRECT]; // direct addresses/block numbers.
+	u32 indirect; // the indirect address block.
 };
 
 struct indirect_block {
-    u32 addrs[INODE_NUM_INDIRECT];
+	u32 addrs[INODE_NUM_INDIRECT];
 };
 
 /* Directory entry. */
 struct dirent {
-    u16 inode_no; // `inode_no == 0` implies this entry is free. */
-    char name[FILE_NAME_MAX_LENGTH];
+	u16 inode_no; // `inode_no == 0` implies this entry is free. */
+	char name[FILE_NAME_MAX_LENGTH];
 };
 
 /* In-mem inode structure. */
 struct inode {
-    struct semaphore lock;
-    struct ref_count rc;   // The reference count of this inode.s
-    struct list_node node; // Link this inode into a linked list.
-    usize inode_no;
-    bool valid;          // Whether the `entry` been loaded from disk.
-    struct dinode entry; // The real in-memory copy of the inode on disk.
+	struct semaphore lock;
+	struct ref_count rc; // The reference count of this inode.s
+	struct list_node node; // Link this inode into a linked list.
+	usize inode_no;
+	bool valid; // Whether the `entry` been loaded from disk.
+	struct dinode entry; // The real in-memory copy of the inode on disk.
 };
 
 /**
@@ -70,24 +70,24 @@ struct inode {
  * @remove: remove the directory entry at `index`.
  */
 struct inode_tree {
-    struct inode *root;
+	struct inode *root;
 
-    usize (*alloc)(OpContext *ctx, inode_type_t type);
-    void (*lock)(struct inode *inode);
-    void (*unlock)(struct inode *inode);
-    void (*sync)(OpContext *ctx, struct inode *inode, bool do_write);
-    struct inode *(*get)(usize inode_no);
-    void (*clear)(OpContext *ctx, struct inode *inode);
-    struct inode *(*share)(struct inode *inode);
-    void (*put)(OpContext *ctx, struct inode *inode);
+	usize (*alloc)(OpContext *ctx, inode_type_t type);
+	void (*lock)(struct inode *inode);
+	void (*unlock)(struct inode *inode);
+	void (*sync)(OpContext *ctx, struct inode *inode, bool do_write);
+	struct inode *(*get)(usize inode_no);
+	void (*clear)(OpContext *ctx, struct inode *inode);
+	struct inode *(*share)(struct inode *inode);
+	void (*put)(OpContext *ctx, struct inode *inode);
 
-    usize (*read)(struct inode *inode, u8 *dest, usize offset, usize count);
-    usize (*write)(OpContext *ctx, struct inode *inode, u8 *src, usize offset,
-                   usize count);
-    usize (*lookup)(struct inode *inode, const char *name, usize *index);
-    usize (*insert)(OpContext *ctx, struct inode *inode, const char *name,
-                    usize inode_no);
-    void (*remove)(OpContext *ctx, struct inode *inode, usize index);
+	usize (*read)(struct inode *inode, u8 *dest, usize offset, usize count);
+	usize (*write)(OpContext *ctx, struct inode *inode, u8 *src,
+		       usize offset, usize count);
+	usize (*lookup)(struct inode *inode, const char *name, usize *index);
+	usize (*insert)(OpContext *ctx, struct inode *inode, const char *name,
+			usize inode_no);
+	void (*remove)(OpContext *ctx, struct inode *inode, usize index);
 };
 
 typedef struct inode Inode;
