@@ -161,6 +161,7 @@ int getcmd(char *buf, int nbuf)
 
 int main(int argc, char *argv[])
 {
+#ifdef SH_DEBUG
 	for (int i = 0; i < argc; i++) {
 		printf("sh: argv[%d] = '%s'\n", i, argv[i]);
 	}
@@ -170,6 +171,7 @@ int main(int argc, char *argv[])
 	} else {
 		printf("sh: testenv not found!\n");
 	}
+#endif
 
 	static char buf[100];
 	int fd;

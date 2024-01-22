@@ -403,9 +403,9 @@ define_syscall(mknodat, int dirfd, const char *path, int major, int minor)
 		printk("sys_mknodat: dirfd unimplemented\n");
 		return -1;
 	}
-
+#ifdef MKNODAT_DEBUG
 	printk("mknodat: path '%s', major:minor %d:%d\n", path, major, minor);
-
+#endif
 	struct op_ctx ctx;
 	bcache.begin_op(&ctx);
 	if ((ip = create(path, INODE_DEVICE, major, minor, &ctx)) == 0) {

@@ -21,7 +21,6 @@ int main()
 	dup(0); // stderr
 
 	while (1) {
-		printf("init: starting sh\n");
 		pid = fork();
 		if (pid < 0) {
 			printf("init: fork failed\n");

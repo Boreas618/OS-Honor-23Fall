@@ -1,12 +1,11 @@
 #pragma once
 
 #include <proc/proc.h>
+#include <kernel/param.h>
 
 #define activate_proc(proc) _activate_proc(proc, false)
 #define alert_proc(proc) _activate_proc(proc, true)
 #define yield() (schedule(RUNNABLE))
-
-#define SLICE_LEN 1
 
 extern u64 proc_entry();
 bool _activate_proc(struct proc *, bool onalert);
