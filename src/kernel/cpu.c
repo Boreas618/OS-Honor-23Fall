@@ -91,7 +91,6 @@ void set_cpu_on()
 	arch_reset_esr();
 	init_clock();
 	cpus[cpuid()].online = true;
-	printk("CPU %d: hello\n", cpuid());
 	hello_timer[cpuid()].elapse = 5000;
 	hello_timer[cpuid()].handler = hello;
 	set_cpu_timer(&hello_timer[cpuid()]);

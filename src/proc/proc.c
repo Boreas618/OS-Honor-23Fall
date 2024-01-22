@@ -9,6 +9,7 @@
 #include <proc/proc.h>
 #include <proc/sched.h>
 #include <vm/vmregion.h>
+#include <vm/pgtbl.h>
 
 struct proc root_proc;
 
@@ -220,15 +221,20 @@ struct proc *create_idle()
  * Create a new process copying p as the parent.
  * Sets up stack to return as if from system call.
  */
-int fork()
+int fork(bool copy_pt)
 {
+    (void) copy_pt;
 	struct proc *this = thisproc();
 	struct proc *child = create_proc();
 
 	init_proc(child);
 	set_parent_to_this(child);
 
-	copy_vmspace(&this->vmspace, &child->vmspace);
+    freeze_pages_in_vmspace(&this->vmspace);
+    copy_vmspace(&this->vmspace, &child->vmspace, true);
+
+    // copy_vmregions(&this->vmspace, &child->vmspace);
+    // child->vmspace.pgtbl = this->vmspace.pgtbl;
 
 	// Copy saved user registers.
 	*(child->ucontext) = *(this->ucontext);

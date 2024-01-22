@@ -19,9 +19,9 @@ static int execve_load_section(struct vmspace *vms, Elf64_Phdr ph,
 	u64 flags = 0;
 
 	if (ph.p_flags == (PF_R | PF_X))
-		flags = ST_FILE | ST_RO;
+		flags = VMR_FILE | VMR_RO;
 	else if (ph.p_flags == (PF_R | PF_W))
-		flags = ST_FILE;
+		flags = VMR_FILE;
 	else
 		return 0;
 
@@ -62,7 +62,7 @@ static int execve_load_section(struct vmspace *vms, Elf64_Phdr ph,
 
 		// Map the page in page table.
 		u64 pte_flags = PTE_USER_DATA;
-		if (vmr->flags & ST_RO)
+		if (vmr->flags & VMR_RO)
 			pte_flags |= PTE_RO;
 
 		map_in_pgtbl(vms->pgtbl, PAGE_BASE(begin), page_to_map,
@@ -101,7 +101,7 @@ static u64 execve_alloc_stack(struct vmspace *vms, u64 *sb)
 	u64 sp = stack_base + STACK_SIZE;
 
 	struct vmregion *vmr =
-		create_vmregion(vms, ST_STACK, stack_base, STACK_SIZE);
+		create_vmregion(vms, VMR_STACK, stack_base, STACK_SIZE);
 	if (vmr == NULL)
 		return -1;
 

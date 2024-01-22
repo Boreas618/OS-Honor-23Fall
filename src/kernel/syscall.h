@@ -14,6 +14,3 @@
 extern void *syscall_table[NR_SYSCALL];
 
 void syscall_entry(UserContext *context);
-bool user_readable(const void *start, usize size);
-bool user_writeable(const void *start, usize size);
-usize user_strlen(const char *str, usize maxlen);
