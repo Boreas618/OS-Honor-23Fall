@@ -107,9 +107,7 @@ static void inode_sync(OpContext *ctx, struct inode *inode, bool do_write)
 		struct dinode *ie = get_entry(b, inode->inode_no);
 		memcpy(ie, &inode->entry, sizeof(struct dinode));
 		cache->sync(ctx, b);
-	}
-
-	if (!do_write && !inode->valid) {
+	} else if (inode->valid == false) {
 		struct dinode *ie = get_entry(b, inode->inode_no);
 		// We don't need to grab the lock for inode here.
 		// The lock has been grabbed by the caller of this function.
@@ -117,10 +115,6 @@ static void inode_sync(OpContext *ctx, struct inode *inode, bool do_write)
 		inode->valid = true;
 	}
 
-	if (do_write && !inode->valid) {
-		cache->release(b);
-		PANIC();
-	}
 	cache->release(b);
 }
 
@@ -132,7 +126,7 @@ static struct inode *inode_get(usize inode_no)
 	list_forall(p, cached_inodes)
 	{
 		struct inode *i = container_of(p, struct inode, node);
-		if (i->inode_no == inode_no) {
+		if (i->inode_no == inode_no && i->rc.count > 0 && i->valid) {
 			increment_rc(&i->rc);
 			list_unlock(&cached_inodes);
 			return i;
@@ -146,19 +140,12 @@ static struct inode *inode_get(usize inode_no)
 	struct inode *new_inode = (struct inode *)kalloc(sizeof(struct inode));
 	init_inode(new_inode);
 	new_inode->inode_no = inode_no;
-
-	// Grant the ownership of this inode by incrementing rc.
 	increment_rc(&new_inode->rc);
-
-	// Copy the entry from disk to memory.
+	list_push_back(&cached_inodes, &new_inode->node);
 	inode_lock(new_inode);
+	list_unlock(&cached_inodes);
 	inode_sync(NULL, new_inode, false);
 	inode_unlock(new_inode);
-
-	// Set the inode as valid and put it on the list of cached inodes.
-	new_inode->valid = true;
-	list_push_back(&cached_inodes, &new_inode->node);
-	list_unlock(&cached_inodes);
 	return new_inode;
 }
 
@@ -169,8 +156,10 @@ static void inode_clear(OpContext *ctx, struct inode *inode)
 	// Free the direct blocks.
 	for (int i = 0; i < INODE_NUM_DIRECT; i++) {
 		u32 block_no = ie->addrs[i];
-		if (block_no)
+		if (block_no) {
 			cache->free(ctx, block_no);
+			ie->addrs[i] = NULL;
+		}
 	}
 
 	// Free the indirect blocks.
@@ -179,23 +168,25 @@ static void inode_clear(OpContext *ctx, struct inode *inode)
 		u32 *indir_addrs = get_addrs(indirect);
 		for (usize i = 0; i < INODE_NUM_INDIRECT; i++) {
 			u32 block_no = indir_addrs[i];
-			if (block_no)
+			if (block_no) {
 				cache->free(ctx, block_no);
+				indir_addrs[i] = NULL;
+			}
 		}
 		cache->release(indirect);
 		cache->free(ctx, ie->indirect);
+		inode->entry.indirect = NULL;
 	}
 
-	// Reset the metadata.
-	inode->entry.indirect = NULL;
-	memset((void *)inode->entry.addrs, 0, sizeof(u32) * INODE_NUM_DIRECT);
 	inode->entry.num_bytes = 0;
 	inode_sync(ctx, inode, true);
 }
 
 static struct inode *inode_share(struct inode *inode)
 {
+	list_lock(&cached_inodes);
 	increment_rc(&inode->rc);
+	list_unlock(&cached_inodes);
 	return inode;
 }
 
@@ -204,17 +195,23 @@ static void inode_put(OpContext *ctx, struct inode *inode)
 	list_lock(&cached_inodes);
 
 	// Free the inode if no one needs it
-	if (inode->rc.count == 1 && inode->entry.num_links == 0) {
+	if (inode->rc.count == 1 && inode->entry.num_links == 0 && inode->valid) {
 		inode_lock(inode);
+		inode->valid = false;
+		list_unlock(&cached_inodes);
+
 		inode_clear(ctx, inode);
 		inode->entry.type = INODE_INVALID;
 		inode_sync(ctx, inode, true);
+
+		list_lock(&cached_inodes);
 		inode_unlock(inode);
 		list_remove(&cached_inodes, &inode->node);
+		list_unlock(&cached_inodes);
 		kfree(inode);
-	} else {
-		decrement_rc(&inode->rc);
+		return;
 	}
+	decrement_rc(&inode->rc);
 	list_unlock(&cached_inodes);
 }
 
