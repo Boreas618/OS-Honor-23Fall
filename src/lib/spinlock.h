@@ -4,6 +4,7 @@
 #include <aarch64/intrinsic.h>
 
 struct spinlock {
+	int c;
 	volatile bool locked;
 };
 

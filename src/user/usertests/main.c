@@ -162,8 +162,8 @@ int main(int argc, char *argv[])
 
 	opentest();
 	writetest();
-	// writetestbig();
-	//createtest();
+	writetestbig();
+	createtest();
 
 	exit(0);
 }

@@ -237,229 +237,170 @@ static void inode_put(OpContext *ctx, struct inode *inode)
  *
  * Note that the caller must hold the lock of `inode`.
  */
-static usize inode_map(OpContext *ctx, struct inode *inode, usize offset,
-		       bool *modified)
-{
-	struct dinode *entry = &inode->entry;
-	ASSERT(offset < INODE_MAX_BYTES);
-	usize block_no = 0;
-	u32 *new_block_slot = NULL;
+static usize inode_map(OpContext* ctx,
+                       Inode* inode,
+                       usize offset,
+                       bool* modified) {
+    // TODO
+    ASSERT(offset < INODE_NUM_DIRECT + INODE_NUM_INDIRECT);
+    InodeEntry* entry_ptr = &(inode->entry);
+    // find in 'direct'
+    if (offset < INODE_NUM_DIRECT) {
+        if (entry_ptr->addrs[offset] == 0) {
+            entry_ptr->addrs[offset] = cache->alloc(ctx);
+            *modified = TRUE;
+        }
+        return entry_ptr->addrs[offset];
+    }
 
-	// The block can be directly accessed.
-	if (offset / BLOCK_SIZE < INODE_NUM_DIRECT) {
-		block_no = entry->addrs[offset / BLOCK_SIZE];
-		new_block_slot = entry->addrs + offset / BLOCK_SIZE;
-	}
+    // find in 'indirect'
+    offset -= INODE_NUM_DIRECT;
+    if (entry_ptr->indirect == 0) { // alloc indrect block
+        entry_ptr->indirect = cache->alloc(ctx);
+    }
 
-	// The block cannot be accessed directly.
-	if (offset / BLOCK_SIZE >= INODE_NUM_DIRECT) {
-		// The indirect block is absent.
-		if (!entry->indirect) {
-			if (!ctx)
-				return 0;
-			entry->indirect = cache->alloc(ctx);
-			*modified = true;
-		}
-
-		// Get the index in the indirect blocks.
-		usize idx = offset / BLOCK_SIZE - INODE_NUM_DIRECT;
-
-		// Get the block number from the indirect block.
-		struct block *indirect_b = cache->acquire(entry->indirect);
-		block_no = get_addrs(indirect_b)[idx];
-		new_block_slot = get_addrs(indirect_b) + idx;
-		cache->release(indirect_b);
-	}
-
-	// Tackle the cases where the found block has not been allocated.
-	if (!block_no && ctx) {
-		block_no = cache->alloc(ctx);
-		*new_block_slot = block_no;
-		*modified = true;
-	}
-	return block_no;
+    Block* block = cache->acquire(entry_ptr->indirect);
+    u32* addrs = get_addrs(block);
+    if (addrs[offset] == 0) {
+        addrs[offset] = cache->alloc(ctx);
+        cache->sync(ctx, block);
+        *modified = TRUE;
+    } 
+    cache->release(block);
+    return addrs[offset];
 }
 
-static usize inode_read(struct inode *inode, u8 *dest, usize offset,
-			usize count)
-{
-	struct dinode *entry = &inode->entry;
-
-	if (entry->type == INODE_DEVICE) {
-		ASSERT(inode->entry.major == 1);
-		return console_read(inode, (char *)dest, count);
-	}
-
-	if (count + offset > entry->num_bytes)
-		count = entry->num_bytes - offset;
-	usize end = offset + count;
-	ASSERT(offset <= entry->num_bytes);
-	ASSERT(end <= entry->num_bytes);
-	ASSERT(offset <= end);
-
-	usize cnt = 0;
-	while (cnt < count) {
-		// Get which block is the offset of the inode in.
-		usize block_no = inode_map(NULL, inode, offset + cnt, NULL);
-
-		// The block is not present.
-		if (block_no == 0)
-			return 0;
-
-		// Read the block.
-		struct block *b = cache->acquire(block_no);
-		u8 *data = b->data;
-
-		// Find the start and the length of the data to be read.
-		usize start = (cnt == 0 ? offset % BLOCK_SIZE : 0);
-		usize length = 0;
-		if (cnt == 0)
-			length = MIN((usize)BLOCK_SIZE - start, count);
-		else
-			length = MIN((usize)BLOCK_SIZE, count - cnt);
-
-		// Copy the bytes to the destination.
-		memcpy(dest + cnt, data + start, length);
-		cache->release(b);
-		cnt += length;
-	}
-	return count;
+static usize inode_read(Inode* inode, u8* dest, usize offset, usize count) {
+    InodeEntry* entry = &inode->entry;
+    if (inode->entry.type == INODE_DEVICE) {
+        ASSERT(inode->entry.major == 1);
+        return console_read(inode, (char*)dest, count);
+    }
+    if (count + offset > entry->num_bytes)
+        count = entry->num_bytes - offset;
+    usize end = offset + count;
+    ASSERT(offset <= entry->num_bytes);
+    ASSERT(end <= entry->num_bytes);
+    ASSERT(offset <= end);
+    
+    // TODO
+    bool modified = FALSE;
+    u8* src;
+    for (usize i = 0, cnt = 0; i < count; i += cnt, dest += cnt, offset += cnt) {
+        usize block_no = inode_map(NULL, inode, offset / BLOCK_SIZE, &modified);
+        Block* block = cache->acquire(block_no);
+        if (i == 0) {
+            cnt = MIN(BLOCK_SIZE - offset % (usize)BLOCK_SIZE, (count));
+            src = block->data + offset % (usize)BLOCK_SIZE;
+        } else {
+            cnt = MIN((usize)BLOCK_SIZE, count - i);
+            src = block->data;
+        }
+        memcpy(dest, src, cnt);
+        cache->release(block);
+    }
+    
+    return count;
 }
 
-static usize inode_write(OpContext *ctx, struct inode *inode, u8 *src,
-			 usize offset, usize count)
-{
-	struct dinode *entry = &inode->entry;
+// see `inode.h`.
+static usize inode_write(OpContext* ctx,
+                         Inode* inode,
+                         u8* src,
+                         usize offset,
+                         usize count) {
+    InodeEntry* entry = &inode->entry;
+    if (entry->type == INODE_DEVICE) {
+        ASSERT(inode->entry.major == 1);
+        return console_write(inode, (char*)src, count);
+    }
+    usize end = offset + count;
+    ASSERT(offset <= entry->num_bytes);
+    ASSERT(end <= INODE_MAX_BYTES);
+    ASSERT(offset <= end);
 
-	if (entry->type == INODE_DEVICE) {
-		ASSERT(inode->entry.major == 1);
-		return console_write(inode, (char *)src, count);
-	}
-
-	usize end = offset + count;
-	ASSERT(offset <= entry->num_bytes);
-	ASSERT(end <= INODE_MAX_BYTES);
-	ASSERT(offset <= end);
-
-	usize cnt = 0;
-	while (cnt < count) {
-		bool modified = false;
-		// Get which block is the offset of the inode in.
-		usize block_no = inode_map(ctx, inode, offset + cnt, &modified);
-
-		// Get the block.
-		struct block *b = cache->acquire(block_no);
-		u8 *data = b->data;
-
-		// Find the start and the length of the data to be read.
-		usize start = (cnt == 0 ? offset % BLOCK_SIZE : 0);
-		usize length = 0;
-		if (cnt == 0)
-			length = MIN((usize)BLOCK_SIZE - start, count);
-		else
-			length = MIN((usize)BLOCK_SIZE, count - cnt);
-
-		// Copy the bytes to the destination.
-		memcpy(data + start, src + cnt, length);
-
-		// Record the change.
-		inode->entry.num_bytes += length;
-		inode_sync(ctx, inode, true);
-
-		cache->sync(ctx, b);
-		cache->release(b);
-		cnt += length;
-	}
-	return count;
+    // TODO
+    bool modified = FALSE;
+    u8* dest;
+    for (usize i = 0, cnt = 0; i < count; i += cnt, src += cnt, offset += cnt) {
+        usize block_no = inode_map(ctx, inode, offset / BLOCK_SIZE, &modified);
+        Block* block = cache->acquire(block_no);
+        if (i == 0) {
+            cnt = MIN(BLOCK_SIZE - offset % (usize)BLOCK_SIZE, (count));
+            dest = block->data + offset % (usize)BLOCK_SIZE;
+        } else {
+            cnt = MIN((usize)BLOCK_SIZE, count - i);
+            dest = block->data;
+        }
+        memcpy(dest, src, cnt);
+        cache->sync(ctx, block);
+        cache->release(block);
+    }
+    if (inode->entry.num_bytes < end) {
+        inode->entry.num_bytes = end;
+        inode_sync(ctx, inode, TRUE);
+    }
+    return count;
 }
 
-static usize inode_lookup(struct inode *inode, const char *name, usize *index)
-{
-	struct dinode *entry = &inode->entry;
-	ASSERT(entry->type == INODE_DIRECTORY);
-	usize offset = 0;
-	usize idx = 0;
-	struct dirent de;
-	while (offset < entry->num_bytes) {
-		inode_read(inode, (u8 *)&de, offset, sizeof(struct dirent));
-		if (de.inode_no &&
-		    !strncmp(de.name, name, FILE_NAME_MAX_LENGTH)) {
-			if (index)
-				*index = idx;
-			return de.inode_no;
-		}
-		offset += sizeof(struct dirent);
-		idx += 1;
-	}
-	return 0;
+// see `inode.h`.
+static usize inode_lookup(Inode* inode, const char* name, usize* index) {
+    InodeEntry* entry = &inode->entry;
+    ASSERT(entry->type == INODE_DIRECTORY);
+
+    // TODO
+    for (usize i = 0; i < entry->num_bytes; i += sizeof(struct dirent)) {
+        struct dirent dir_entry;
+        inode_read(inode, (void*)&dir_entry, i, sizeof(struct dirent));
+        if (dir_entry.inode_no != 0 && strncmp(dir_entry.name, name, FILE_NAME_MAX_LENGTH) == 0) {
+            if (index != NULL) {
+                *index = i;
+            }
+            return dir_entry.inode_no;
+        }
+    }
+    return 0;
 }
 
-static usize inode_insert(OpContext *ctx, struct inode *inode, const char *name,
-			  usize inode_no)
-{
-	struct dinode *entry = &inode->entry;
-	ASSERT(entry->type == INODE_DIRECTORY);
+// see `inode.h`.
+static usize inode_insert(OpContext* ctx,
+                          Inode* inode,
+                          const char* name,
+                          usize inode_no) {
+    InodeEntry* entry = &inode->entry;
+    ASSERT(entry->type == INODE_DIRECTORY);
 
-	usize index = 0;
-	if (inode_lookup(inode, name, &index))
-		return -1;
+    // TODO
+    usize index = 0;
+    //if not find
+    if (inode_lookup(inode, name, &index) != 0) {
+        return -1;
+    }
 
-	struct dirent de;
-	for (index = 0; index < entry->num_bytes;
-	     index += sizeof(struct dirent)) {
-		inode_read(inode, (u8 *)&de, index, sizeof(struct dirent));
-
-		if (de.inode_no == 0)
-			break;
-	}
-
-	// Write the directory entry.
-	memcpy(de.name, name, FILE_NAME_MAX_LENGTH);
-	de.inode_no = inode_no;
-	inode_write(ctx, inode, (u8 *)&de, index, sizeof(struct dirent));
-
-	return 0;
+    struct dirent dir_entry;
+    // find the appropriate position
+    for (index = 0; index < entry->num_bytes; index += sizeof(struct dirent)) {
+        inode_read(inode, (void*)&dir_entry, index, sizeof(struct dirent));
+        if (dir_entry.inode_no == 0) {
+            break;
+        }
+    }
+    // wirte
+    memcpy(dir_entry.name, name, FILE_NAME_MAX_LENGTH);
+    dir_entry.inode_no = inode_no;
+    inode_write(ctx, inode, (void*)&dir_entry, index, sizeof(struct dirent));
+    return index;
 }
 
-static void inode_remove(OpContext *ctx, struct inode *inode, usize index)
-{
-	u8 zeros[sizeof(struct dirent)];
-	memset(zeros, 0, sizeof(struct dirent));
-	inode_write(ctx, inode, (u8 *)zeros, index, sizeof(struct dirent));
-	inode->entry.num_bytes -= sizeof(struct dirent);
-
-	// If the last entry is removed, shrink the size of directory inode.
-	usize block_no = inode_map(NULL, inode, index, NULL);
-	usize block_idx = 0;
-	u32 *addr_entry;
-	for (int i = 0; i < INODE_NUM_DIRECT; i++)
-		if (inode->entry.addrs[i] == block_no) {
-			block_idx = i;
-			addr_entry = &inode->entry.addrs[i];
-		}
-
-	struct block *ib = cache->acquire(block_no);
-	u32 *addrs = get_addrs(ib);
-
-	for (usize i = 0; i < INODE_NUM_INDIRECT; i++)
-		if (addrs[i] == block_no) {
-			block_idx = INODE_NUM_DIRECT + i;
-			addr_entry = &inode->entry.addrs[i];
-		}
-
-	cache->release(ib);
-
-	for (int i = 0; i < BLOCK_SIZE; i += sizeof(struct dirent)) {
-		struct dirent de;
-		inode_read(inode, (u8 *)&de, block_idx * BLOCK_SIZE + i,
-			   sizeof(struct dirent));
-		if (de.inode_no != 0 || de.name[0] != 0)
-			return;
-	}
-
-	*addr_entry = 0;
-	cache->free(ctx, block_no);
+// see `inode.h`.
+static void inode_remove(OpContext* ctx, Inode* inode, usize index) {
+    // TODO
+    if (index < inode->entry.num_bytes) {
+        char zero[sizeof(struct dirent)] = {0};
+        inode_write(ctx, inode, (void*)zero, index, sizeof(struct dirent));
+    }
 }
+
 
 struct inode_tree inodes = {
 	.alloc = inode_alloc,
