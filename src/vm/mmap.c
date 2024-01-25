@@ -6,6 +6,35 @@
 #include <lib/printk.h>
 #include <lib/string.h>
 
+static void *get_addr(void *addr, int length, struct vmspace *vs)
+{
+	if (addr == 0) {
+		u64 start = 0;
+		list_forall(pv, vs->vmregions)
+		{
+			struct vmregion *vmr =
+				container_of(pv, struct vmregion, stnode);
+			if (vmr->end > start)
+				start = vmr->end;
+		}
+		return (void *)round_up((u64)start, PAGE_SIZE);
+	} else {
+		/**
+         * WARNING: the addr is rounded up to make the start address of the 
+         * mapping area page-aligned. Per System Calls Manual of mmap, on Linux, 
+         * the kernel will pick a nearby page boundary (but always above or 
+         * equal to the value specified by /proc/sys/vm/mmap_min_addr) 
+         * and attempt to create the mapping there. 
+         */
+		u64 rounded_addr = round_up((u64)addr, PAGE_SIZE);
+		if (!check_vmregion_intersection(vs, rounded_addr,
+						 rounded_addr + length))
+			return (void *)rounded_addr;
+		else
+			return 0;
+	}
+}
+
 u64 mmap(void *addr, int length, int prot, int flags, int fd, usize offset)
 {
 	struct proc *p = thisproc();
@@ -16,57 +45,35 @@ u64 mmap(void *addr, int length, int prot, int flags, int fd, usize offset)
 	if ((prot & PROT_READ) && !f->readable)
 		return -1;
 
-	int pte_flag = PTE_USER_DATA;
+	// int pte_flag = PTE_USER_DATA;
 
 	struct vmregion *v = kalloc(sizeof(struct vmregion));
 	v->flags = VMR_MM;
 	v->mmap_info.flags = flags;
 	v->mmap_info.offset = offset;
-	v->mmap_info.fp = f;
+	v->mmap_info.fp = file_dup(f);
 	v->mmap_info.prot = prot;
-	file_dup(f);
 
-	if (addr == 0) {
-		u64 start = 0;
-		list_forall(pv, p->vmspace.vmregions)
-		{
-			struct vmregion *vmr =
-				container_of(pv, struct vmregion, stnode);
-			if (vmr->end > start)
-				start = vmr->end;
-		}
-		v->begin = PAGE_BASE(start) + PAGE_SIZE;
-	} else {
-		if (!check_vmregion_intersection(&p->vmspace, (u64)addr,
-						 (u64)addr + length))
-			v->begin = (u64)addr;
-	}
+	v->begin = (u64)get_addr(addr, length, &p->vmspace);
 	v->end = v->begin + length;
+
+	if (v->begin == 0)
+		goto bad;
 
 	list_push_back(&p->vmspace.vmregions, &v->stnode);
 
 	for (u64 i = v->begin; i < v->end; i += PAGE_SIZE) {
-		map_in_pgtbl(p->vmspace.pgtbl, i, kalloc_page(), pte_flag);
+		pgtbl_entry_t *pte = get_pte(p->vmspace.pgtbl, i, true);
+		if (pte == NULL)
+			goto bad;
+		*pte &= ~PTE_VALID;
 	}
-
-	char *buf = (char *)kalloc_page();
-
-	inodes.lock(f->ip);
-	int i = 0;
-	while (i < length) {
-		memset(buf, 0, PAGE_SIZE);
-		inodes.read(f->ip, (u8 *)buf, offset, PAGE_SIZE);
-		copy_to_user(p->vmspace.pgtbl, (void *)v->begin + i,
-			     (void *)buf,
-			     MAX((usize)PAGE_SIZE, length - offset));
-		i += PAGE_SIZE;
-		offset += PAGE_SIZE;
-	}
-	inodes.unlock(f->ip);
-
-	kfree_page((void *)buf);
 
 	return v->begin;
+
+bad:
+	kfree(v);
+	return -1;
 }
 
 int munmap(void *addr, usize length)
@@ -78,7 +85,7 @@ int munmap(void *addr, usize length)
 	{
 		struct vmregion *vmr =
 			container_of(pv, struct vmregion, stnode);
-		if (vmr->begin == (u64)addr) {
+		if (vmr->begin <= (u64)addr && (u64)addr < vmr->end) {
 			v = vmr;
 			break;
 		}
@@ -105,6 +112,11 @@ int munmap(void *addr, usize length)
 	} else {
 		unmap_range_in_pgtbl(p->vmspace.pgtbl, (u64)addr,
 				     (u64)addr + length);
+	}
+
+	if (length == (v->end - v->begin)) {
+		file_close(v->mmap_info.fp);
+		kfree(v);
 	}
 
 	return 0;

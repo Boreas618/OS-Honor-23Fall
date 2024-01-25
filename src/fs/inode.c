@@ -278,7 +278,10 @@ static usize inode_read(Inode* inode, u8* dest, usize offset, usize count) {
     if (count + offset > entry->num_bytes)
         count = entry->num_bytes - offset;
     usize end = offset + count;
-    ASSERT(offset <= entry->num_bytes);
+
+    if (offset > entry->num_bytes)
+		return 0;
+		
     ASSERT(end <= entry->num_bytes);
     ASSERT(offset <= end);
     

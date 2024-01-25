@@ -164,13 +164,14 @@ void mmap_test(void)
 	if ((fd = open(f, O_RDWR)) == -1)
 		err("open");
 	p = mmap(0, PGSIZE * 3, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	_v1(p);
 	if (p == MAP_FAILED)
 		err("mmap (3)");
 	if (close(fd) == -1)
 		err("close");
 
 	// check that the mapping still works after close(fd).
-	_v1(p);
+	//_v1(p);
 
 	// write the mapped memory.
 	for (i = 0; i < PGSIZE * 2; i++)

@@ -9,6 +9,7 @@
 #define SYS_exit_group 94
 #define SYS_tid_address 96
 #define SYS_sigprocmask 135
+#define SYS_getpid 172
 #define SYS_clone 220
 #define SYS_execve 221
 #define SYS_wait4 260
