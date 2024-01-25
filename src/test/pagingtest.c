@@ -32,7 +32,7 @@ void pgfault_first_test()
 	_for_in_list(node, vm->vmregions.head)
 	{
 		st = container_of(node, struct vmregion, stnode);
-		if (st->flags & ST_HEAP)
+		if (st->flags & VMR_HEAP)
 			break;
 	}
 	ASSERT(st);
@@ -91,7 +91,7 @@ void pgfault_second_test()
 	_for_in_list(node, pd->vmregions.head)
 	{
 		st = container_of(node, struct vmregion, stnode);
-		if (st->flags & ST_HEAP)
+		if (st->flags & VMR_HEAP)
 			break;
 	}
 	ASSERT(st);

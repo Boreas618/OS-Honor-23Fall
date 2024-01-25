@@ -23,7 +23,8 @@ set(user_files "init"
 "ls"
 "mkfs"
 "mkdir"
-"usertests")
+"usertests"
+"mmaptest")
 
 add_custom_command(
     OUTPUT sd.img

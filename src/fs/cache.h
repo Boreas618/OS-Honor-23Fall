@@ -4,7 +4,7 @@
 #include <lib/sem.h>
 
 /* Maximum number of distinct blocks that one atomic operation can hold. */
-#define OP_MAX_NUM_BLOCKS 10
+#define OP_MAX_NUM_BLOCKS 40
 
 /*
  * The threshold of block cache to start eviction.

@@ -12,6 +12,11 @@ define_syscall(gettid)
 	return thisproc()->pid;
 }
 
+define_syscall(getpid)
+{
+	return thisproc()->pid;
+}
+
 define_syscall(set_tid_address, int *tidptr)
 {
 	(void)tidptr;

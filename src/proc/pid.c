@@ -8,6 +8,7 @@ define_early_init(pid)
 {
 	init_spinlock(&pool.lock);
 	pool.window = 0;
+	ASSERT(alloc_pid() == 0);
 }
 
 int alloc_pid()

@@ -9,6 +9,8 @@
 #include <proc/proc.h>
 #include <proc/sched.h>
 #include <vm/vmregion.h>
+#include <vm/pgtbl.h>
+#include <driver/clock.h>
 
 struct proc root_proc;
 
@@ -19,23 +21,22 @@ define_early_init(proc_d)
 	init_spinlock(&proc_lock);
 }
 
-define_init(startup_procs)
+define_init(root_proc)
 {
-	// Stage the idle processes
+	init_proc(&root_proc, false);
+	root_proc.parent = &root_proc;
+	start_proc(&root_proc, kernel_entry, 0);
+}
+
+define_init(idles)
+{
 	for (int i = 0; i < NCPU; i++) {
-		// Idle processes are the first processes on each core.
-		// Before the idle process is staged, no other processes are created.
 		ASSERT(cpus[i].sched.running == NULL);
 		struct proc *idle = create_idle();
 		cpus[i].sched.idle = idle;
 		cpus[i].sched.running = idle;
 		idle->state = RUNNING;
 	}
-
-	// Initialize the root process
-	init_proc(&root_proc);
-	root_proc.parent = &root_proc;
-	start_proc(&root_proc, kernel_entry, 0);
 }
 
 void set_parent_to_this(struct proc *proc)
@@ -88,6 +89,7 @@ NO_RETURN void exit(int code)
 	list_remove(&(p->parent->children), &(p->ptnode));
 	list_push_back(&(p->parent->zombie_children), &(p->ptnode));
 
+	// Close the opened files and put the inode of the workding dir.
 	for (int i = 0; i < NOFILE; ++i) {
 		if (p->oftable.ofiles[i]) {
 			file_close(p->oftable.ofiles[i]);
@@ -97,8 +99,12 @@ NO_RETURN void exit(int code)
 	struct op_ctx ctx;
 	bcache.begin_op(&ctx);
 	inodes.put(&ctx, p->cwd);
-	bcache.end_op(&ctx);
 	p->cwd = NULL;
+
+	// In order to avoid sleeping with locks.
+	release_spinlock(&proc_lock);
+	bcache.end_op(&ctx);
+	acquire_spinlock(&proc_lock);
 
 	// Notify the parent.
 	post_sem(&(p->parent->childexit));
@@ -176,19 +182,24 @@ int start_proc(struct proc *p, void (*entry)(u64), u64 arg)
 	return pid;
 }
 
-void init_proc(struct proc *p)
+void init_proc(struct proc *p, bool idle)
 {
 	acquire_spinlock(&proc_lock);
 	memset(p, 0, sizeof(*p));
+
+	// Set some default values.
 	p->killed = false;
-	p->idle = false;
-	p->pid = alloc_pid();
+	p->idle = idle;
+	p->pid = idle ? 0 : alloc_pid();
+	p->schinfo.runtime = 0;
 	p->state = UNUSED;
+	p->parent = idle ? p : NULL;
+
+	// Initialize the data structures.
 	init_sem(&p->childexit, 0);
 	list_init(&p->children);
 	list_init(&p->zombie_children);
 	init_list_node(&p->ptnode);
-	p->schinfo.runtime = 0;
 	init_vmspace(&p->vmspace);
 	p->kstack = kalloc_page();
 	memset((void *)p->kstack, 0, PAGE_SIZE);
@@ -196,22 +207,20 @@ void init_proc(struct proc *p)
 		      sizeof(UserContext);
 	p->ucontext = p->kstack + PAGE_SIZE - sizeof(UserContext);
 	init_oftable(&p->oftable);
+
 	release_spinlock(&proc_lock);
 }
 
 struct proc *create_proc()
 {
 	struct proc *p = kalloc(sizeof(struct proc));
-	ASSERT(p != NULL);
 	return p;
 }
 
 struct proc *create_idle()
 {
 	struct proc *p = create_proc();
-	init_proc(p);
-	p->parent = p;
-	p->idle = true;
+	init_proc(p, true);
 	start_proc(p, &idle_entry, 0);
 	return p;
 }
@@ -225,10 +234,10 @@ int fork()
 	struct proc *this = thisproc();
 	struct proc *child = create_proc();
 
-	init_proc(child);
+	init_proc(child, false);
 	set_parent_to_this(child);
 
-	copy_vmspace(&this->vmspace, &child->vmspace);
+	copy_vmspace(&this->vmspace, &child->vmspace, true);
 
 	// Copy saved user registers.
 	*(child->ucontext) = *(this->ucontext);

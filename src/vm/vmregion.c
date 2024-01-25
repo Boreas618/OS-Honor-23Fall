@@ -27,6 +27,14 @@ void copy_vmregions(struct vmspace *vms_source, struct vmspace *vms_dest)
 	}
 }
 
+void init_mmap_info(struct mmap_info *m)
+{
+	m->fp = NULL;
+	m->offset = 0;
+	m->prot = 0;
+	m->flags = 0;
+}
+
 void init_vmspace(struct vmspace *vms)
 {
 	vms->pgtbl = (pgtbl_entry_t *)K2P(kalloc_page());
@@ -35,7 +43,8 @@ void init_vmspace(struct vmspace *vms)
 	list_init(&vms->vmregions);
 }
 
-void copy_vmspace(struct vmspace *vms_source, struct vmspace *vms_dest)
+void copy_vmspace(struct vmspace *vms_source, struct vmspace *vms_dest,
+		  bool share)
 {
 	copy_vmregions(vms_source, vms_dest);
 
@@ -54,12 +63,21 @@ void copy_vmspace(struct vmspace *vms_source, struct vmspace *vms_dest)
 			if (pte_ptr == NULL || !(*pte_ptr & PTE_VALID))
 				continue;
 
-			// Allocate a new page and map it in the new page table.
-			void *ka = kalloc_page();
-			memcpy(ka, (void *)P2K(PTE_ADDRESS(*pte_ptr)),
-			       PAGE_SIZE);
-			map_in_pgtbl(vms_dest->pgtbl, i, ka,
-				     PTE_FLAGS(*pte_ptr));
+			if (share) {
+				map_in_pgtbl(vms_dest->pgtbl, i,
+					     (void *)P2K(PTE_ADDRESS(*pte_ptr)),
+					     PTE_FLAGS(*pte_ptr) | PTE_RO);
+				map_in_pgtbl(vms_source->pgtbl, i,
+					     (void *)P2K(PTE_ADDRESS(*pte_ptr)),
+					     (PTE_FLAGS(*pte_ptr) | PTE_RO));
+			} else {
+				// Allocate a new page and map it in the new page table.
+				void *ka = kalloc_page();
+				memcpy(ka, (void *)P2K(PTE_ADDRESS(*pte_ptr)),
+				       PAGE_SIZE);
+				map_in_pgtbl(vms_dest->pgtbl, i, ka,
+					     PTE_FLAGS(*pte_ptr));
+			}
 		}
 	}
 }
@@ -96,6 +114,7 @@ struct vmregion *create_vmregion(struct vmspace *vms, u64 flags, u64 begin,
 	vmr->flags = flags;
 	vmr->begin = begin;
 	vmr->end = begin + len;
+	init_mmap_info(&vmr->mmap_info);
 	list_push_back(&vms->vmregions, &vmr->stnode);
 	return vmr;
 }
@@ -121,7 +140,7 @@ u64 sbrk(i64 size)
 	list_forall(p, thisproc()->vmspace.vmregions)
 	{
 		struct vmregion *v = container_of(p, struct vmregion, stnode);
-		if (v->flags & ST_HEAP) {
+		if (v->flags & VMR_HEAP) {
 			// Save the old end address of the vmregion.
 			old_end = v->end;
 
@@ -162,40 +181,48 @@ heap_found:
 	return old_end;
 }
 
-int pgfault_handler(u64 iss)
+/**
+ * Check if the virtual address [start,start+size) is READABLE by the current
+ * user process
+ */
+bool user_readable(const void *start, usize size)
 {
-	struct proc *p = thisproc();
-	struct vmspace *vs = &p->vmspace;
-
-	/* The address which caused the page fault. */
-	u64 addr = arch_get_far();
-
-	ASSERT(addr);
-
-	(void)iss;
-
-	printk("Fault address: %llx\n", (u64)addr);
-
-	ASSERT(1 == 2);
-
-	list_forall(p, vs->vmregions)
+	struct list vmregions = thisproc()->vmspace.vmregions;
+	list_forall(p, vmregions)
 	{
 		struct vmregion *v = container_of(p, struct vmregion, stnode);
-		if (v->begin <= addr && addr < v->end) {
-			if (v->flags & ST_HEAP) {
-				map_in_pgtbl(vs->pgtbl, addr, kalloc_page(),
-					     PTE_VALID | PTE_USER_DATA);
-			} else {
-				printk("[Error] Unsupported page fault.\n");
-				if (kill(thisproc()->pid) == -1)
-					printk("[Error] Failed to kill.\n");
-				PANIC();
-			}
-		}
+		if (v->begin <= (u64)start && ((u64)start) + size <= v->end)
+			return true;
 	}
+	return false;
+}
 
-	// We have modified the page table. Therefore, we should flush TLB to ensure
-	// consistency.
-	arch_tlbi_vmalle1is();
+/* Check if the virtual address [start,start+size) is READABLE & WRITEABLE by
+ * the current user process. */
+bool user_writeable(const void *start, usize size)
+{
+	struct list vmregions = thisproc()->vmspace.vmregions;
+	list_forall(p, vmregions)
+	{
+		struct vmregion *v = container_of(p, struct vmregion, stnode);
+		if (!(v->flags & VMR_RO) && v->begin <= (u64)start &&
+		    ((u64)start) + size <= v->end)
+			return true;
+	}
+	return false;
+}
+
+/* Get the length of a string including tailing '\0' in the memory space of
+ * current user process return 0 if the length exceeds maxlen or the string is
+ * not readable by the current user process */
+usize user_strlen(const char *str, usize maxlen)
+{
+	for (usize i = 0; i < maxlen; i++) {
+		if (user_readable(&str[i], 1)) {
+			if (str[i] == 0)
+				return i + 1;
+		} else
+			return 0;
+	}
 	return 0;
 }

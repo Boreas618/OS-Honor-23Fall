@@ -146,6 +146,7 @@ void createtest(void)
 		fd = open(name, O_CREAT | O_RDWR);
 		close(fd);
 	}
+	
 	name[0] = 'a';
 	name[2] = '\0';
 	for (i = 0; i < 52; i++) {

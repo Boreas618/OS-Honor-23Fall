@@ -5,7 +5,7 @@
 #include <lib/printk.h>
 #include <proc/proc.h>
 #include <proc/sched.h>
-#include <vm/vmregion.h>
+#include <vm/pgfault_handler.h>
 
 void trap_global_handler(UserContext *context)
 {

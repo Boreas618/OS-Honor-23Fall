@@ -85,6 +85,7 @@ static Block *cache_acquire(usize block_no)
 {
 	Block *b = NULL;
 	acquire_spinlock(&lock);
+	lock.c = 1;
 
 	// The requested block is right in the cache.
 	if ((b = _fetch_cached(block_no))) {
@@ -110,7 +111,9 @@ static Block *cache_acquire(usize block_no)
 	list_push_back(&blocks, &b->node);
 
 	// Load the content of the block from disk.
+	release_spinlock(&lock);
 	device_read(b);
+	acquire_spinlock(&lock);
 	b->valid = true;
 	boost_frequency(b);
 	release_spinlock(&lock);
@@ -121,6 +124,7 @@ static void cache_release(Block *block)
 {
 	ASSERT(block->acquired);
 	acquire_spinlock(&lock);
+	lock.c = 2;
 	block->acquired = false;
 	cond_signal(&block->lock);
 	release_spinlock(&lock);
@@ -206,12 +210,12 @@ static void cache_end_op(OpContext *ctx)
 	// log, sync the header in memory with the header in disk and finally write
 	// the checkpoint to the disk.
 	if (log.contributors_cnt == 0) {
+		release_spinlock(&log.lock);
 		write_log();
 		write_header();
 		spawn_ckpt();
 		cond_broadcast(&log.work_done);
 	}
-	release_spinlock(&log.lock);
 }
 
 static usize cache_alloc(OpContext *ctx)

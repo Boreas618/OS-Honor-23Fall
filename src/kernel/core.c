@@ -36,7 +36,7 @@ void set_user_init()
 	p->cwd = inodes.share(inodes.root);
 
 	// Map init.S to 0x8000 in the process's memory space.
-	create_vmregion(&p->vmspace, ST_TEXT, 0x8000,
+	create_vmregion(&p->vmspace, VMR_TEXT, 0x8000,
 			(u64)eicode - PAGE_BASE((u64)icode));
 
 	for (u64 i = PAGE_BASE((u64)(icode)); i <= (u64)eicode; i += PAGE_SIZE)
@@ -48,9 +48,18 @@ void set_user_init()
 	p->ucontext->elr = (u64)0x8000 + (u64)icode - (PAGE_BASE((u64)icode));
 }
 
+void print_logo() {
+    printk("\n");
+	printk("   _______  _____\n");
+	printk("  / __/ _ \\/ ___/__  _______\n");
+	printk(" / _// // / /__/ _ \\/ __/ -_)\n");
+	printk("/_/ /____/\\___/\\___/_/  \\__/\n");
+	printk("\n");
+}
+
 void kernel_entry()
 {
-	printk("Hello, world!\n");
+    print_logo();
 	disk_init();
 	// sd_test();
 	// proc_test();

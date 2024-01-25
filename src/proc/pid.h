@@ -1,11 +1,10 @@
 #pragma once
 #include <lib/spinlock.h>
+#include <kernel/param.h>
 
-#define PID_POOL_SIZE 1 << 20
+typedef struct pid_pool PidPool;
 
-typedef struct pidpool PidPool;
-
-struct pidpool {
+struct pid_pool {
 	SpinLock lock;
 	u8 bm[PID_POOL_SIZE];
 	u64 window;

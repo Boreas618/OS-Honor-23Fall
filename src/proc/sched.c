@@ -13,7 +13,7 @@ static struct timer sched_timer[NCPU];
 
 static RBTree rq[NCPU];
 
-define_early_init(sched_helper)
+define_early_init(rq)
 {
 	for (int i = 0; i < NCPU; i++)
 		rbtree_init(&rq[i]);
@@ -112,13 +112,6 @@ static void update_this_proc(struct proc *p)
 	sched_timer[cpuid()].handler = __sched_handler;
 	set_cpu_timer(&sched_timer[cpuid()]);
 	sched_timer[cpuid()].data = 1;
-
-#ifdef SCHED_DEBUG
-	if (p->state != RUNNABLE) {
-		printk("\n%d\n", p->state);
-		ASSERT(false);
-	}
-#endif
 
 	// Fetch p from rq and mark it as RUNNING
 	p->state = RUNNING;
