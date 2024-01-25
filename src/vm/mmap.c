@@ -6,7 +6,7 @@
 #include <lib/printk.h>
 #include <lib/string.h>
 
-static void *get_addr(void *addr, int length, struct vmspace *vs)
+static void *mmap_get_addr(void *addr, int length, struct vmspace *vs)
 {
 	if (addr == 0) {
 		u64 start = 0;
@@ -14,7 +14,7 @@ static void *get_addr(void *addr, int length, struct vmspace *vs)
 		{
 			struct vmregion *vmr =
 				container_of(pv, struct vmregion, stnode);
-			if (vmr->end > start)
+			if (!(vmr->flags & VMR_STACK) && (vmr->end > start))
 				start = vmr->end;
 		}
 		return (void *)round_up((u64)start, PAGE_SIZE);
@@ -54,7 +54,7 @@ u64 mmap(void *addr, int length, int prot, int flags, int fd, usize offset)
 	v->mmap_info.fp = file_dup(f);
 	v->mmap_info.prot = prot;
 
-	v->begin = (u64)get_addr(addr, length, &p->vmspace);
+	v->begin = (u64)mmap_get_addr(addr, length, &p->vmspace);
 	v->end = v->begin + length;
 
 	if (v->begin == 0)

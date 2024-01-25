@@ -85,34 +85,50 @@ static int execve_load_section(struct vmspace *vms, Elf64_Phdr ph,
 	return 0;
 }
 
-static u64 execve_alloc_stack(struct vmspace *vms, u64 *sb)
+static int execve_alloc_heap(struct vmspace *vms)
 {
-	u64 stack_base = 0;
+	u64 heap_base = 0;
 	list_forall(p, vms->vmregions)
 	{
 		struct vmregion *vmr = container_of(p, struct vmregion, stnode);
-		if (vmr->end > stack_base)
-			stack_base = vmr->end;
+		if (vmr->end > heap_base)
+			heap_base = vmr->end;
 	}
 
-	// There should be one protecting page for the stack.
-	stack_base = PAGE_BASE(stack_base) + 2 * PAGE_SIZE;
-	*sb = stack_base;
-	u64 sp = stack_base + STACK_SIZE;
+	// There should be one protecting page for the heap.
+	heap_base = PAGE_BASE(heap_base) + 2 * PAGE_SIZE;
 
 	struct vmregion *vmr =
-		create_vmregion(vms, VMR_STACK, stack_base, STACK_SIZE);
+		create_vmregion(vms, VMR_HEAP, heap_base, HEAP_SIZE);
 	if (vmr == NULL)
 		return -1;
 
-	while (stack_base < sp) {
-		void *ka = kalloc_page();
-		memset(ka, 0, PAGE_SIZE);
-		map_in_pgtbl(vms->pgtbl, stack_base, ka, PTE_USER_DATA);
-		stack_base += PAGE_SIZE;
+	for (u64 i = heap_base; i < HEAP_SIZE; i += PAGE_SIZE)
+		map_in_pgtbl(vms->pgtbl, i, get_zero_page(), PTE_USER_DATA);
+
+	return 0;
+}
+
+static int execve_alloc_stack(struct vmspace *vms)
+{
+	struct vmregion *vmr = create_vmregion(
+		vms, VMR_STACK, STACK_BASE - STACK_SIZE, STACK_SIZE);
+	if (vmr == NULL)
+		return -1;
+
+	for (u64 i = STACK_BASE - STACK_SIZE; i < STACK_BASE;
+	     i += PAGE_SIZE) {
+		if (i < STACK_BASE - STACK_SIZE + STACK_PAGES_INIT * PAGE_SIZE) {
+			void *ka = kalloc_page();
+			memset(ka, 0, PAGE_SIZE);
+			map_in_pgtbl(vms->pgtbl, i, ka, PTE_USER_DATA);
+		} else {
+			map_in_pgtbl(vms->pgtbl, i, get_zero_page(),
+				     PTE_USER_DATA);
+		}
 	}
 
-	return sp;
+	return 0;
 }
 
 int execve(const char *path, char *const argv[], char *const envp[])
@@ -165,10 +181,14 @@ int execve(const char *path, char *const argv[], char *const envp[])
 	inodes.put(&ctx, ip);
 	bcache.end_op(&ctx);
 
-	u64 stack_base = 0;
-	u64 sp = execve_alloc_stack(&vms, &stack_base);
+	if (execve_alloc_heap(&vms) < 0)
+		goto bad;
+	if (execve_alloc_stack(&vms) < 0)
+		goto bad;
 
-	char *ustack_envp[32] = { 0 };
+	u64 sp = STACK_BASE;
+
+	char *ustack_envp[32] = { NULL };
 	int envc = 0;
 	if (envp != NULL) {
 		for (envc = 0; envp[envc]; envc++) {
@@ -179,7 +199,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
 			sp -= strlen(envp[envc]) + 1;
 			sp -= sp % 16;
 
-			if (sp < stack_base)
+			if (sp < STACK_BASE - STACK_SIZE)
 				goto bad;
 			if (copy_to_user(vms.pgtbl, (void *)(sp), envp[envc],
 					 strlen(envp[envc]) + 1) < 0)
@@ -202,7 +222,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
 			sp -= strlen(argv[argc]) + 1;
 			sp -= sp % 16;
 
-			if (sp < stack_base)
+			if (sp < STACK_BASE - STACK_SIZE)
 				goto bad;
 			if (copy_to_user(vms.pgtbl, (void *)(sp), argv[argc],
 					 strlen(argv[argc]) + 1) < 0)
@@ -215,12 +235,14 @@ int execve(const char *path, char *const argv[], char *const envp[])
 	sp -= sp % 16;
 
 	sp -= (envc + 1) * sizeof(char *);
-	ASSERT(copy_to_user(vms.pgtbl, (void *)sp, &ustack_envp,
-			    (envc + 1) * sizeof(char *)) == 0);
+	if (copy_to_user(vms.pgtbl, (void *)sp, &ustack_envp,
+			 (envc + 1) * sizeof(char *)) < 0)
+		goto bad;
 
 	sp -= (argc + 1) * sizeof(char *);
-	ASSERT(copy_to_user(vms.pgtbl, (void *)sp, &ustack_argv,
-			    (argc + 1) * sizeof(char *)) == 0);
+	if (copy_to_user(vms.pgtbl, (void *)sp, &ustack_argv,
+			 (argc + 1) * sizeof(char *)) < 0)
+		goto bad;
 
 	/**
      * See https://stackoverflow.com/questions/25589452/c-c-argv-memory-manage
@@ -236,7 +258,8 @@ int execve(const char *path, char *const argv[], char *const envp[])
      */
 
 	sp -= 8;
-	ASSERT(copy_to_user(vms.pgtbl, (void *)sp, &argc, sizeof(int)) == 0);
+	if (copy_to_user(vms.pgtbl, (void *)sp, &argc, sizeof(int)) < 0)
+		goto bad;
 
 	thisproc()->ucontext->sp = sp;
 	thisproc()->ucontext->elr = elf.e_entry;
