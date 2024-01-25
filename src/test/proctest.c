@@ -55,7 +55,7 @@ static void proc_test_1a(u64 a)
 {
 	for (int i = 0; i < 10; i++) {
 		auto p = create_proc();
-		init_proc(p);
+		init_proc(p, false);
 		set_parent_to_this(p);
 		start_proc(p, proc_test_1b, a * 10 + i + 10);
 	}
@@ -124,7 +124,7 @@ static void proc_test_1()
 	int pid[10];
 	for (int i = 0; i < 10; i++) {
 		auto p = create_proc();
-		init_proc(p);
+		init_proc(p,false);
 		set_parent_to_this(p);
 		pid[i] = start_proc(p, proc_test_1a, i);
 	}
@@ -141,7 +141,7 @@ void proc_test()
 {
 	printk("proc_test\n");
 	auto p = create_proc();
-	init_proc(p);
+	init_proc(p, false);
 	int pid = start_proc(p, proc_test_1, 0);
 	int t = 0;
 	while (1) {

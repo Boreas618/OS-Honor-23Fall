@@ -55,7 +55,7 @@ struct proc {
 void kernel_entry();
 void idle_entry();
 struct proc *create_idle();
-void init_proc(struct proc *p);
+void init_proc(struct proc *p, bool idle);
 WARN_RESULT struct proc *create_proc();
 int start_proc(struct proc *, void (*entry)(u64), u64 arg);
 NO_RETURN void exit(int code);

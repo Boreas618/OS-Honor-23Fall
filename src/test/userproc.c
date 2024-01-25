@@ -68,7 +68,7 @@ void user_proc_test()
 	int pids[NPROC];
 	for (int i = 0; i < NPROC; i++) {
 		auto p = create_proc();
-		init_proc(p);
+		init_proc(p, false);
 		for (u64 q = (u64)loop_start; q < (u64)loop_end;
 		     q += PAGE_SIZE) {
 			map_in_pgtbl(p->vmspace.pgtbl,
