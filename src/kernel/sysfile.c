@@ -14,6 +14,7 @@
 #include <proc/sched.h>
 #include <sys/syscall.h>
 #include <vm/vmregion.h>
+#include <vm/mmap.h>
 
 extern struct inode_tree inodes;
 extern struct block_cache bcache;
@@ -55,16 +56,16 @@ define_syscall(ioctl, int fd, u64 request)
 	return 0;
 }
 
-/*
-define_syscall(mmap, void* addr, int length, int prot, int flags, int fd, int
-offset) {
-     // TODO
+define_syscall(mmap, void *addr, int length, int prot, int flags, int fd,
+	       int offset)
+{
+	return mmap(addr, length, prot, flags, fd, offset);
 }
 
-define_syscall(munmap, void *addr, usize length) {
-     // TODO
+define_syscall(munmap, void *addr, usize length)
+{
+	return munmap(addr, length);
 }
-*/
 
 /* Get the parameters and call filedup. */
 define_syscall(dup, int fd)
