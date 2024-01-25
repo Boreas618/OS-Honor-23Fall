@@ -62,5 +62,5 @@ NO_RETURN void exit(int code);
 WARN_RESULT int wait(int *exitcode);
 bool sleep(struct semaphore *sem, struct spinlock *lock);
 WARN_RESULT int kill(int pid);
-WARN_RESULT int fork(bool copy_pt);
+WARN_RESULT int fork();
 void trap_return();

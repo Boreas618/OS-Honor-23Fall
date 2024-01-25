@@ -241,7 +241,6 @@ static usize inode_map(OpContext* ctx,
                        Inode* inode,
                        usize offset,
                        bool* modified) {
-    // TODO
     ASSERT(offset < INODE_NUM_DIRECT + INODE_NUM_INDIRECT);
     InodeEntry* entry_ptr = &(inode->entry);
     // find in 'direct'
@@ -283,7 +282,6 @@ static usize inode_read(Inode* inode, u8* dest, usize offset, usize count) {
     ASSERT(end <= entry->num_bytes);
     ASSERT(offset <= end);
     
-    // TODO
     bool modified = FALSE;
     u8* src;
     for (usize i = 0, cnt = 0; i < count; i += cnt, dest += cnt, offset += cnt) {
@@ -303,7 +301,6 @@ static usize inode_read(Inode* inode, u8* dest, usize offset, usize count) {
     return count;
 }
 
-// see `inode.h`.
 static usize inode_write(OpContext* ctx,
                          Inode* inode,
                          u8* src,
@@ -319,7 +316,6 @@ static usize inode_write(OpContext* ctx,
     ASSERT(end <= INODE_MAX_BYTES);
     ASSERT(offset <= end);
 
-    // TODO
     bool modified = FALSE;
     u8* dest;
     for (usize i = 0, cnt = 0; i < count; i += cnt, src += cnt, offset += cnt) {
@@ -343,7 +339,6 @@ static usize inode_write(OpContext* ctx,
     return count;
 }
 
-// see `inode.h`.
 static usize inode_lookup(Inode* inode, const char* name, usize* index) {
     InodeEntry* entry = &inode->entry;
     ASSERT(entry->type == INODE_DIRECTORY);
@@ -362,7 +357,6 @@ static usize inode_lookup(Inode* inode, const char* name, usize* index) {
     return 0;
 }
 
-// see `inode.h`.
 static usize inode_insert(OpContext* ctx,
                           Inode* inode,
                           const char* name,
@@ -370,7 +364,6 @@ static usize inode_insert(OpContext* ctx,
     InodeEntry* entry = &inode->entry;
     ASSERT(entry->type == INODE_DIRECTORY);
 
-    // TODO
     usize index = 0;
     //if not find
     if (inode_lookup(inode, name, &index) != 0) {
@@ -394,7 +387,6 @@ static usize inode_insert(OpContext* ctx,
 
 // see `inode.h`.
 static void inode_remove(OpContext* ctx, Inode* inode, usize index) {
-    // TODO
     if (index < inode->entry.num_bytes) {
         char zero[sizeof(struct dirent)] = {0};
         inode_write(ctx, inode, (void*)zero, index, sizeof(struct dirent));

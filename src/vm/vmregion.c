@@ -71,6 +71,8 @@ void copy_vmspace(struct vmspace *vms_source, struct vmspace *vms_dest,
 				continue;
 
 			if (share) {
+				*pte_ptr = *pte_ptr | PTE_RO;
+				arch_tlbi_vmalle1is();
 				map_in_pgtbl(vms_dest->pgtbl, i,
 					     (void *)P2K(PTE_ADDRESS(*pte_ptr)),
 					     PTE_FLAGS(*pte_ptr));

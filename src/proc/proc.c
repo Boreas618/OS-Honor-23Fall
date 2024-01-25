@@ -98,9 +98,10 @@ NO_RETURN void exit(int code)
 	struct op_ctx ctx;
 	bcache.begin_op(&ctx);
 	inodes.put(&ctx, p->cwd);
-	bcache.end_op(&ctx);
 	p->cwd = NULL;
-
+	release_spinlock(&proc_lock);
+	bcache.end_op(&ctx);
+	acquire_spinlock(&proc_lock);
 	// Notify the parent.
 	post_sem(&(p->parent->childexit));
 	release_spinlock(&proc_lock);
@@ -221,20 +222,15 @@ struct proc *create_idle()
  * Create a new process copying p as the parent.
  * Sets up stack to return as if from system call.
  */
-int fork(bool copy_pt)
+int fork()
 {
-    (void) copy_pt;
 	struct proc *this = thisproc();
 	struct proc *child = create_proc();
 
 	init_proc(child);
 	set_parent_to_this(child);
 
-    freeze_pages_in_vmspace(&this->vmspace);
-    copy_vmspace(&this->vmspace, &child->vmspace, true);
-
-    // copy_vmregions(&this->vmspace, &child->vmspace);
-    // child->vmspace.pgtbl = this->vmspace.pgtbl;
+	copy_vmspace(&this->vmspace, &child->vmspace, true);
 
 	// Copy saved user registers.
 	*(child->ucontext) = *(this->ucontext);

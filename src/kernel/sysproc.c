@@ -51,7 +51,7 @@ define_syscall(clone, int flag, void *childstk)
 		printk("sys_clone: flags other than SIGCHLD are not supported.\n");
 		return -1;
 	}
-	return fork(false);
+	return fork();
 }
 
 define_syscall(myexit, int n)
