@@ -13,21 +13,6 @@
 #include <vm/pgtbl.h>
 #include <vm/vmregion.h>
 
-void freeze_pages_in_vmspace(struct vmspace *vms)
-{
-	list_forall(p, vms->vmregions)
-	{
-		struct vmregion *vmr = container_of(p, struct vmregion, stnode);
-		for (u64 i = PAGE_BASE(vmr->begin); i < vmr->end;
-		     i += PAGE_SIZE) {
-			pgtbl_entry_t *pte_ptr = get_pte(vms->pgtbl, i, false);
-			if (pte_ptr == NULL || !(*pte_ptr & PTE_VALID))
-				continue;
-			*pte_ptr = *pte_ptr | PTE_RO;
-		}
-	}
-}
-
 void copy_vmregions(struct vmspace *vms_source, struct vmspace *vms_dest)
 {
 	// Clear the vmregions of the dest vmspace.
@@ -40,6 +25,14 @@ void copy_vmregions(struct vmspace *vms_source, struct vmspace *vms_dest)
 		create_vmregion(vms_dest, vmr->flags, vmr->begin,
 				vmr->end - vmr->begin);
 	}
+}
+
+void init_mmap_info(struct mmap_info *m)
+{
+	m->fp = NULL;
+	m->offset = 0;
+	m->prot = 0;
+	m->flags = 0;
 }
 
 void init_vmspace(struct vmspace *vms)
@@ -71,11 +64,12 @@ void copy_vmspace(struct vmspace *vms_source, struct vmspace *vms_dest,
 				continue;
 
 			if (share) {
-				*pte_ptr = *pte_ptr | PTE_RO;
-				arch_tlbi_vmalle1is();
 				map_in_pgtbl(vms_dest->pgtbl, i,
 					     (void *)P2K(PTE_ADDRESS(*pte_ptr)),
-					     PTE_FLAGS(*pte_ptr));
+					     PTE_FLAGS(*pte_ptr) | PTE_RO);
+				map_in_pgtbl(vms_source->pgtbl, i,
+					     (void *)P2K(PTE_ADDRESS(*pte_ptr)),
+					     (PTE_FLAGS(*pte_ptr) | PTE_RO));
 			} else {
 				// Allocate a new page and map it in the new page table.
 				void *ka = kalloc_page();
@@ -120,6 +114,7 @@ struct vmregion *create_vmregion(struct vmspace *vms, u64 flags, u64 begin,
 	vmr->flags = flags;
 	vmr->begin = begin;
 	vmr->end = begin + len;
+	init_mmap_info(&vmr->mmap_info);
 	list_push_back(&vms->vmregions, &vmr->stnode);
 	return vmr;
 }
