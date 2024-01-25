@@ -10,6 +10,7 @@
 #include <proc/sched.h>
 #include <vm/vmregion.h>
 #include <vm/pgtbl.h>
+#include <driver/clock.h>
 
 struct proc root_proc;
 

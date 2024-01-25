@@ -104,7 +104,7 @@ static int execve_alloc_heap(struct vmspace *vms)
 		return -1;
 
 	for (u64 i = heap_base; i < HEAP_SIZE; i += PAGE_SIZE)
-		map_in_pgtbl(vms->pgtbl, i, get_zero_page(), PTE_USER_DATA);
+		map_in_pgtbl(vms->pgtbl, i, get_zero_page(), PTE_USER_DATA | PTE_RO);
 
 	return 0;
 }
@@ -124,7 +124,7 @@ static int execve_alloc_stack(struct vmspace *vms)
 			map_in_pgtbl(vms->pgtbl, i, ka, PTE_USER_DATA);
 		} else {
 			map_in_pgtbl(vms->pgtbl, i, get_zero_page(),
-				     PTE_USER_DATA);
+				     PTE_USER_DATA | PTE_RO);
 		}
 	}
 
