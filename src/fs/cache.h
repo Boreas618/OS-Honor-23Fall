@@ -12,7 +12,7 @@
  * If the number of cached blocks is no less than this threshold, we can evict
  * some blocks in `acquire` to keep block cache small.
  */
-#define EVICTION_THRESHOLD 400
+#define EVICTION_THRESHOLD 1024
 
 /**
  * block - a block in block cache.

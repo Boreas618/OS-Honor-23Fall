@@ -84,6 +84,7 @@ void free_page_table(pgtbl_entry_t **pt)
 {
 	ASSERT(*pt != NULL);
 	__free_page_table_level((pgtbl_entry_t *)pt, 0);
+	kfree_page((void*)P2K(*pt));
 	*pt = NULL;
 }
 

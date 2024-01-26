@@ -120,7 +120,7 @@ wrap_up:
 	b->flags = B_VALID;
 	queue_pop(&bufs);
 	// Wake up the disk_rw task.
-	post_sem(&b->sem);
+	cond_signal(&b->sem);
 	// Turn to the next buf.
 	if (!queue_empty(&bufs)) {
 		b = container_of(queue_front(&bufs), struct buf, bq_node);
@@ -133,7 +133,7 @@ void disk_rw(struct buf *b)
 {
 	// Save the old flags for comparsion.
 	int old_flags = b->flags;
-	init_sem(&(b->sem), 0);
+	init_sem(&(b->sem), 1);
 	acquire_spinlock(&disk_lock);
 
 	// Push the buf into the queue. If the queue is empty, start the disk
@@ -141,6 +141,7 @@ void disk_rw(struct buf *b)
 	queue_push(&bufs, &(b->bq_node));
 	if (bufs.size == 1)
 		disk_start(b);
+
 	// Loop until the flags has changed.
 	while (old_flags == b->flags)
 		cond_wait(&b->sem, &disk_lock);

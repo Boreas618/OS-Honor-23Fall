@@ -169,7 +169,7 @@ void list_remove(List *l, ListNode *item)
 	ASSERT(item->prev);
 	ASSERT(item->next);
 
-	if (l->size == 1) {
+	if (l->size == 1 && item == l->head) {
 		l->head = NULL;
 		l->size = 0;
 		return;
