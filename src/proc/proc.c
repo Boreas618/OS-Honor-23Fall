@@ -238,7 +238,7 @@ int fork()
 
 #ifndef FORK_COPY
 	copy_vmspace(&this->vmspace, &child->vmspace, true);
-#elif
+#else
 	copy_vmspace(&this->vmspace, &child->vmspace, false);
 #endif
 

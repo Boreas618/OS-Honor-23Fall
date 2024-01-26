@@ -169,8 +169,7 @@ void kfree(void *p)
 
 	/* Recycle the partitioned pages if the partitions are all freed. */
 	if (page_info[id].alloc_partitions_cnt == 0) {
-		list_remove(&slabs[page_info[id].partitioned_node.bucket_index],
-			    &page_info[id].partitioned_node.pp_node);
+		list_remove(&slabs[page_info[id].partitioned_node.bucket_index], &page_info[id].partitioned_node.pp_node);
 		kfree_page((void *)(page_info[id].partitioned_node.page->addr));
 	}
 

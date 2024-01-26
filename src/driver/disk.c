@@ -86,7 +86,7 @@ void disk_start(struct buf *b)
 /* The interrupt handler. Sync buf with disk. */
 void disk_intr()
 {
-	acquire_spinlock(&disk_lock);
+	queue_lock(&bufs);
 	struct buf *b = container_of(queue_front(&bufs), struct buf, bq_node);
 	u32 *intbuf = (u32 *)b->data;
 	int flags = b->flags;
@@ -124,26 +124,33 @@ wrap_up:
 	// Turn to the next buf.
 	if (!queue_empty(&bufs)) {
 		b = container_of(queue_front(&bufs), struct buf, bq_node);
+		// acquire_spinlock(&disk_lock);
 		disk_start(b);
+		// release_spinlock(&disk_lock);
 	}
-	release_spinlock(&disk_lock);
+	queue_unlock(&bufs);
 }
 
 void disk_rw(struct buf *b)
 {
 	// Save the old flags for comparsion.
-	int old_flags = b->flags;
-	init_sem(&(b->sem), 1);
-	acquire_spinlock(&disk_lock);
+	//int old_flags = b->flags;
+	init_sem(&(b->sem), 0);
+	queue_lock(&bufs);
 
 	// Push the buf into the queue. If the queue is empty, start the disk
 	// operation.
 	queue_push(&bufs, &(b->bq_node));
-	if (bufs.size == 1)
-		disk_start(b);
 
+	if (bufs.size == 1) {
+		// acquire_spinlock(&disk_lock);
+		disk_start(b);
+		// release_spinlock(&disk_lock);
+	}
+
+	queue_unlock(&bufs);
 	// Loop until the flags has changed.
-	while (old_flags == b->flags)
-		cond_wait(&b->sem, &disk_lock);
-	release_spinlock(&disk_lock);
+	while (b->flags != B_VALID) {
+        unalertable_wait_sem(&(b->sem));
+    }
 }

@@ -169,14 +169,19 @@ void list_remove(List *l, ListNode *item)
 	ASSERT(item->prev);
 	ASSERT(item->next);
 
-	if (l->size == 1 && item == l->head) {
+	if (l->size == 1) {
+		if (item != l->head) {
+			return;
+		}
 		l->head = NULL;
 		l->size = 0;
 		return;
 	}
 
-	if (item == l->head)
-		l->head = item->next;
+	if (item == l->head) {
+		ASSERT(l->head->next != l->head);
+		l->head = l->head->next;
+	}
 	_detach_from_list(item);
 	l->size--;
 }
