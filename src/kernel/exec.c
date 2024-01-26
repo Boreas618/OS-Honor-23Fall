@@ -118,7 +118,7 @@ static int execve_alloc_stack(struct vmspace *vms)
 
 	for (u64 i = STACK_BASE - STACK_SIZE; i < STACK_BASE;
 	     i += PAGE_SIZE) {
-		if (i < STACK_BASE - STACK_SIZE + STACK_PAGES_INIT * PAGE_SIZE) {
+		if (i >= STACK_BASE - STACK_PAGES_INIT * PAGE_SIZE) {
 			void *ka = kalloc_page();
 			memset(ka, 0, PAGE_SIZE);
 			map_in_pgtbl(vms->pgtbl, i, ka, PTE_USER_DATA);
