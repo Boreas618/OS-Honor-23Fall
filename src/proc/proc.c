@@ -11,6 +11,7 @@
 #include <vm/vmregion.h>
 #include <vm/pgtbl.h>
 #include <driver/clock.h>
+#include <kernel/param.h>
 
 struct proc root_proc;
 
@@ -79,9 +80,6 @@ NO_RETURN void exit(int code)
 	// Set the exit code.
 	p->exitcode = code;
 
-	// Free the page table.
-	free_page_table(&(p->vmspace.pgtbl));
-
 	// Transfer the children and zombies to the root proc.
 	transfer_children(&root_proc, p);
 
@@ -139,6 +137,7 @@ int wait(int *exitcode)
 	*exitcode = zombie_child->exitcode;
 	free_pid(zombie_child->pid);
 	kfree_page(zombie_child->kstack);
+	destroy_vmspace(&zombie_child->vmspace);
 	kfree(zombie_child);
 	release_spinlock(&proc_lock);
 	return pid;
@@ -237,7 +236,11 @@ int fork()
 	init_proc(child, false);
 	set_parent_to_this(child);
 
+#ifndef FORK_COPY
 	copy_vmspace(&this->vmspace, &child->vmspace, true);
+#else
+	copy_vmspace(&this->vmspace, &child->vmspace, false);
+#endif
 
 	// Copy saved user registers.
 	*(child->ucontext) = *(this->ucontext);

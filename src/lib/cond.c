@@ -43,7 +43,7 @@ void cond_wait(struct semaphore *cond, struct spinlock *lock)
 	// Otherwise, release the lock, go to sleep, and reacquire the lock upon
 	// waking up as a typical condition variable would do.
 	release_spinlock(lock);
-	ASSERT(_wait_sem(cond, false));
+	ASSERT(_wait_sem(cond, true));
 	acquire_spinlock(lock);
 }
 

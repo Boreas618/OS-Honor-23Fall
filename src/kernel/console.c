@@ -7,8 +7,11 @@
 #include <lib/spinlock.h>
 #include <proc/sched.h>
 #include <kernel/param.h>
+#include <lib/printk.h>
+#include <kernel/mem.h>
 
 struct console cons;
+extern struct list blocks;
 
 define_init(console)
 {

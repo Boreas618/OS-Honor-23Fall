@@ -84,6 +84,7 @@ void free_page_table(pgtbl_entry_t **pt)
 {
 	ASSERT(*pt != NULL);
 	__free_page_table_level((pgtbl_entry_t *)pt, 0);
+	kfree_page((void*)P2K(*pt));
 	*pt = NULL;
 }
 
@@ -103,7 +104,7 @@ void map_in_pgtbl(pgtbl_entry_t *pt, u64 va, void *ka, u64 flags)
 	if (*pte & PTE_VALID)
 		unmap_in_pgtbl(pt, va);
 
-	*pte = (pgtbl_entry_t)(K2P(ka) | flags);
+	*pte = (pgtbl_entry_t)(K2P(ka) | flags | PTE_VALID);
 
 	struct page *page_mapped = get_page_info_by_kaddr(ka);
 	if (page_mapped)
@@ -130,51 +131,6 @@ void unmap_range_in_pgtbl(pgtbl_entry_t *pt, u64 begin, u64 end)
 	begin = PAGE_BASE(begin);
 	for (; begin < end; begin += PAGE_SIZE)
 		unmap_in_pgtbl(pt, begin);
-}
-
-void __do_freeze(pgtbl_entry_t *p)
-{
-	*p = (*p) | PTE_RO;
-}
-
-void __do_unfreeze(pgtbl_entry_t *p)
-{
-	*p = (*p) & (~PTE_RO);
-}
-
-void __modify_page_table_level(pgtbl_entry_t *pt,
-			       void (*handler)(pgtbl_entry_t *), u8 level)
-{
-	ASSERT(level <= 3);
-
-	if (level == 0)
-		pt = (pgtbl_entry_t *)P2K(pt);
-
-	// Get the pointer to the first PTE in the current PTE page.
-	pgtbl_entry_t *p_pte_base = (pgtbl_entry_t *)P2K(PTE_ADDRESS(*pt));
-
-	// Iterate over each PTE in the table.
-	for (int i = 0; i < N_PTE_PER_TABLE; i++) {
-		pgtbl_entry_t *p_pte = p_pte_base + i;
-		if (!(*p_pte & PTE_VALID))
-			continue;
-
-		// If not at the last level, recursively free the next level.
-		if (level != 3)
-			__modify_page_table_level(p_pte, handler, level + 1);
-
-		// *p_pte = (*p_pte) | PTE_RO;
-		handler(p_pte);
-		arch_tlbi_vmalle1is();
-	}
-}
-
-void modify_pgtbl(pgtbl_entry_t *pt, int flag)
-{
-	if (flag & PT_FREEZE)
-		__modify_page_table_level(pt, &__do_freeze, 0);
-	if (flag & PT_UNFREEZE)
-		__modify_page_table_level(pt, &__do_unfreeze, 0);
 }
 
 /* Copy len bytes from p to user address va in page table. */

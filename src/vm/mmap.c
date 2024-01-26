@@ -68,6 +68,29 @@ u64 mmap(void *addr, int length, int prot, int flags, int fd, usize offset)
 			goto bad;
 		*pte &= ~PTE_VALID;
 	}
+#ifndef MMAP_LAZY
+	int pte_flag = PTE_USER_DATA;
+
+	if (v->mmap_info.prot & PROT_READ)
+		pte_flag |= PTE_RO;
+
+	for (u64 i = v->begin; i < v->end; i += PAGE_SIZE)
+		map_in_pgtbl(p->vmspace.pgtbl, i, kalloc_page(), PTE_USER_DATA);
+
+	char *buf = (char *)kalloc_page();
+
+	inodes.lock(f->ip);
+	for (int i = 0; i < length; i += PAGE_SIZE) {
+		memset(buf, 0, PAGE_SIZE);
+		inodes.read(f->ip, (u8 *)buf, offset, PAGE_SIZE);
+		copy_to_user(p->vmspace.pgtbl, (void *)(v->begin + i), (void *)buf,
+			     MAX((usize)PAGE_SIZE, length - offset));
+		offset += PAGE_SIZE;
+	}
+	inodes.unlock(f->ip);
+
+	kfree_page((void *)buf);
+#endif
 
 	return v->begin;
 
