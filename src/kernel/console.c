@@ -86,10 +86,6 @@ void console_intr()
 	acquire_spinlock(&cons.lock);
 	char c = uart_get_char();
 	switch (c) {
-	case C('P'):
-		printk("Left page count: %lld\n", left_page_cnt());
-		printk("Cached block count: %lld\n", blocks.size);
-		break;
 	case C('U'):
 		while (cons.edit_idx != cons.write_idx &&
 		       cons.buf[(cons.edit_idx - 1) % INPUT_BUF_SIZE] != '\n') {
