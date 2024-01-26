@@ -11,6 +11,7 @@
 #include <vm/vmregion.h>
 #include <vm/pgtbl.h>
 #include <driver/clock.h>
+#include <kernel/param.h>
 
 struct proc root_proc;
 
