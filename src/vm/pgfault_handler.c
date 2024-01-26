@@ -4,6 +4,7 @@
 #include <proc/sched.h>
 #include <vm/vmregion.h>
 #include <vm/mmap.h>
+#include <kernel/param.h>
 
 void handle_copy_on_write(pgtbl_entry_t *pte, struct vmspace *vs, u64 addr)
 {
@@ -14,6 +15,7 @@ void handle_copy_on_write(pgtbl_entry_t *pte, struct vmspace *vs, u64 addr)
 	return;
 }
 
+#ifdef MMAP_LAZY
 void handle_memory_map(u64 begin, u64 end, struct vmspace *vs, u64 offset,
 		       struct file *f, int prot)
 {
@@ -40,6 +42,7 @@ void handle_memory_map(u64 begin, u64 end, struct vmspace *vs, u64 offset,
 
 	kfree_page((void *)buf);
 }
+#endif
 
 int pgfault_handler(u64 iss)
 {
@@ -65,9 +68,12 @@ int pgfault_handler(u64 iss)
 
 			// Memory mapped files.
 			if (is_vmr_mm) {
+#ifdef MMAP_LAZY
 				handle_memory_map(v->begin, v->end, vs,
 						  v->mmap_info.offset,
-						  v->mmap_info.fp, v->mmap_info.prot);
+						  v->mmap_info.fp,
+						  v->mmap_info.prot);
+#endif
 				goto finished;
 			}
 		}

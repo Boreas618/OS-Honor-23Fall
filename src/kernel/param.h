@@ -11,3 +11,4 @@
 #define NR_SYSCALL 512
 #define SLICE_LEN 1
 #define PID_POOL_SIZE 1 << 20
+#define MMAP_LAZY
