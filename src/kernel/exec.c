@@ -76,9 +76,8 @@ static int execve_load_section(struct vmspace *vms, Elf64_Phdr ph,
 		begin = PAGE_BASE(begin) + PAGE_SIZE;
 
 	while (begin < ph.p_vaddr + ph.p_memsz) {
-		void *ka = kalloc_page();
-		memset(ka, 0, PAGE_SIZE);
-		map_in_pgtbl(vms->pgtbl, begin, ka, PTE_USER_DATA);
+		map_in_pgtbl(vms->pgtbl, begin, get_zero_page(),
+			     PTE_USER_DATA | PTE_RO);
 		begin += PAGE_SIZE;
 	}
 
@@ -104,7 +103,8 @@ static int execve_alloc_heap(struct vmspace *vms)
 		return -1;
 
 	for (u64 i = heap_base; i < HEAP_SIZE; i += PAGE_SIZE)
-		map_in_pgtbl(vms->pgtbl, i, get_zero_page(), PTE_USER_DATA | PTE_RO);
+		map_in_pgtbl(vms->pgtbl, i, get_zero_page(),
+			     PTE_USER_DATA | PTE_RO);
 
 	return 0;
 }
@@ -116,8 +116,7 @@ static int execve_alloc_stack(struct vmspace *vms)
 	if (vmr == NULL)
 		return -1;
 
-	for (u64 i = STACK_BASE - STACK_SIZE; i < STACK_BASE;
-	     i += PAGE_SIZE) {
+	for (u64 i = STACK_BASE - STACK_SIZE; i < STACK_BASE; i += PAGE_SIZE) {
 		if (i >= STACK_BASE - STACK_PAGES_INIT * PAGE_SIZE) {
 			void *ka = kalloc_page();
 			memset(ka, 0, PAGE_SIZE);
@@ -265,6 +264,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
 	thisproc()->ucontext->elr = elf.e_entry;
 
 	copy_vmregions(&vms, &thisproc()->vmspace);
+	free_page_table(&thisproc()->vmspace.pgtbl);
 	thisproc()->vmspace.pgtbl = vms.pgtbl;
 
 	set_page_table(thisproc()->vmspace.pgtbl);

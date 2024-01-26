@@ -17,7 +17,7 @@ static const BlockDevice *device;
 static SpinLock lock;
 
 /* The list of all allocated in-memory block. */
-static List blocks;
+List blocks;
 
 /* In-memory copy of log header block. */
 static struct log_header header;
@@ -85,7 +85,6 @@ static Block *cache_acquire(usize block_no)
 {
 	Block *b = NULL;
 	acquire_spinlock(&lock);
-	lock.c = 1;
 
 	// The requested block is right in the cache.
 	if ((b = _fetch_cached(block_no))) {
@@ -124,7 +123,6 @@ static void cache_release(Block *block)
 {
 	ASSERT(block->acquired);
 	acquire_spinlock(&lock);
-	lock.c = 2;
 	block->acquired = false;
 	cond_signal(&block->lock);
 	release_spinlock(&lock);
@@ -291,18 +289,20 @@ INLINE Block *_fetch_cached(usize block_no)
 /* Evict 2 pages that are least frequently used. */
 INLINE bool _evict()
 {
-	bool flag = false;
+	list_lock(&blocks);
 	list_forall(p, blocks)
 	{
 		Block *b = container_of(p, Block, node);
-		if (!b->pinned) {
+		if (!b->pinned && !b->acquired) {
 			list_remove(&blocks, p);
-			if (flag)
-				return true;
-			flag = true;
+			//blocks.size--;
+			kfree(b);
+			list_unlock(&blocks);
+			return true;
 		}
 	}
-	return flag;
+	list_unlock(&blocks);
+	return false;
 }
 
 /*

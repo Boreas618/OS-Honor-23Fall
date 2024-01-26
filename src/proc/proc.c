@@ -80,9 +80,6 @@ NO_RETURN void exit(int code)
 	// Set the exit code.
 	p->exitcode = code;
 
-	// Free the page table.
-	free_page_table(&(p->vmspace.pgtbl));
-
 	// Transfer the children and zombies to the root proc.
 	transfer_children(&root_proc, p);
 
@@ -140,6 +137,7 @@ int wait(int *exitcode)
 	*exitcode = zombie_child->exitcode;
 	free_pid(zombie_child->pid);
 	kfree_page(zombie_child->kstack);
+	destroy_vmspace(&zombie_child->vmspace);
 	kfree(zombie_child);
 	release_spinlock(&proc_lock);
 	return pid;
