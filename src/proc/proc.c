@@ -237,7 +237,11 @@ int fork()
 	init_proc(child, false);
 	set_parent_to_this(child);
 
+#ifndef FORK_COPY
 	copy_vmspace(&this->vmspace, &child->vmspace, true);
+#elif
+	copy_vmspace(&this->vmspace, &child->vmspace, false);
+#endif
 
 	// Copy saved user registers.
 	*(child->ucontext) = *(this->ucontext);
